@@ -4,7 +4,7 @@ import { CHARACTERS } from '../data/characters';
 import { SCENES } from './keys';
 import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
-import { generateMeadow, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
+import { generateMeadow, MEADOW_MIN_HEIGHT, MEADOW_PIXEL_SCALE, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
 import { createMeadowTextures } from '../rendering/meadowTextures';
 
 export class RoomScene extends Phaser.Scene {
@@ -16,7 +16,7 @@ export class RoomScene extends Phaser.Scene {
   private seed = 0;
   private movement!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private direction = new Phaser.Math.Vector2();
-  private shadow!: Phaser.GameObjects.Ellipse;
+  private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
 
   constructor() { super(SCENES.room); }
@@ -30,9 +30,9 @@ export class RoomScene extends Phaser.Scene {
     this.playerHealth = SETTINGS.playerHealth;
     this.physics.resume();
     createMeadowTextures(this);
-    this.player = this.physics.add.image(0, 0, 'meadow-druid').setScale(2.5)
-      .setSize(8, 10).setOffset(4, 9).setCollideWorldBounds(true);
-    this.shadow = this.add.ellipse(0, 0, 34, 12, 0x172a1d, 0.4);
+    this.player = this.physics.add.image(0, 0, 'meadow-druid').setScale(MEADOW_PIXEL_SCALE)
+      .setSize(8, 10).setOffset(8, 13).setCollideWorldBounds(true);
+    this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
 
     const keyboard = this.input.keyboard!;
@@ -61,8 +61,9 @@ export class RoomScene extends Phaser.Scene {
   }
 
   private buildWorld(preservePosition = false) {
-    const zoom = this.scale.width / SETTINGS.width;
-    const width = SETTINGS.width;
+    // Очень широкое окно расширяет луг, сохраняя место для пня и проходов.
+    const zoom = Math.min(this.scale.width / SETTINGS.width, this.scale.height / MEADOW_MIN_HEIGHT);
+    const width = this.scale.width / zoom;
     const height = this.scale.height / zoom;
     const previousHeight = this.layout?.height;
     const old = { x: this.player.x, y: this.player.y };

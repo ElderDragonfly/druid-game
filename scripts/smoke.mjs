@@ -180,37 +180,46 @@ try {
   };
 
   const generation = await page.evaluate(async () => {
-    const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const { generateMeadow, obstacleRect, overlaps, treeBaseline } = await import('/src/world/meadowLayout.ts');
     const failures = [];
     let total = 0;
-    let minTrees = Infinity;
-    for (const height of [405, 540, 640, 960, 1440]) {
-      for (let seed = 0; seed < 100; seed++) {
-        const layout = generateMeadow(960, height, seed);
+    const bushCounts = new Set();
+    const landscapeTreeCounts = new Set();
+    for (const [width, height] of [[960, 405], [960, 540], [960, 640], [960, 716], [960, 960], [960, 1440], [1440, 405], [1944, 405]]) {
+      for (let seed = 0; seed < 1000; seed++) {
+        const layout = generateMeadow(width, height, seed);
         total++;
         const trees = layout.obstacles.filter(o => o.kind === 'tree');
         const bushes = layout.obstacles.filter(o => o.kind === 'bush');
         const stumps = layout.obstacles.filter(o => o.kind === 'stump');
-        minTrees = Math.min(minTrees, trees.length);
+        bushCounts.add(bushes.length);
+        if (height === 540) landscapeTreeCounts.add(trees.length);
         const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
-        const band = Math.min(135, 960 * 0.18, height * 0.25) + 42;
-        if (trees.length < 20 || bushes.length !== 6 || stumps.length !== 1 || stumps[0].x !== 480 || stumps[0].y !== height / 2 + 35 ||
-          !trees.every(o => Math.min(o.x, 960 - o.x, o.y, height - o.y) <= band) ||
-          !bushes.every(o => o.x >= 960 * 0.23 && o.x <= 960 * 0.77 && o.y >= height * 0.23 && o.y <= height * 0.78) ||
+        const band = Math.min(135, width * 0.18, height * 0.25) + 42;
+        const base = treeBaseline(width, height);
+        if (trees.length < base - 4 || trees.length > base + 4 || bushes.length < 4 || bushes.length > 7 ||
+          trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes || layout.counts.treeBase !== base ||
+          stumps.length !== 1 || stumps[0].x !== width / 2 || stumps[0].y !== height / 2 + 35 ||
+          !trees.every(o => Math.min(o.x, width - o.x, o.y, height - o.y) <= band) ||
+          !bushes.every(o => o.x >= width * 0.23 && o.x <= width * 0.77 && o.y >= height * 0.23 && o.y <= height * 0.78) ||
           layout.obstacles.some((object, i) => {
             const r = obstacleRect(object);
-            return r.x < 0 || r.y < 0 || r.x + r.width > 960 || r.y + r.height > height || overlaps(r, spawn) ||
-              layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 31));
-          })) failures.push({ height, seed });
+            return r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
+              layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
+          })) failures.push({ width, height, seed });
       }
     }
     return {
-      total, minTrees, failures,
+      total, failures,
+      bushCounts: [...bushCounts].sort((a, b) => a - b),
+      landscapeTreeCounts: [...landscapeTreeCounts].sort((a, b) => a - b),
       repeatable: JSON.stringify(generateMeadow(960, 640, 123)) === JSON.stringify(generateMeadow(960, 640, 123)),
       different: JSON.stringify(generateMeadow(960, 640, 123).obstacles) !== JSON.stringify(generateMeadow(960, 640, 124).obstacles),
     };
   });
-  ok(generation.failures.length === 0, `${generation.total} планировок: пень в центре, 6 кустов, деревья у краёв, свободные проходы и безопасный старт (${JSON.stringify(generation.failures)})`);
+  ok(generation.failures.length === 0, `${generation.total} планировок: 4–7 кустов, базовое число деревьев ±4, пень в центре, свободные проходы и безопасный старт (${JSON.stringify(generation.failures)})`);
+  ok(generation.bushCounts.join() === '4,5,6,7' && generation.landscapeTreeCounts.join() === '31,32,33,34,35,36,37,38,39',
+    'Генерация использует каждый допустимый вариант количества, включая границы диапазонов');
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
   const initial = await state();
@@ -244,14 +253,16 @@ try {
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
       let fixture;
-      for (const obstacle of current.obstacles.filter(item => item.kind === kind)) {
-        const center = { x: (obstacle.x + obstacle.right) / 2, y: (obstacle.y + obstacle.bottom) / 2 };
-        const distance = 26;
-        if (axis === 'x') center.x = sign > 0 ? obstacle.x - 10 - distance : obstacle.right + 10 + distance;
-        else center.y = sign > 0 ? obstacle.y - 12.5 - distance : obstacle.bottom + 12.5 + distance;
-        const body = { x: center.x - 10, y: center.y - 12.5, right: center.x + 10, bottom: center.y + 12.5 };
-        if (body.x >= 0 && body.y >= 0 && body.right <= current.layout.width && body.bottom <= current.layout.height &&
-          !current.obstacles.some(other => intersects(body, other))) { fixture = { obstacle, center }; break; }
+      for (const distance of [26, 12, 2]) {
+        for (const obstacle of current.obstacles.filter(item => item.kind === kind)) {
+          const center = { x: (obstacle.x + obstacle.right) / 2, y: (obstacle.y + obstacle.bottom) / 2 };
+          if (axis === 'x') center.x = sign > 0 ? obstacle.x - 10 - distance : obstacle.right + 10 + distance;
+          else center.y = sign > 0 ? obstacle.y - 12.5 - distance : obstacle.bottom + 12.5 + distance;
+          const body = { x: center.x - 10, y: center.y - 12.5, right: center.x + 10, bottom: center.y + 12.5 };
+          if (body.x >= 0 && body.y >= 0 && body.right <= current.layout.width && body.bottom <= current.layout.height &&
+            !current.obstacles.some(other => intersects(body, other))) { fixture = { obstacle, center, distance }; break; }
+        }
+      if (fixture) break;
       }
       assert.ok(fixture, `Нет свободного подхода ${kind} ${key}`);
       await page.evaluate(center => {
@@ -265,7 +276,7 @@ try {
       const o = fixture.obstacle;
       const edge = axis === 'x' ? (sign > 0 ? after.body.right - o.x : after.body.x - o.right)
         : (sign > 0 ? after.body.bottom - o.y : after.body.y - o.bottom);
-      ok(Math.abs(edge) < 1 && (after[axis] - before[axis]) * sign > 20 && !intersects(after.body, o),
+      ok(Math.abs(edge) < 1 && (after[axis] - before[axis]) * sign > fixture.distance - 1 && !intersects(after.body, o),
         `Препятствие ${kind} блокирует реальное движение ${key.toUpperCase()}`);
     }
   }
@@ -301,10 +312,11 @@ try {
   ok(regenerated.layout.seed !== oldSeed && JSON.stringify(regenerated.layout.obstacles) !== oldLayout, 'R создаёт новое случайное окружение');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
-  for (const viewport of [{ width: 1280, height: 720 }, { width: 720, height: 900 }, { width: 1100, height: 820 }]) {
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 1920, height: 540 }, { width: 720, height: 900 }, { width: 1100, height: 820 }]) {
     await page.setViewportSize(viewport);
+    const zoom = Math.min(viewport.width / 960, viewport.height / 405);
     await waitState(current => current.viewport.width === viewport.width && Math.abs(current.canvas.width - viewport.width) < 1 &&
-      Math.abs(current.layout.height - 960 * viewport.height / viewport.width) < 1);
+      Math.abs(current.layout.height - viewport.height / zoom) < 1 && Math.abs(current.layout.width - viewport.width / zoom) < 1);
     await delay(80);
     assertMeadow(await state());
   }
