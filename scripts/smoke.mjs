@@ -106,9 +106,9 @@ try {
     'Три ячейки: крайняя левая доступна, остальные закрыты');
   ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp' && slots.seatedCharacterId === slots.id,
     'На бревне сидит пиксельная версия выбранного друида');
-  ok(Math.abs(slots.seatedWidth - 190.8) < 0.01 && slots.seatedHeight === 265 && slots.seatedX === 806 && slots.seatedY === 400 &&
-    Math.abs(slots.seatedPixelScale - 265 / 75) < 0.01,
-    'Крупная фигура 54×75 сидит на прежнем бревне; её масштаб задаётся отдельно от задника');
+  ok(slots.seatedWidth === 100 && slots.seatedHeight === 140 && slots.seatedX === 806 && slots.seatedY === 400 &&
+    slots.seatedPixelScale === 2.5,
+    'Возвращён прежний сидящий друид 40×56 с исходным размером и положением на бревне');
   const campPixels = await page.evaluate(() => {
     const canvas = window.__smokeGame.textures.get('druid-camp').getSourceImage();
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -124,9 +124,9 @@ try {
     }
     return { width: canvas.width, height: canvas.height, colors: colors.size, transparent, translucent };
   });
-  ok(campPixels.width === 54 && campPixels.height === 75 && campPixels.colors <= 22 && campPixels.colors >= 8 &&
+  ok(campPixels.width === 40 && campPixels.height === 56 && campPixels.colors <= 16 && campPixels.colors >= 8 &&
     campPixels.transparent > 800 && campPixels.translucent === 0,
-    'Сидящий образ имеет сетку 54×75, до 22 цветов и чистый прозрачный фон');
+    'Сидящий образ сохраняет прежнюю сетку 40×56, до 16 цветов и чистый прозрачный фон');
   ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {

@@ -11,14 +11,14 @@ export const DRUID_TEXTURES = {
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 87, y: 25, width: 917, height: 1401 } },
+  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 280, y: 86, width: 769, height: 1093 } },
   { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 154, y: 88, width: 844, height: 1250 } },
 ] as const;
 
 export const CAMP_DRUID = {
-  width: 54, height: 75, contentHeight: 67,
-  scale: 265 / 75,
-  seatOriginY: (1 + 67 * 0.67) / 75,
+  width: 40, height: 56, contentHeight: 50,
+  scale: 2.5,
+  seatOriginY: (1 + 50 * 0.67) / 56,
 } as const;
 
 export interface GameSpriteMetrics {
@@ -41,7 +41,15 @@ const GAME_PALETTE = [
   0x637266, 0x9fa98e, 0xc9cbb1,
   0x203927, 0x547348, 0x80765a, 0xb6bba0,
 ];
-const CAMP_PALETTE = [...GAME_PALETTE, 0xaaa17b, 0xbaa26b, 0x88947f, 0x344c3e, 0x796542, 0xd8d6b9];
+// Палитра меню независима: изменения игрового спрайта не меняют сидящего друида.
+const CAMP_PALETTE = [
+  0x142820,
+  0x2e4931, 0x47613a, 0x667745,
+  0x393022, 0x655134, 0x9c7e53,
+  0xad8b60, 0xc7ab7b,
+  0x637266, 0x9fa98e, 0xc9cbb1,
+  0x203927, 0xaaa17b, 0xbaa26b, 0x88947f,
+];
 
 interface SmallSprite {
   key: string; sourceKey: string;
