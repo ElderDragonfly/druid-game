@@ -6,6 +6,7 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_MIN_HEIGHT, MEADOW_PIXEL_SCALE, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
 import { createMeadowTextures } from '../rendering/meadowTextures';
+import { DRUID_TEXTURES, GAME_DRUID } from '../rendering/druidArt';
 
 export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
@@ -30,8 +31,12 @@ export class RoomScene extends Phaser.Scene {
     this.playerHealth = SETTINGS.playerHealth;
     this.physics.resume();
     createMeadowTextures(this);
-    this.player = this.physics.add.image(0, 0, 'meadow-druid').setScale(MEADOW_PIXEL_SCALE)
-      .setSize(8, 10).setOffset(8, 13).setCollideWorldBounds(true);
+    const art = GAME_DRUID;
+    this.player = this.physics.add.image(0, 0, DRUID_TEXTURES.game).setScale(art.scale)
+      .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
+      .setOffset((art.width - art.bodyWidth / art.scale) / 2,
+        art.height / 2 + (art.bodyCenterY - art.bodyHeight / 2) / art.scale)
+      .setCollideWorldBounds(true);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
 

@@ -64,9 +64,20 @@ try {
   ok(initialScenes.join() === 'MainMenu', `При запуске открывается только главное меню: ${initialScenes.join()}`);
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
-    return ['main-camp', 'selection-camp'].every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 900);
+    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-seated-detail', 'druid-game-source']
+      .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 900);
   });
-  ok(loaded, 'Оба лесных фона загружены как настоящие изображения');
+  ok(loaded, 'Оба лесных фона и три изображения принятого друида загружены');
+  const mainDruid = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('MainMenu');
+    const sprite = scene.children.getByName('main-character-preview');
+    const bounds = sprite.getBounds();
+    return { texture: sprite.texture.key, frame: sprite.frame.name, width: sprite.displayWidth, height: sprite.displayHeight,
+      left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom };
+  });
+  ok(mainDruid.texture === 'druid-seated-detail' && mainDruid.frame === 'figure', 'Главное меню показывает сидящего друида отдельным слоем');
+  ok(mainDruid.left > 564 && mainDruid.right < 960 && mainDruid.top > 50 && mainDruid.bottom < 590,
+    'Друид и посох помещаются в фон главного меню и не перекрывают кнопки');
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/main-menu.png', import.meta.url)) });
   await clickNamed('MainMenu', 'exit');
   await delay(100);
@@ -83,12 +94,18 @@ try {
       preview: scene.children.getByName('selected-character-preview').texture.key,
       background: scene.children.getByName('camp-background').getData('sourceTexture'),
       pixels: { width: scene.children.getByName('camp-background').width, height: scene.children.getByName('camp-background').height },
+      seatedFrame: scene.children.getByName('selected-character-preview').frame.name,
+      seatedHeight: scene.children.getByName('selected-character-preview').displayHeight,
+      portrait: scene.children.getByName('character-druid').getByName('portrait-druid').texture.key,
     };
   });
   const slots = await selection();
   ok(slots.cards.length === 3 && slots.cards[0].enabled && !slots.cards[1].enabled && !slots.cards[2].enabled,
     'Три ячейки: крайняя левая доступна, остальные закрыты');
-  ok(slots.preview === 'druid-seated' && slots.background === 'selection-camp', 'Заглушка персонажа и фон — отдельные элементы');
+  ok(slots.preview === 'druid-seated-detail' && slots.background === 'selection-camp', 'Принятый сидящий друид и фон выбора — отдельные элементы');
+  ok(slots.seatedFrame === mainDruid.frame && slots.preview === mainDruid.texture && slots.seatedHeight < mainDruid.height,
+    'В обоих меню используется одна сидящая фигура с подходящим масштабом');
+  ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
     await clickNamed('CharacterSelect', id);
@@ -224,6 +241,34 @@ try {
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
   const initial = await state();
   ok(initial.health === 3 && initial.healthLabel === 'HP 3/3', 'Друид сохраняет 3 HP и счётчик');
+  const gameArt = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const sprite = scene.player;
+    const canvas = sprite.texture.getSourceImage();
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const colors = new Set();
+    let transparent = 0;
+    let opaque = 0;
+    let translucent = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i + 3] === 0) transparent++;
+      else {
+        if (pixels[i + 3] === 255) opaque++; else translucent++;
+        colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`);
+      }
+    }
+    return { key: sprite.texture.key, width: canvas.width, height: canvas.height, colors: colors.size,
+      transparent, opaque, translucent, displayWidth: sprite.displayWidth, displayHeight: sprite.displayHeight,
+      bodyWidth: sprite.body.width, bodyHeight: sprite.body.height, centerX: sprite.body.x + sprite.body.width / 2 - sprite.x,
+      centerY: sprite.body.y + sprite.body.height / 2 - sprite.y };
+  });
+  ok(gameArt.key === 'druid-game' && gameArt.width === 32 && gameArt.height === 40 && gameArt.colors <= 24 && gameArt.colors >= 8,
+    'Игровая версия — настоящая текстура 32×40 с ограниченной палитрой до 24 цветов');
+  ok(gameArt.transparent > 400 && gameArt.opaque > 150 && gameArt.translucent === 0,
+    'Маленький спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
+  ok(gameArt.displayWidth === 56 && gameArt.displayHeight === 70, 'Герой остаётся близким к прежнему размеру: 56×70 вместо 60×70');
+  ok(Math.abs(gameArt.bodyWidth - 20) < 0.01 && Math.abs(gameArt.bodyHeight - 25) < 0.01 &&
+    Math.abs(gameArt.centerX) < 0.01 && Math.abs(gameArt.centerY - 10) < 0.01, 'Физическое тело 20×25 сохраняет положение относительно ног');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
 
