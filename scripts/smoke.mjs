@@ -43,6 +43,12 @@ try {
       body: { x: p.body.x, y: p.body.y, right: p.body.right, bottom: p.body.bottom },
       shots: scene.projectiles.getChildren().filter(s => s.active).map(s => ({ x: s.x, y: s.y, vx: s.body.velocity.x, vy: s.body.velocity.y })),
       poolSize: scene.projectiles.getLength(),
+      health: scene.playerHealth,
+      healthLabel: scene.healthText.text,
+      gameOver: scene.gameOver,
+      time: scene.time.now,
+      paused: scene.physics.world.isPaused,
+      touching: scene.enemy.active && scene.physics.overlap(p, scene.enemy),
       enemy: scene.enemy.active ? {
         x: scene.enemy.x, y: scene.enemy.y, health: scene.enemy.health,
         vx: scene.enemy.body.velocity.x, vy: scene.enemy.body.velocity.y,
@@ -85,6 +91,8 @@ try {
   };
 
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
+  const initialHealth = await state();
+  ok(initialHealth.health === 3 && initialHealth.healthLabel === 'HP 3/3', 'Друид начинает с 3 HP и видимым счётчиком');
   await mkdir(new URL('../test-results/', import.meta.url), { recursive: true });
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
 
@@ -181,13 +189,7 @@ try {
     scene.player.body.reset(480, 336);
     scene.enemy.body.reset(640, 336);
   });
-  await waitState(current => current.enemy.vx === 0 && current.enemy.vy === 0 && current.enemy.x < 515);
-  const close = await state();
-  const closeDistance = Math.hypot(close.enemy.x - close.x, close.enemy.y - close.y);
-  await delay(200);
-  const staying = await state();
-  ok(closeDistance > 25 && closeDistance <= 33 && Math.abs(staying.enemy.x - close.enemy.x) < 1,
-    'Жук останавливается рядом с друидом');
+  await waitState(current => current.enemy.x < 615);
 
   for (const health of [2, 1, 0]) {
     await page.keyboard.down('ArrowRight');
@@ -200,9 +202,70 @@ try {
   }
   await hold('ArrowRight', 400);
   ok((await state()).shots.length > 0, 'После гибели жука стрельба продолжает работать');
+  const defeatedHealth = (await state()).health;
+  const defeatedTime = (await state()).time;
+  await waitState(current => current.time >= defeatedTime + 1100);
+  ok((await state()).health === defeatedHealth, 'Побеждённый жук больше не наносит урон');
   await restart(true);
   const newRun = await state();
   ok(newRun.enemy?.health === 3 && newRun.shots.length === 0, 'R создаёт нового жука с полным здоровьем');
+
+  const putEnemyOnPlayer = () => page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    const scene = game.scene.getScene('Room');
+    scene.enemy.body.reset(scene.player.x, scene.player.y);
+  });
+  await putEnemyOnPlayer();
+  const firstContact = await waitState(current => current.health === 2);
+  ok(firstContact.touching && firstContact.healthLabel === 'HP 2/3', 'Контакт сразу снимает 1 HP и обновляет HUD');
+  await waitState(current => current.time >= firstContact.time + 700);
+  ok((await state()).health === 2, 'Непрерывное касание не наносит урон каждый кадр');
+  const secondContact = await waitState(current => current.health === 1);
+  ok(secondContact.time - firstContact.time >= 900 && secondContact.time - firstContact.time < 1200 && secondContact.healthLabel === 'HP 1/3',
+    'Следующий контактный урон приходит через секунду');
+  const death = await waitState(current => current.gameOver);
+  ok(death.health === 0 && death.healthLabel === 'HP 0/3' && death.time - secondContact.time >= 900 && death.time - secondContact.time < 1200,
+    'Третий удар ещё через секунду обнуляет HP');
+  ok(death.paused, 'При смерти физика останавливается');
+  await hold('d', 250);
+  await hold('ArrowUp', 250);
+  const afterDeath = await state();
+  ok(afterDeath.x === death.x && afterDeath.y === death.y && afterDeath.shots.length === death.shots.length,
+    'После смерти нельзя двигаться или стрелять');
+  await waitState(current => current.time >= death.time + 1100);
+  ok((await state()).health === 0, 'HP после смерти не уходит ниже нуля');
+
+  await restart(true);
+  const revived = await state();
+  ok(revived.health === 3 && revived.healthLabel === 'HP 3/3' && !revived.gameOver && !revived.paused,
+    'R после смерти восстанавливает HP, HUD и физику');
+  await hold('d', 200);
+  ok((await state()).x > revived.x + 20, 'После перезапуска движение снова работает');
+
+  await restart(true);
+  await putEnemyOnPlayer();
+  await waitState(current => current.health === 2);
+  await page.keyboard.down('d');
+  await waitState(current => current.x > 830);
+  await page.keyboard.up('d');
+  const escaped = await waitState(current => current.vx === 0 && !current.touching);
+  await waitState(current => current.time >= escaped.time + 1100);
+  ok((await state()).health === 2, 'Уход на WASD прекращает урон, отложенного удара нет');
+
+  await restart(true);
+  await putEnemyOnPlayer();
+  const contactBeforeBreak = await waitState(current => current.health === 2);
+  await page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    game.scene.getScene('Room').enemy.body.reset(150, 200);
+  });
+  await waitState(current => !current.touching);
+  await delay(100);
+  await putEnemyOnPlayer();
+  const reentered = await waitState(current => current.health === 1);
+  ok(reentered.time - contactBeforeBreak.time < 900, 'Повторное касание после разрыва наносит новый мгновенный удар');
+  await restart(true);
+  ok((await state()).health === 3, 'Сброс комнаты очищает таймер контакта и возвращает 3 HP');
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}. Скриншот: test-results/room.png`);
 } finally {

@@ -6,16 +6,25 @@ export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
   projectiles!: Phaser.Physics.Arcade.Group;
   enemy!: Beetle;
+  playerHealth: number = SETTINGS.playerHealth;
+  gameOver = false;
   private movement!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private arrows!: Phaser.Types.Input.Keyboard.CursorKeys;
   private lastShot = -Infinity;
   private shadow!: Phaser.GameObjects.Ellipse;
   private status!: Phaser.GameObjects.Text;
+  private healthHud!: Phaser.GameObjects.Graphics;
+  private healthText!: Phaser.GameObjects.Text;
+  private nextContactDamageAt: number | null = null;
 
   constructor() { super('Room'); }
 
   create() {
     this.lastShot = -Infinity;
+    this.playerHealth = SETTINGS.playerHealth;
+    this.gameOver = false;
+    this.nextContactDamageAt = null;
+    this.physics.resume();
     this.drawRoom();
     this.createTextures();
 
@@ -30,7 +39,7 @@ export class RoomScene extends Phaser.Scene {
     this.enemy = this.spawnEnemy();
     this.physics.add.overlap(this.enemy, this.projectiles, (_enemy, projectile) => {
       const shot = projectile as Phaser.Physics.Arcade.Image;
-      if (!shot.active || !this.enemy.active) return;
+      if (this.gameOver || !shot.active || !this.enemy.active) return;
       this.removeShot(shot);
       this.enemy.takeHit();
       if (!this.enemy.active) this.status.setText('Жук побеждён! Нажмите R, чтобы попробовать снова.');
@@ -57,6 +66,9 @@ export class RoomScene extends Phaser.Scene {
   }
 
   update(time: number) {
+    if (this.gameOver) return;
+    this.updateContactDamage();
+    if (this.gameOver) return;
     const keys = this.movement;
     const direction = new Phaser.Math.Vector2(
       Number(keys.right.isDown) - Number(keys.left.isDown),
@@ -85,6 +97,50 @@ export class RoomScene extends Phaser.Scene {
         shot.y < room.y + 5 || shot.y > room.y + room.height - 5)) {
         this.removeShot(shot);
       }
+    }
+  }
+
+  private updateContactDamage() {
+    const touching = this.enemy.active && this.physics.overlap(this.player, this.enemy);
+    if (!touching) {
+      // Новый контакт всегда начинает отдельную последовательность ударов.
+      this.nextContactDamageAt = null;
+      return;
+    }
+    // Проверяем время, а не число кадров. Без контакта таймер урона не работает.
+    if (this.nextContactDamageAt === null || this.time.now >= this.nextContactDamageAt) {
+      this.nextContactDamageAt = this.time.now + SETTINGS.contactDamageInterval;
+      this.damagePlayer();
+    }
+  }
+
+  private damagePlayer() {
+    this.playerHealth = Math.max(0, this.playerHealth - 1);
+    this.drawHealthHud();
+    this.player.setTintFill(0xf0a093);
+    if (this.playerHealth === 0) {
+      this.gameOver = true;
+      this.player.setVelocity(0, 0).setAlpha(0.5);
+      if (this.enemy.active) this.enemy.setVelocity(0, 0);
+      this.physics.pause();
+      this.status.setText('Друид пал · R — новая попытка');
+      this.add.rectangle(480, 336, 390, 140, 0x112019, 0.96).setStrokeStyle(1, 0x7a7651).setDepth(10);
+      this.add.text(480, 302, 'Друид пал', { fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#e0e8cc' }).setOrigin(0.5).setDepth(11);
+      this.add.text(480, 353, 'R — начать заново', { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#a7bd91' }).setOrigin(0.5).setDepth(11);
+      return;
+    }
+    this.time.delayedCall(140, () => { if (!this.gameOver) this.player.clearTint(); });
+  }
+
+  private drawHealthHud() {
+    this.healthText.setText(`HP ${this.playerHealth}/${SETTINGS.playerHealth}`);
+    this.healthHud.clear();
+    for (let i = 0; i < SETTINGS.playerHealth; i++) {
+      const x = 790 + i * 42;
+      const y = 84;
+      this.healthHud.fillStyle(i < this.playerHealth ? 0xd98278 : 0x3c4540);
+      this.healthHud.fillCircle(x - 5, y - 3, 6).fillCircle(x + 5, y - 3, 6)
+        .fillTriangle(x - 11, y - 2, x + 11, y - 2, x, y + 11);
     }
   }
 
@@ -178,6 +234,9 @@ export class RoomScene extends Phaser.Scene {
     this.add.text(48, 33, 'ПЕРВАЯ КОМНАТА', { fontFamily, fontSize: '26px', color: '#e0e8cc' });
     this.status = this.add.text(49, 72, 'Лесной жук · 3 попадания · R — новая попытка', { fontFamily, fontSize: '14px', color: '#99b295' });
     this.add.text(909, 48, '01 / ПРОТОТИП', { fontFamily, fontSize: '12px', color: '#a7bd91' }).setOrigin(1, 0);
+    this.healthText = this.add.text(714, 76, '', { fontFamily, fontSize: '14px', color: '#e0e8cc' }).setDepth(5);
+    this.healthHud = this.add.graphics().setDepth(5);
+    this.drawHealthHud();
     this.add.text(48, 587, 'W A S D   ДВИЖЕНИЕ', { fontFamily, fontSize: '14px', color: '#c4d4b2' });
     this.add.text(378, 587, '↑ ↓ ← →   СТРЕЛЬБА', { fontFamily, fontSize: '14px', color: '#c4d4b2' });
     this.add.text(911, 587, 'R   СНАЧАЛА', { fontFamily, fontSize: '14px', color: '#99b295' }).setOrigin(1, 0);

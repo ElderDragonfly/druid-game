@@ -27,7 +27,7 @@ export class Beetle extends Phaser.Physics.Arcade.Image {
       this.setVelocity(this.direction.x, this.direction.y);
       this.setRotation(this.direction.angle() + Math.PI / 2);
     } else {
-      // Пока нет контактной атаки: жук останавливается рядом с друидом.
+      // В точке игрока направление нулевое: не допускаем дрожания на месте.
       this.setVelocity(0, 0);
     }
     this.shadow.setPosition(this.x, this.y + 12);
