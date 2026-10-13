@@ -155,7 +155,7 @@ try {
     gameTexture.refresh();
     Object.assign(record, { available: true, name: 'Проверочный друид',
       camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant', scale: 2, position: { x: 806, y: 400 } },
-      game: { texture: '_test-game-variant', metrics: { ...CHARACTERS[0].game.metrics, scale: 1.5 } } });
+      game: { texture: '_test-game-variant', metrics: { ...CHARACTERS[0].game.metrics, width: 32, height: 40, feetY: 34, scale: 1.5 } } });
     const card = scene.children.getByName('character-locked-1');
     scene.scene.restart();
     return card;
@@ -228,7 +228,7 @@ try {
     const canvas = game.canvas.getBoundingClientRect();
     const view = scene.cameras.main.worldView;
     return {
-      x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y,
+      x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y, facing: scene.facing, frame: p.frame.name,
       body: rect(p.body), health: scene.playerHealth,
       healthLabel: scene.hud.getByName('health-label').text,
       layout: scene.layout,
@@ -331,7 +331,7 @@ try {
     const scene = window.__smokeGame.scene.getScene('Room');
     const sprite = scene.player;
     const canvas = sprite.texture.getSourceImage();
-    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const pixels = canvas.getContext('2d').getImageData(sprite.frame.cutX, sprite.frame.cutY, sprite.width, sprite.height).data;
     const colors = new Set();
     let transparent = 0;
     let opaque = 0;
@@ -342,26 +342,51 @@ try {
       else {
         if (pixels[i + 3] === 255) opaque++; else translucent++;
         colors.add(`${pixels[i]},${pixels[i + 1]},${pixels[i + 2]}`);
-        lastOpaqueY = Math.floor(i / 4 / canvas.width);
+        lastOpaqueY = Math.floor(i / 4 / sprite.width);
       }
     }
-    return { key: sprite.texture.key, width: canvas.width, height: canvas.height, colors: colors.size,
+    return { key: sprite.texture.key, width: sprite.width, height: sprite.height, colors: colors.size,
       transparent, opaque, translucent, displayWidth: sprite.displayWidth, displayHeight: sprite.displayHeight,
       bodyWidth: sprite.body.width, bodyHeight: sprite.body.height, centerX: sprite.body.x + sprite.body.width / 2 - sprite.x,
       centerY: sprite.body.y + sprite.body.height / 2 - sprite.y,
       feetOffset: (lastOpaqueY + 1 - sprite.displayOriginY) * sprite.scaleY,
       bodyFeetOffset: sprite.body.bottom - sprite.y, pixelSize: sprite.scaleY };
   });
-  ok(gameArt.key === 'druid-game' && gameArt.width === 32 && gameArt.height === 40 && gameArt.colors <= 16 && gameArt.colors >= 6,
-    'Игровая версия получила сетку 32×40 и палитру до 16 цветов');
-  ok(gameArt.transparent > 300 && gameArt.opaque > 150 && gameArt.translucent === 0,
-    'Маленький спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
+  ok(gameArt.key === 'druid-game' && gameArt.width === 512 && gameArt.height === 640 && gameArt.colors > 256,
+    'Друид использует подробный кадр 512×640 из одобренного листа без ограничения палитры');
+  ok(gameArt.transparent > 150000 && gameArt.opaque + gameArt.translucent > 100000,
+    'Полноразмерный кадр имеет прозрачные поля и целую фигуру');
   ok(Math.abs(gameArt.displayWidth - 87.5) < 0.01 && Math.abs(gameArt.displayHeight - 109.375) < 0.01,
     'После повышения детализации размер игрового друида сохраняется: 87,5×109,375');
   ok(Math.abs(gameArt.feetOffset - gameArt.bodyFeetOffset) <= gameArt.pixelSize + 0.01,
     'После увеличения ноги совпадают с нижним краем физического тела в пределах одного пикселя спрайта');
   ok(Math.abs(gameArt.bodyWidth - 20) < 0.01 && Math.abs(gameArt.bodyHeight - 25) < 0.01 &&
     Math.abs(gameArt.centerX) < 0.01 && Math.abs(gameArt.centerY - 10) < 0.01, 'Физическое тело 20×25 сохраняет положение относительно ног');
+  const directionalArt = await page.evaluate(async () => {
+    const texture = window.__smokeGame.textures.get('druid-game');
+    const atlas = texture.getSourceImage().getContext('2d');
+    const image = new Image(); image.src = '/docs/art/druid-turnaround-v3/druid-four-views.png'; await image.decode();
+    const reference = document.createElement('canvas'); reference.width = image.width; reference.height = image.height;
+    const context = reference.getContext('2d'); context.drawImage(image, 0, 0);
+    const views = [
+      ['down', 174, 47, 425, 549, 200], ['left', 724, 59, 349, 548, 184],
+      ['right', 196, 648, 363, 542, 178], ['up', 697, 641, 402, 546, 213],
+    ];
+    return views.map(([direction, x, y, width, height, footX]) => {
+      const frame = texture.get(direction);
+      const expected = context.getImageData(x, y, width, height).data;
+      const actual = atlas.getImageData(frame.cutX + 256 - footX, 600 - height, width, height).data;
+      let preserved = true;
+      for (let i = 0; i < expected.length; i += 4) {
+        if (expected[i + 3] < 128) { if (actual[i + 3] !== 0) preserved = false; continue; }
+        for (let c = 0; c < 4; c++) if (Math.abs(expected[i + c] - actual[i + c]) > 1) preserved = false;
+      }
+      return { direction, preserved, width: frame.width, height: frame.height };
+    });
+  });
+  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 512 && view.height === 640),
+    `Все четыре кадра сохраняют пиксели нужного ракурса из одобренного PNG (${JSON.stringify(directionalArt)})`);
+  ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
 
@@ -373,6 +398,9 @@ try {
     await page.keyboard.up(key);
     const after = await waitState(current => current.vx === 0 && current.vy === 0);
     ok((after[axis] - before[axis]) * sign > 25, `WASD: движение на ${key.toUpperCase()}`);
+    const expectedFacing = { w: 'up', s: 'down', a: 'left', d: 'right' }[key];
+    ok(after.facing === expectedFacing && after.frame === expectedFacing && after.body.width === 20 && after.body.height === 25,
+      `Клавиша ${key.toUpperCase()} меняет ракурс, который сохраняется после остановки; тело остаётся 20×25`);
     await delay(150);
     ok(Math.abs((await state())[axis] - after[axis]) < 2, `Остановка после отпускания ${key.toUpperCase()}`);
   }
@@ -382,6 +410,19 @@ try {
   await delay(100);
   const diagonal = await state();
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
+  ok(diagonal.facing === 'right' && diagonal.frame === 'right', 'При S+D друид смотрит в сторону последней нажатой D');
+  await page.keyboard.up('d');
+  const remaining = await waitState(current => current.frame === 'down' && current.vx === 0);
+  ok(remaining.facing === 'down', 'После отпускания D удерживаемая S возвращает фронтальный ракурс');
+  await page.keyboard.down('w');
+  await waitState(current => current.vx === 0 && current.vy === 0);
+  const canceled = await state();
+  ok(canceled.frame === 'down', 'Противоположные W+S останавливают движение и сохраняют последний ракурс');
+  await page.keyboard.up('s');
+  await waitState(current => current.frame === 'up');
+  await page.keyboard.up('w');
+  const stopped = await waitState(current => current.vx === 0 && current.vy === 0);
+  ok(stopped.frame === 'up', 'После отпускания последней клавиши друид сохраняет взгляд от игрока');
   await page.keyboard.up('s');
   await page.keyboard.up('d');
 

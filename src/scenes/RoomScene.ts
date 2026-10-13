@@ -6,6 +6,7 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_MIN_HEIGHT, MEADOW_PIXEL_SCALE, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
 import { createMeadowTextures } from '../rendering/meadowTextures';
+import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
 export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
@@ -14,7 +15,10 @@ export class RoomScene extends Phaser.Scene {
   layout!: MeadowLayout;
   world!: MeadowWorld;
   private seed = 0;
-  private movement!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
+  private movement!: MovementKeys;
+  private facingInput!: FourWayFacing;
+  private facingFrames?: Record<Facing, string>;
+  facing: Facing = 'down';
   private direction = new Phaser.Math.Vector2();
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
@@ -33,9 +37,11 @@ export class RoomScene extends Phaser.Scene {
     const character = CHARACTERS.find(item => item.id === this.characterId)!;
     const appearance = character.game ?? CHARACTERS[0].game!;
     const art = appearance.metrics;
+    this.facing = 'down';
+    this.facingFrames = appearance.frames;
     const feetOffset = art.bodyCenterY + art.bodyHeight / 2;
     const originY = art.feetY - feetOffset / art.scale;
-    this.player = this.physics.add.image(0, 0, appearance.texture)
+    this.player = this.physics.add.image(0, 0, appearance.texture, this.facingFrames?.down)
       .setOrigin(0.5, originY / art.height).setScale(art.scale)
       .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
       .setOffset((art.width - art.bodyWidth / art.scale) / 2,
@@ -49,6 +55,7 @@ export class RoomScene extends Phaser.Scene {
       up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as typeof this.movement;
+    this.facingInput = new FourWayFacing(this.movement);
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); };
@@ -56,6 +63,7 @@ export class RoomScene extends Phaser.Scene {
     const resize = () => this.buildWorld(true);
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.facingInput.destroy();
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
     });
@@ -63,6 +71,12 @@ export class RoomScene extends Phaser.Scene {
 
   update() {
     const keys = this.movement;
+    const facing = this.facingInput.read();
+    if (facing !== this.facing) {
+      this.facing = facing;
+      const frame = this.facingFrames?.[facing];
+      if (frame) this.player.setFrame(frame, false, false);
+    }
     this.direction.set(Number(keys.right.isDown) - Number(keys.left.isDown), Number(keys.down.isDown) - Number(keys.up.isDown))
       .normalize().scale(SETTINGS.playerSpeed);
     this.player.setVelocity(this.direction.x, this.direction.y).setDepth(this.player.y + 25);

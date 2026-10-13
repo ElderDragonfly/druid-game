@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
-import gameSource from '../assets/characters/druid-game-source.png';
+import gameSource from '../../docs/art/druid-turnaround-v3/druid-four-views.png';
+import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail',
@@ -11,9 +12,8 @@ export const DRUID_TEXTURES = {
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  // Правый лагерь из явно указанного эскиза: интерфейс слева исключён из кадра.
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
-  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 154, y: 88, width: 844, height: 1250 } },
+  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 0, y: 0, width: 1254, height: 1254 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -22,63 +22,30 @@ export const CAMP_DRUID = {
 } as const;
 
 export interface GameSpriteMetrics {
-  width: number; height: number; scale: number; contentHeight: number;
+  width: number; height: number; scale: number;
   feetY: number; bodyWidth: number; bodyHeight: number; bodyCenterY: number;
 }
 
 export const GAME_DRUID = {
-  // На треть больше пикселей по каждой стороне при прежнем размере на поляне.
-  width: 32, height: 40, scale: 87.5 / 32,
-  contentHeight: 33, feetY: 34,
+  // Исходные детали сохраняются; размер в мире и физическое тело независимы.
+  width: 512, height: 640, scale: 87.5 / 512, feetY: 600,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
 } as const satisfies GameSpriteMetrics;
 
-const GAME_PALETTE = [
-  0x142820,
-  0x2e4931, 0x47613a, 0x667745,
-  0x393022, 0x655134, 0x9c7e53,
-  0xad8b60, 0xc7ab7b,
-  0x637266, 0x9fa98e, 0xc9cbb1,
-  0x203927, 0x547348, 0x80765a, 0xb6bba0,
+interface DruidView {
+  direction: Facing;
+  x: number; y: number; width: number; height: number;
+  footX: number;
+}
+
+// Границы из одобренного листа. footX — центр пары сапог относительно кадра,
+// а не середина фигуры вместе с посохом: смена ракурса не сдвигает опору.
+export const DRUID_VIEWS: readonly DruidView[] = [
+  { direction: 'down', x: 174, y: 47, width: 425, height: 549, footX: 200 },
+  { direction: 'left', x: 724, y: 59, width: 349, height: 548, footX: 184 },
+  { direction: 'right', x: 196, y: 648, width: 363, height: 542, footX: 178 },
+  { direction: 'up', x: 697, y: 641, width: 402, height: 546, footX: 213 },
 ];
-
-interface SmallSprite {
-  key: string; sourceKey: string;
-  width: number; height: number; contentHeight: number;
-  palette: readonly number[];
-}
-
-function prepareSmallSprite(scene: Phaser.Scene, art: SmallSprite) {
-  if (scene.textures.exists(art.key)) return;
-  const source = scene.textures.get(art.sourceKey).getSourceImage() as HTMLImageElement;
-  const crop = DRUID_ART.find(item => item.key === art.sourceKey)!.frame;
-  const texture = scene.textures.createCanvas(art.key, art.width, art.height)!;
-  const context = texture.context;
-  // Усредняем рисунок перед ограничением палитры: тонкие штрихи не становятся шумом.
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  const height = Math.min(art.contentHeight, (art.width - 2) * crop.height / crop.width);
-  const width = Math.round(height * crop.width / crop.height);
-  context.drawImage(source, crop.x, crop.y, crop.width, crop.height,
-    Math.round((art.width - width) / 2), 1, width, Math.round(height));
-  const colors = art.palette.map(color => [color >>> 16, (color >>> 8) & 255, color & 255]);
-  const pixels = context.getImageData(0, 0, art.width, art.height);
-  for (let i = 0; i < pixels.data.length; i += 4) {
-    if (pixels.data[i + 3] < 128) { pixels.data[i + 3] = 0; continue; }
-    let nearest = colors[0];
-    let best = Infinity;
-    for (const color of colors) {
-      const distance = (pixels.data[i] - color[0]) ** 2 + (pixels.data[i + 1] - color[1]) ** 2 +
-        (pixels.data[i + 2] - color[2]) ** 2;
-      if (distance < best) { nearest = color; best = distance; }
-    }
-    pixels.data[i] = nearest[0]; pixels.data[i + 1] = nearest[1]; pixels.data[i + 2] = nearest[2];
-    pixels.data[i + 3] = 255;
-  }
-  context.putImageData(pixels, 0, 0);
-  // Готовые пиксели увеличиваются строго без сглаживания.
-  texture.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
-}
 
 export function prepareDruidTextures(scene: Phaser.Scene) {
   for (const art of DRUID_ART) {
@@ -90,9 +57,28 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     const crop = DRUID_ART.find(art => art.key === DRUID_TEXTURES.campSource)!.frame;
     const source = scene.textures.get(DRUID_TEXTURES.campSource).getSourceImage() as HTMLImageElement;
     const camp = scene.textures.createCanvas(DRUID_TEXTURES.camp, crop.width, crop.height)!;
-    // Копируем исходные пиксели: ни перерисовки, ни новой сетки, ни изменения палитры.
     camp.context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
     camp.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
-  prepareSmallSprite(scene, { ...GAME_DRUID, key: DRUID_TEXTURES.game, sourceKey: DRUID_TEXTURES.gameSource, palette: GAME_PALETTE });
+  if (!scene.textures.exists(DRUID_TEXTURES.game)) {
+    const source = scene.textures.get(DRUID_TEXTURES.gameSource).getSourceImage() as HTMLImageElement;
+    const { width, height, feetY } = GAME_DRUID;
+    const atlas = scene.textures.createCanvas(DRUID_TEXTURES.game, width * DRUID_VIEWS.length, height)!;
+    atlas.context.imageSmoothingEnabled = false;
+    DRUID_VIEWS.forEach((view, index) => {
+      const frameX = index * width;
+      const x = frameX + width / 2 - view.footX;
+      const y = feetY - view.height;
+      // Копирование 1:1: не уменьшаем сетку и не ограничиваем палитру.
+      atlas.context.drawImage(source, view.x, view.y, view.width, view.height, x, y, view.width, view.height);
+      atlas.add(view.direction, 0, frameX, 0, width, height);
+    });
+    // Убираем слабую фоновую дымку генерации; цвет и детали фигуры сохраняются.
+    const pixels = atlas.context.getImageData(0, 0, atlas.width, atlas.height);
+    for (let i = 3; i < pixels.data.length; i += 4) {
+      if (pixels.data[i] < 128) pixels.data[i] = 0;
+    }
+    atlas.context.putImageData(pixels, 0, 0);
+    atlas.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
 }
