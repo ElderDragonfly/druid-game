@@ -37,7 +37,8 @@ try {
   const waitScene = key => page.waitForFunction(sceneKey => {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
-    return active.length === 1 && active[0].sys.settings.key === sceneKey;
+    return active.length === 1 && active[0].sys.settings.key === sceneKey &&
+      (sceneKey !== 'Room' || active[0].physics.world.colliders.getActive().length === 1);
   }, key);
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -46,9 +47,14 @@ try {
   const clickNamed = async (sceneKey, name) => {
     const position = await page.evaluate(async ({ key, id }) => {
       const { game } = await import('/src/main.ts');
-      const object = game.scene.getScene(key).children.getByName(id);
+      const scene = game.scene.getScene(key);
+      const object = scene.children.getByName(id);
       const canvas = game.canvas.getBoundingClientRect();
-      return { x: canvas.left + object.x * canvas.width / 960, y: canvas.top + object.y * canvas.height / 640 };
+      const camera = scene.cameras.main;
+      return {
+        x: canvas.left + (camera.x + (object.x - camera.worldView.x) * camera.zoom) * canvas.width / game.scale.width,
+        y: canvas.top + (camera.y + (object.y - camera.worldView.y) * camera.zoom) * canvas.height / game.scale.height,
+      };
     }, { key: sceneKey, id: name });
     await page.mouse.click(position.x, position.y);
   };
@@ -76,12 +82,14 @@ try {
       cards: scene.children.list.filter(item => item.name.startsWith('character-')).map(item => ({ name: item.name, enabled: item.enabled })),
       preview: scene.children.getByName('selected-character-preview').texture.key,
       background: scene.children.getByName('camp-background').getData('sourceTexture'),
+      pixels: { width: scene.children.getByName('camp-background').width, height: scene.children.getByName('camp-background').height },
     };
   });
   const slots = await selection();
   ok(slots.cards.length === 3 && slots.cards[0].enabled && !slots.cards[1].enabled && !slots.cards[2].enabled,
     'Три ячейки: крайняя левая доступна, остальные закрыты');
   ok(slots.preview === 'druid-seated' && slots.background === 'selection-camp', 'Заглушка персонажа и фон — отдельные элементы');
+  ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
     await clickNamed('CharacterSelect', id);
     ok((await selection()).id === 'druid' && (await activeScenes()).join() === 'CharacterSelect', `Закрытую ячейку нельзя выбрать: ${id}`);
@@ -109,45 +117,35 @@ try {
   });
   ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
 
-  const state = () => page.evaluate(async () => {
-    const { game } = await import('/src/main.ts');
+  const state = () => page.evaluate(() => {
+    const game = window.__smokeGame;
     const scene = game.scene.getScene('Room');
     const p = scene.player;
+    const rect = body => ({ x: body.x, y: body.y, width: body.width, height: body.height, right: body.right, bottom: body.bottom });
+    const canvas = game.canvas.getBoundingClientRect();
+    const view = scene.cameras.main.worldView;
     return {
       x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y,
-      body: { x: p.body.x, y: p.body.y, right: p.body.right, bottom: p.body.bottom },
-      shots: scene.projectiles.getChildren().filter(s => s.active).map(s => ({ x: s.x, y: s.y, vx: s.body.velocity.x, vy: s.body.velocity.y })),
-      poolSize: scene.projectiles.getLength(),
-      health: scene.playerHealth,
-      healthLabel: scene.healthText.text,
-      gameOver: scene.gameOver,
-      time: scene.time.now,
-      paused: scene.physics.world.isPaused,
-      touching: scene.enemy.active && scene.physics.overlap(p, scene.enemy),
-      enemy: scene.enemy.active ? {
-        x: scene.enemy.x, y: scene.enemy.y, health: scene.enemy.health,
-        vx: scene.enemy.body.velocity.x, vy: scene.enemy.body.velocity.y,
-      } : null,
+      body: rect(p.body), health: scene.playerHealth,
+      healthLabel: scene.hud.getByName('health-label').text,
+      layout: scene.layout,
+      obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body) })),
+      colliders: scene.physics.world.colliders.getActive().length,
+      view: { x: view.x, y: view.y, width: view.width, height: view.height },
+      canvas: { x: canvas.x, y: canvas.y, width: canvas.width, height: canvas.height },
+      viewport: { width: innerWidth, height: innerHeight },
+      combat: !!scene.enemy || !!scene.projectiles,
     };
   });
-  const restart = async (withEnemy = false) => {
-    const previousPlayer = await page.evaluateHandle(async () => {
-      const { game } = await import('/src/main.ts');
-      return game.scene.getScene('Room').player;
-    });
+  const restart = async () => {
+    const previousPlayer = await page.evaluateHandle(() => window.__smokeGame.scene.getScene('Room').player);
     await page.keyboard.press('r');
     await page.waitForFunction(previous => {
-      const game = window.__smokeGame;
-      const scene = game.scene.getScene('Room');
-      return scene.player !== previous && scene.player.x === 480 && scene.player.y === 336 && scene.projectiles.getLength() === 0;
+      const scene = window.__smokeGame.scene.getScene('Room');
+      return scene.player !== previous && scene.player.body;
     }, previousPlayer);
     await previousPlayer.dispose();
-    // Исходные проверки управления выполняются в очищенной комнате.
-    // Ниже враг отдельно проверяется с настоящим движением и попаданиями.
-    if (!withEnemy) await page.evaluate(async () => {
-      const { game } = await import('/src/main.ts');
-      game.scene.getScene('Room').enemy.destroy();
-    });
+    await delay(60);
   };
   const hold = async (key, ms) => {
     await page.keyboard.down(key);
@@ -155,7 +153,7 @@ try {
     await page.keyboard.up(key);
     await delay(60);
   };
-  const waitState = async (predicate, timeout = 10000) => {
+  const waitState = async (predicate, timeout = 4000) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
       const current = await state();
@@ -164,11 +162,60 @@ try {
     }
     throw new Error(`Игровое состояние не достигнуто: ${JSON.stringify(await state())}`);
   };
+  const intersects = (a, b) => a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
+  const assertMeadow = current => {
+    const { canvas, viewport, view, layout } = current;
+    ok(Math.abs(canvas.x) < 1 && Math.abs(canvas.y) < 1 && Math.abs(canvas.width - viewport.width) < 1 &&
+      Math.abs(canvas.height - viewport.height) < 1, `Поле занимает всё окно ${viewport.width}×${viewport.height}`);
+    ok(Math.abs(view.x) < 1 && Math.abs(view.y) < 1 && Math.abs(view.width - layout.width) < 1 &&
+      Math.abs(view.height - layout.height) < 1, 'Камера показывает всю поляну без полей');
+    ok(current.obstacles.every((body, i) => {
+      const object = layout.obstacles[i];
+      const size = { tree: [50, 35], bush: [50, 30], stump: [130, 70] }[object.kind];
+      return body.kind === object.kind && body.width === size[0] && body.height === size[1] &&
+        Math.abs(body.x - (object.x - size[0] / 2)) < 0.1 && Math.abs(body.y - (object.y - size[1])) < 0.1;
+    }), 'Физические препятствия совпадают с основаниями нарисованных объектов');
+    ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
+    ok(current.colliders === 1, `Столкновения подключены один раз: ${current.colliders}`);
+  };
 
+  const generation = await page.evaluate(async () => {
+    const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const failures = [];
+    let total = 0;
+    let minTrees = Infinity;
+    for (const height of [405, 540, 640, 960, 1440]) {
+      for (let seed = 0; seed < 100; seed++) {
+        const layout = generateMeadow(960, height, seed);
+        total++;
+        const trees = layout.obstacles.filter(o => o.kind === 'tree');
+        const bushes = layout.obstacles.filter(o => o.kind === 'bush');
+        const stumps = layout.obstacles.filter(o => o.kind === 'stump');
+        minTrees = Math.min(minTrees, trees.length);
+        const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
+        const band = Math.min(135, 960 * 0.18, height * 0.25) + 42;
+        if (trees.length < 20 || bushes.length !== 6 || stumps.length !== 1 || stumps[0].x !== 480 || stumps[0].y !== height / 2 + 35 ||
+          !trees.every(o => Math.min(o.x, 960 - o.x, o.y, height - o.y) <= band) ||
+          !bushes.every(o => o.x >= 960 * 0.23 && o.x <= 960 * 0.77 && o.y >= height * 0.23 && o.y <= height * 0.78) ||
+          layout.obstacles.some((object, i) => {
+            const r = obstacleRect(object);
+            return r.x < 0 || r.y < 0 || r.x + r.width > 960 || r.y + r.height > height || overlaps(r, spawn) ||
+              layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 31));
+          })) failures.push({ height, seed });
+      }
+    }
+    return {
+      total, minTrees, failures,
+      repeatable: JSON.stringify(generateMeadow(960, 640, 123)) === JSON.stringify(generateMeadow(960, 640, 123)),
+      different: JSON.stringify(generateMeadow(960, 640, 123).obstacles) !== JSON.stringify(generateMeadow(960, 640, 124).obstacles),
+    };
+  });
+  ok(generation.failures.length === 0, `${generation.total} планировок: пень в центре, 6 кустов, деревья у краёв, свободные проходы и безопасный старт (${JSON.stringify(generation.failures)})`);
+  ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
-  const initialHealth = await state();
-  ok(initialHealth.health === 3 && initialHealth.healthLabel === 'HP 3/3', 'Друид начинает с 3 HP и видимым счётчиком');
-  await mkdir(new URL('../test-results/', import.meta.url), { recursive: true });
+  const initial = await state();
+  ok(initial.health === 3 && initial.healthLabel === 'HP 3/3', 'Друид сохраняет 3 HP и счётчик');
+  assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
 
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
@@ -177,187 +224,107 @@ try {
     await page.keyboard.down(key);
     await waitState(current => (current[axis] - before[axis]) * sign > 25);
     await page.keyboard.up(key);
-    await waitState(current => current.vx === 0 && current.vy === 0);
-    const after = await state();
+    const after = await waitState(current => current.vx === 0 && current.vy === 0);
     ok((after[axis] - before[axis]) * sign > 25, `WASD: движение на ${key.toUpperCase()}`);
     await delay(150);
-    const stopped = await state();
-    ok(Math.abs(stopped[axis] - after[axis]) < 2, `Остановка после отпускания ${key.toUpperCase()}`);
+    ok(Math.abs((await state())[axis] - after[axis]) < 2, `Остановка после отпускания ${key.toUpperCase()}`);
   }
   await restart();
-  await page.keyboard.down('w');
+  await page.keyboard.down('s');
   await page.keyboard.down('d');
-  await delay(150);
+  await delay(100);
   const diagonal = await state();
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
-  await page.keyboard.up('w');
+  await page.keyboard.up('s');
   await page.keyboard.up('d');
 
-  for (const [key, boundary] of [['w', 'top'], ['s', 'bottom'], ['a', 'left'], ['d', 'right']]) {
+  // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
+  for (const kind of ['tree', 'bush', 'stump']) {
     await restart();
-    await page.keyboard.down(key);
-    await waitState(current => {
-      const b = current.body;
-      return Math.abs({ top: b.y, bottom: b.bottom, left: b.x, right: b.right }[boundary] - { top: 128, bottom: 544, left: 64, right: 896 }[boundary]) < 1;
-    });
-    await page.keyboard.up(key);
-    const { body } = await state();
-    const coordinate = { top: body.y, bottom: body.bottom, left: body.x, right: body.right }[boundary];
-    const expected = { top: 128, bottom: 544, left: 64, right: 896 }[boundary];
-    ok(Math.abs(coordinate - expected) < 1, `Стена удерживает игрока: ${boundary}`);
+    for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
+      const current = await state();
+      let fixture;
+      for (const obstacle of current.obstacles.filter(item => item.kind === kind)) {
+        const center = { x: (obstacle.x + obstacle.right) / 2, y: (obstacle.y + obstacle.bottom) / 2 };
+        const distance = 26;
+        if (axis === 'x') center.x = sign > 0 ? obstacle.x - 10 - distance : obstacle.right + 10 + distance;
+        else center.y = sign > 0 ? obstacle.y - 12.5 - distance : obstacle.bottom + 12.5 + distance;
+        const body = { x: center.x - 10, y: center.y - 12.5, right: center.x + 10, bottom: center.y + 12.5 };
+        if (body.x >= 0 && body.y >= 0 && body.right <= current.layout.width && body.bottom <= current.layout.height &&
+          !current.obstacles.some(other => intersects(body, other))) { fixture = { obstacle, center }; break; }
+      }
+      assert.ok(fixture, `Нет свободного подхода ${kind} ${key}`);
+      await page.evaluate(center => {
+        const scene = window.__smokeGame.scene.getScene('Room');
+        scene.player.body.reset(center.x, center.y - 10);
+        scene.player.setVelocity(0, 0);
+      }, fixture.center);
+      const before = await state();
+      await hold(key, 450);
+      const after = await state();
+      const o = fixture.obstacle;
+      const edge = axis === 'x' ? (sign > 0 ? after.body.right - o.x : after.body.x - o.right)
+        : (sign > 0 ? after.body.bottom - o.y : after.body.y - o.bottom);
+      ok(Math.abs(edge) < 1 && (after[axis] - before[axis]) * sign > 20 && !intersects(after.body, o),
+        `Препятствие ${kind} блокирует реальное движение ${key.toUpperCase()}`);
+    }
   }
-  for (const [key, axis, sign] of [['ArrowUp', 'vy', -1], ['ArrowDown', 'vy', 1], ['ArrowLeft', 'vx', -1], ['ArrowRight', 'vx', 1]]) {
+
+  // Прямой доступ к свободной части края, чтобы деревья не подменяли проверку границы мира.
+  for (const [key, side] of [['w', 'top'], ['s', 'bottom'], ['a', 'left'], ['d', 'right']]) {
     await restart();
-    await page.keyboard.down(key);
-    await waitState(current => current.shots.length === 1);
-    await page.keyboard.up(key);
     const current = await state();
-    ok(current.shots.length === 1 && current.shots[0][axis] === sign * 440, `Один снаряд в направлении ${key}`);
+    let center;
+    for (let along = 20; along < (side === 'top' || side === 'bottom' ? current.layout.width : current.layout.height) - 20; along += 10) {
+      const candidate = side === 'top' ? { x: along, y: 14 } : side === 'bottom' ? { x: along, y: current.layout.height - 14 }
+        : side === 'left' ? { x: 12, y: along } : { x: current.layout.width - 12, y: along };
+      const body = { x: candidate.x - 10, y: candidate.y - 12.5, right: candidate.x + 10, bottom: candidate.y + 12.5 };
+      if (!current.obstacles.some(o => intersects(body, o))) { center = candidate; break; }
+    }
+    assert.ok(center, `Нет свободного края ${side}`);
+    await page.evaluate(center => window.__smokeGame.scene.getScene('Room').player.body.reset(center.x, center.y - 10), center);
+    await hold(key, 250);
+    const b = (await state()).body;
+    const coordinate = { top: b.y, bottom: b.bottom, left: b.x, right: b.right }[side];
+    const expected = { top: 0, bottom: current.layout.height, left: 0, right: current.layout.width }[side];
+    ok(Math.abs(coordinate - expected) < 1, `Граница поля удерживает друида: ${side}`);
   }
-  await restart();
-  await page.keyboard.down('d');
-  await page.keyboard.down('ArrowUp');
-  await waitState(current => current.x > 540 && current.shots.length >= 2);
-  const simultaneous = await state();
-  ok(simultaneous.x > 540 && simultaneous.shots.length >= 2, 'Движение и повторная стрельба работают одновременно');
-  await page.keyboard.up('d');
-  await page.keyboard.up('ArrowUp');
-  await waitState(current => current.shots.length === 0);
-  ok((await state()).shots.length === 0, 'Снаряды убираются у стен');
 
   await restart();
-  await hold('ArrowRight', 3500);
-  ok((await state()).poolSize <= 12, 'Снаряды переиспользуются при длительной стрельбе');
+  await hold('ArrowRight', 350);
+  const peaceful = await state();
+  ok(!peaceful.combat && peaceful.health === 3, 'В текущей поляне нет жука, стрельбы и контактного урона');
+  const oldSeed = peaceful.layout.seed;
+  const oldLayout = JSON.stringify(peaceful.layout.obstacles);
   await restart();
-  const reset = await state();
-  ok(reset.x === 480 && reset.y === 336 && reset.shots.length === 0, 'R сбрасывает комнату и снаряды');
+  const regenerated = await state();
+  ok(regenerated.layout.seed !== oldSeed && JSON.stringify(regenerated.layout.obstacles) !== oldLayout, 'R создаёт новое случайное окружение');
+  ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
-  const spawns = new Set();
-  for (let run = 0; run < 5; run++) {
-    await restart(true);
-    const spawn = await state();
-    const e = spawn.enemy;
-    ok(e !== null && e.health === 3 && e.x >= 100 && e.x <= 860 && e.y >= 164 && e.y <= 508 &&
-      Math.hypot(e.x - spawn.x, e.y - spawn.y) >= 235, `Безопасное появление жука внутри комнаты: попытка ${run + 1}`);
-    spawns.add(`${Math.round(e.x)},${Math.round(e.y)}`);
+  for (const viewport of [{ width: 1280, height: 720 }, { width: 720, height: 900 }, { width: 1100, height: 820 }]) {
+    await page.setViewportSize(viewport);
+    await waitState(current => current.viewport.width === viewport.width && Math.abs(current.canvas.width - viewport.width) < 1 &&
+      Math.abs(current.layout.height - 960 * viewport.height / viewport.width) < 1);
+    await delay(80);
+    assertMeadow(await state());
   }
-  ok(spawns.size > 1, 'Место появления меняется между попытками');
-  const beforeChase = await state();
-  const startingDistance = Math.hypot(beforeChase.enemy.x - beforeChase.x, beforeChase.enemy.y - beforeChase.y);
-  const chasing = await waitState(current => current.enemy &&
-    Math.hypot(current.enemy.x - current.x, current.enemy.y - current.y) < startingDistance - 25);
-  ok(Math.abs(Math.hypot(chasing.enemy.vx, chasing.enemy.vy) - 90) < 0.1 &&
-    Math.hypot(chasing.enemy.vx, chasing.enemy.vy) < 220, 'Жук приближается к игроку медленнее его');
-  await hold('d', 350);
-  const retargeted = await state();
-  const dx = retargeted.x - retargeted.enemy.x;
-  const dy = retargeted.y - retargeted.enemy.y;
-  const aim = (dx * retargeted.enemy.vx + dy * retargeted.enemy.vy) / (Math.hypot(dx, dy) * 90);
-  ok(aim > 0.99, 'Жук меняет направление вслед за перемещением игрока');
-
-  await restart(true);
-  // Фиксируем только начальные позиции для воспроизводимого боевого сценария.
-  // AI, физика, обработка клавиш и попадания работают без подмены.
-  await page.evaluate(async () => {
-    const { game } = await import('/src/main.ts');
-    const scene = game.scene.getScene('Room');
-    scene.player.body.reset(480, 336);
-    scene.enemy.body.reset(640, 336);
-  });
-  await waitState(current => current.enemy.x < 615);
-
-  for (const health of [2, 1, 0]) {
-    await page.keyboard.down('ArrowRight');
-    await waitState(current => current.shots.length > 0 || !current.enemy || current.enemy.health === health);
-    await page.keyboard.up('ArrowRight');
-    const hit = await waitState(current => health === 0 ? current.enemy === null : current.enemy?.health === health);
-    ok(health === 0 ? hit.enemy === null : hit.enemy.health === health,
-      health === 0 ? 'Третье попадание уничтожает жука' : `Попадание снимает ровно одно здоровье: осталось ${health}`);
-    ok(hit.shots.length === 0, 'Попавший снаряд исчезает и не наносит повторный урон');
-  }
-  await hold('ArrowRight', 400);
-  ok((await state()).shots.length > 0, 'После гибели жука стрельба продолжает работать');
-  const defeatedHealth = (await state()).health;
-  const defeatedTime = (await state()).time;
-  await waitState(current => current.time >= defeatedTime + 1100);
-  ok((await state()).health === defeatedHealth, 'Побеждённый жук больше не наносит урон');
-  await restart(true);
-  const newRun = await state();
-  ok(newRun.enemy?.health === 3 && newRun.shots.length === 0, 'R создаёт нового жука с полным здоровьем');
-
-  const putEnemyOnPlayer = () => page.evaluate(async () => {
-    const { game } = await import('/src/main.ts');
-    const scene = game.scene.getScene('Room');
-    scene.enemy.body.reset(scene.player.x, scene.player.y);
-  });
-  await putEnemyOnPlayer();
-  const firstContact = await waitState(current => current.health === 2);
-  ok(firstContact.touching && firstContact.healthLabel === 'HP 2/3', 'Контакт сразу снимает 1 HP и обновляет HUD');
-  await waitState(current => current.time >= firstContact.time + 700);
-  ok((await state()).health === 2, 'Непрерывное касание не наносит урон каждый кадр');
-  const secondContact = await waitState(current => current.health === 1);
-  ok(secondContact.time - firstContact.time >= 900 && secondContact.time - firstContact.time < 1200 && secondContact.healthLabel === 'HP 1/3',
-    'Следующий контактный урон приходит через секунду');
-  const death = await waitState(current => current.gameOver);
-  ok(death.health === 0 && death.healthLabel === 'HP 0/3' && death.time - secondContact.time >= 900 && death.time - secondContact.time < 1200,
-    'Третий удар ещё через секунду обнуляет HP');
-  ok(death.paused, 'При смерти физика останавливается');
-  await hold('d', 250);
-  await hold('ArrowUp', 250);
-  const afterDeath = await state();
-  ok(afterDeath.x === death.x && afterDeath.y === death.y && afterDeath.shots.length === death.shots.length,
-    'После смерти нельзя двигаться или стрелять');
-  await waitState(current => current.time >= death.time + 1100);
-  ok((await state()).health === 0, 'HP после смерти не уходит ниже нуля');
-
-  await restart(true);
-  const revived = await state();
-  ok(revived.health === 3 && revived.healthLabel === 'HP 3/3' && !revived.gameOver && !revived.paused,
-    'R после смерти восстанавливает HP, HUD и физику');
-  await hold('d', 200);
-  ok((await state()).x > revived.x + 20, 'После перезапуска движение снова работает');
-
-  await restart(true);
-  await putEnemyOnPlayer();
-  await waitState(current => current.health === 2);
-  await page.keyboard.down('d');
-  await waitState(current => current.x > 830);
-  await page.keyboard.up('d');
-  const escaped = await waitState(current => current.vx === 0 && !current.touching);
-  await waitState(current => current.time >= escaped.time + 1100);
-  ok((await state()).health === 2, 'Уход на WASD прекращает урон, отложенного удара нет');
-
-  await restart(true);
-  await putEnemyOnPlayer();
-  const contactBeforeBreak = await waitState(current => current.health === 2);
-  await page.evaluate(async () => {
-    const { game } = await import('/src/main.ts');
-    game.scene.getScene('Room').enemy.body.reset(150, 200);
-  });
-  await waitState(current => !current.touching);
-  await delay(100);
-  await putEnemyOnPlayer();
-  const reentered = await waitState(current => current.health === 1);
-  ok(reentered.time - contactBeforeBreak.time < 900, 'Повторное касание после разрыва наносит новый мгновенный удар');
-  await restart(true);
-  ok((await state()).health === 3, 'Сброс комнаты очищает таймер контакта и возвращает 3 HP');
   await page.keyboard.press('Escape');
   await waitScene('CharacterSelect');
-  ok((await activeScenes()).join() === 'CharacterSelect', 'Из комнаты можно вернуться в лагерь через Esc');
+  ok((await activeScenes()).join() === 'CharacterSelect', 'Esc возвращает в лагерь');
   for (let run = 0; run < 3; run++) {
     await page.keyboard.press('Enter');
     await waitScene('Room');
-    ok((await state()).health === 3 && (await activeScenes()).join() === 'Room', `Новый забег после меню: ${run + 1}`);
+    assertMeadow(await state());
     await page.keyboard.press('Escape');
     await waitScene('CharacterSelect');
-    await page.keyboard.press('Escape');
+    await clickNamed('CharacterSelect', 'back');
     await waitScene('MainMenu');
-    await page.keyboard.press('Enter');
+    await clickNamed('MainMenu', 'play');
     await waitScene('CharacterSelect');
     ok((await activeScenes()).join() === 'CharacterSelect', `Повторные переходы без лишних сцен: ${run + 1}`);
   }
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
-  console.log(`\nПроверок пройдено: ${passed}. Скриншот: test-results/room.png`);
+  console.log(`\nПроверок пройдено: ${passed}.`);
 } finally {
   await browser?.close();
   server.kill('SIGTERM');

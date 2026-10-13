@@ -1,7 +1,18 @@
 import Phaser from 'phaser';
 import { MENU_LAYOUT } from './layout';
 
+export function fitMenuCamera(scene: Phaser.Scene) {
+  const fit = () => {
+    const zoom = Math.min(scene.scale.width / 960, scene.scale.height / 640);
+    scene.cameras.main.setZoom(zoom).centerOn(480, 320);
+  };
+  fit();
+  scene.scale.on(Phaser.Scale.Events.RESIZE, fit);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.off(Phaser.Scale.Events.RESIZE, fit));
+}
+
 export function addCampBackground(scene: Phaser.Scene, texture: string, pixelScale = 1) {
+  fitMenuCamera(scene);
   const b = MENU_LAYOUT.background;
   if (pixelScale > 1) {
     // Только фон рисуем в меньшем разрешении, затем увеличиваем без сглаживания.

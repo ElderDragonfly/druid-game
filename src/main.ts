@@ -12,7 +12,7 @@ export const game = new Phaser.Game({
   width: SETTINGS.width,
   height: SETTINGS.height,
   backgroundColor: '#17241f',
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: false } },
   scene: [BootScene, MainMenuScene, CharacterSelectScene, RoomScene],
 });

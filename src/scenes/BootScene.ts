@@ -3,6 +3,7 @@ import mainCamp from '../assets/main-camp.png';
 import selectionCamp from '../assets/selection-camp.png';
 import { createPlaceholderDruid } from '../rendering/placeholderDruid';
 import { SCENES } from './keys';
+import { fitMenuCamera } from '../ui/sceneHelpers';
 
 export class BootScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
@@ -11,6 +12,7 @@ export class BootScene extends Phaser.Scene {
   constructor() { super(SCENES.boot); }
 
   preload() {
+    fitMenuCamera(this);
     this.failed = false;
     this.message = this.add.text(480, 300, 'Лес просыпается…', {
       fontFamily: 'Georgia, serif', fontSize: '26px', color: '#d9d9b8',
