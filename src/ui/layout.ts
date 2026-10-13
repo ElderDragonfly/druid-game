@@ -7,6 +7,6 @@ export const MENU_LAYOUT = {
     firstCardX: 152, cardStep: 136, cardY: 302, cardWidth: 116, cardHeight: 160,
     backX: 142, startX: 376, buttonY: 500,
     backgroundPixelScale: 2.5,
-    preview: { x: 806, y: 390, scale: 2 },
+    preview: { x: 806, seatY: 400 },
   },
 } as const;

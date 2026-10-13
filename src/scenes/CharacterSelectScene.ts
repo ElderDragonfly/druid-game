@@ -1,7 +1,5 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from '../data/characters';
-import { DRUID_TEXTURES } from '../rendering/druidArt';
-import { SEATED_DRUID_TEXTURE } from '../rendering/placeholderDruid';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
 import { addCampBackground, addMenuHint, bindSceneKey } from '../ui/sceneHelpers';
@@ -10,6 +8,9 @@ import { SCENES } from './keys';
 export class CharacterSelectScene extends Phaser.Scene {
   selectedId = CHARACTERS[0].id;
   private cards: MenuButton[] = [];
+  private campPreview!: Phaser.GameObjects.Image;
+  private nameLabel!: Phaser.GameObjects.Text;
+  private descriptionLabel!: Phaser.GameObjects.Text;
 
   constructor() { super(SCENES.characterSelect); }
 
@@ -31,12 +32,9 @@ export class CharacterSelectScene extends Phaser.Scene {
       const card = new MenuButton(this, layout.firstCardX + index * layout.cardStep, layout.cardY, {
         name: `character-${character.id}`, label: character.name, width: layout.cardWidth,
         height: layout.cardHeight, labelY: 59, fontSize: 17, enabled: character.available,
-        onClick: () => {
-          this.selectedId = character.id;
-          this.cards.forEach((item, slot) => item.setSelected(CHARACTERS[slot].id === this.selectedId));
-        },
-      }).setSelected(index === 0);
-      const portrait = this.add.image(0, -14, DRUID_TEXTURES.standing, 'figure');
+        onClick: () => { this.chooseCharacter(character.id); },
+      }).setData('characterId', character.id);
+      const portrait = this.add.image(0, -14, character.portrait.texture, character.portrait.frame);
       portrait.setScale(94 / portrait.height).setName(`portrait-${character.id}`);
       if (!character.available) portrait.setTint(0x1a231d).setAlpha(0.28);
       card.add(portrait);
@@ -49,10 +47,12 @@ export class CharacterSelectScene extends Phaser.Scene {
       }
     });
 
-    this.add.text(70, 402, 'Друид', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#dccda9' });
-    this.add.text(70, 435, 'Природная магия · 3 HP', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' });
+    this.nameLabel = this.add.text(70, 402, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#dccda9' });
+    this.descriptionLabel = this.add.text(70, 435, '', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' });
     const preview = layout.preview;
-    this.add.image(preview.x, preview.y, SEATED_DRUID_TEXTURE).setScale(preview.scale).setName('selected-character-preview');
+    this.campPreview = this.add.image(preview.x, preview.seatY, CHARACTERS[0].camp!.texture)
+      .setName('selected-character-preview');
+    this.chooseCharacter(this.selectedId);
     const back = () => this.scene.start(SCENES.mainMenu);
     const start = () => {
       const character = CHARACTERS.find(item => item.id === this.selectedId && item.available);
@@ -63,5 +63,17 @@ export class CharacterSelectScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-ESC', back);
     bindSceneKey(this, 'keyup-ENTER', start);
     addMenuHint(this, 'Enter — начать · Esc — назад');
+  }
+
+  chooseCharacter(id: string) {
+    const character = CHARACTERS.find(item => item.id === id && item.available && item.camp);
+    if (!character?.camp) return false;
+    this.selectedId = character.id;
+    this.cards.forEach(card => card.setSelected(card.getData('characterId') === character.id));
+    this.campPreview.setTexture(character.camp.texture).setOrigin(character.camp.originX, character.camp.originY)
+      .setScale(MENU_LAYOUT.select.backgroundPixelScale).setData('characterId', character.id);
+    this.nameLabel.setText(character.name);
+    this.descriptionLabel.setText(character.description);
+    return true;
   }
 }

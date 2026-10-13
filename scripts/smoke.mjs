@@ -64,10 +64,10 @@ try {
   ok(initialScenes.join() === 'MainMenu', `При запуске открывается только главное меню: ${initialScenes.join()}`);
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
-    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-game-source']
+    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 900);
   });
-  ok(loaded, 'Оба лесных фона, портрет и игровой образ друида загружены');
+  ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
   const mainBackground = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('MainMenu');
     return { texture: scene.children.getByName('camp-background').getData('sourceTexture'),
@@ -95,15 +95,38 @@ try {
       seatedWidth: scene.children.getByName('selected-character-preview').displayWidth,
       seatedX: scene.children.getByName('selected-character-preview').x,
       seatedY: scene.children.getByName('selected-character-preview').y,
+      seatedPixelScale: scene.children.getByName('selected-character-preview').scaleX,
+      seatedCharacterId: scene.children.getByName('selected-character-preview').getData('characterId'),
+      name: scene.nameLabel.text,
       portrait: scene.children.getByName('character-druid').getByName('portrait-druid').texture.key,
     };
   });
   const slots = await selection();
   ok(slots.cards.length === 3 && slots.cards[0].enabled && !slots.cards[1].enabled && !slots.cards[2].enabled,
     'Три ячейки: крайняя левая доступна, остальные закрыты');
-  ok(slots.preview === 'druid-seated' && slots.background === 'selection-camp', 'На экране выбора восстановлена простая сидящая фигура');
-  ok(slots.seatedWidth === 96 && slots.seatedHeight === 128 && slots.seatedX === 806 && slots.seatedY === 390,
-    'Сидящая фигура вернулась к прежнему размеру и месту на бревне');
+  ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp' && slots.seatedCharacterId === slots.id,
+    'На бревне сидит пиксельная версия выбранного друида');
+  ok(slots.seatedWidth === 100 && slots.seatedHeight === 140 && slots.seatedX === 806 && slots.seatedY === 400 &&
+    slots.seatedPixelScale === 960 / slots.pixels.width,
+    'Фигура 40×56 размещена на бревне с тем же размером пикселя, что и задник');
+  const campPixels = await page.evaluate(() => {
+    const canvas = window.__smokeGame.textures.get('druid-camp').getSourceImage();
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const colors = new Set();
+    let transparent = 0;
+    let translucent = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] === 0) transparent++;
+      else {
+        colors.add(`${data[i]},${data[i + 1]},${data[i + 2]}`);
+        if (data[i + 3] !== 255) translucent++;
+      }
+    }
+    return { width: canvas.width, height: canvas.height, colors: colors.size, transparent, translucent };
+  });
+  ok(campPixels.width === 40 && campPixels.height === 56 && campPixels.colors <= 16 && campPixels.colors >= 8 &&
+    campPixels.transparent > 800 && campPixels.translucent === 0,
+    'Сидящий образ имеет настоящую пиксельную сетку, до 16 цветов и чистый прозрачный фон');
   ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
@@ -112,6 +135,51 @@ try {
   }
   await clickNamed('CharacterSelect', 'character-druid');
   ok((await selection()).id === 'druid', 'Первый персонаж выбирается мышью');
+  ok(await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('CharacterSelect');
+    return !scene.chooseCharacter('locked-1') && !scene.chooseCharacter('missing') && scene.selectedId === 'druid';
+  }), 'Выбор отклоняет закрытый и неизвестный ID даже при прямом вызове');
+  // Только тест временно предоставляет второму персонажу собственную фигуру.
+  // Настоящий обработчик клика проверяет смену изображения; данные затем восстанавливаются.
+  const originalCard = await page.evaluateHandle(async () => {
+    const { CHARACTERS } = await import('/src/data/characters.ts');
+    const scene = window.__smokeGame.scene.getScene('CharacterSelect');
+    const record = CHARACTERS[1];
+    window.__choiceFixture = { record, original: { ...record } };
+    const texture = scene.textures.createCanvas('_test-camp-variant', 40, 56);
+    texture.context.fillStyle = '#b38b55';
+    texture.context.fillRect(10, 5, 20, 48);
+    texture.refresh();
+    Object.assign(record, { available: true, name: 'Проверочный друид',
+      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant' } });
+    const card = scene.children.getByName('character-locked-1');
+    scene.scene.restart();
+    return card;
+  });
+  await page.waitForFunction(previous => window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('character-locked-1') !== previous, originalCard);
+  await originalCard.dispose();
+  await delay(80);
+  await clickNamed('CharacterSelect', 'character-locked-1');
+  const switched = await selection();
+  ok(switched.id === 'locked-1' && switched.preview === '_test-camp-variant' && switched.seatedCharacterId === 'locked-1' &&
+    switched.name === 'Проверочный друид', 'Клик по другому доступному персонажу меняет фигуру на бревне и подпись из данных');
+  const fixtureCard = await page.evaluateHandle(() => {
+    const scene = window.__smokeGame.scene.getScene('CharacterSelect');
+    const fixture = window.__choiceFixture;
+    delete fixture.record.camp;
+    Object.assign(fixture.record, fixture.original);
+    delete window.__choiceFixture;
+    const card = scene.children.getByName('character-locked-1');
+    scene.scene.restart();
+    return card;
+  });
+  await page.waitForFunction(previous => window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('character-locked-1') !== previous, fixtureCard);
+  await fixtureCard.dispose();
+  await delay(80);
+  await page.evaluate(() => window.__smokeGame.textures.remove('_test-camp-variant'));
+  const restored = await selection();
+  ok(restored.id === 'druid' && restored.preview === 'druid-camp' && !restored.cards[1].enabled && !restored.cards[2].enabled,
+    'После теста доступны только исходный друид и его фигура, остальные ячейки закрыты');
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/character-select.png', import.meta.url)) });
   await clickNamed('CharacterSelect', 'back');
   await waitScene('MainMenu');
@@ -265,11 +333,12 @@ try {
       feetOffset: (lastOpaqueY + 1 - sprite.displayOriginY) * sprite.scaleY,
       bodyFeetOffset: sprite.body.bottom - sprite.y, pixelSize: sprite.scaleY };
   });
-  ok(gameArt.key === 'druid-game' && gameArt.width === 32 && gameArt.height === 40 && gameArt.colors <= 24 && gameArt.colors >= 8,
-    'Игровая версия — настоящая текстура 32×40 с ограниченной палитрой до 24 цветов');
-  ok(gameArt.transparent > 400 && gameArt.opaque > 150 && gameArt.translucent === 0,
+  ok(gameArt.key === 'druid-game' && gameArt.width === 24 && gameArt.height === 30 && gameArt.colors <= 12 && gameArt.colors >= 6,
+    'Игровая версия упрощена до 24×30 пикселей и палитры до 12 цветов');
+  ok(gameArt.transparent > 300 && gameArt.opaque > 150 && gameArt.translucent === 0,
     'Маленький спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
-  ok(gameArt.displayWidth === 70 && gameArt.displayHeight === 87.5, 'Игровой друид увеличен ровно на четверть: 70×87,5 вместо 56×70');
+  ok(Math.abs(gameArt.displayWidth - 87.5) < 0.01 && Math.abs(gameArt.displayHeight - 109.375) < 0.01,
+    'Игровой друид увеличен ещё на четверть: 87,5×109,375 вместо 70×87,5');
   ok(Math.abs(gameArt.feetOffset - gameArt.bodyFeetOffset) <= gameArt.pixelSize + 0.01,
     'После увеличения ноги совпадают с нижним краем физического тела в пределах одного пикселя спрайта');
   ok(Math.abs(gameArt.bodyWidth - 20) < 0.01 && Math.abs(gameArt.bodyHeight - 25) < 0.01 &&

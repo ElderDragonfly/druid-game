@@ -1,54 +1,67 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
+import campSource from '../assets/characters/druid-camp-source.png';
 import gameSource from '../assets/characters/druid-game-source.png';
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail',
+  campSource: 'druid-camp-source', camp: 'druid-camp',
   gameSource: 'druid-game-source', game: 'druid-game',
 } as const;
 
-// Границы фигуры внутри PNG исключают прозрачные поля, сохраняя весь посох.
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 155, y: 81, width: 869, height: 1254 } },
+  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 280, y: 86, width: 769, height: 1093 } },
+  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 224, y: 235, width: 754, height: 1049 } },
 ] as const;
 
+export const CAMP_DRUID = {
+  width: 40, height: 56, contentHeight: 50,
+  seatOriginY: (1 + 50 * 0.67) / 56,
+} as const;
+
 export const GAME_DRUID = {
-  width: 32, height: 40, scale: 1.75 * 1.25, contentHeight: 33, feetY: 34,
+  // Тот же формат кадра, но меньше исходных пикселей и ещё +25% к размеру.
+  width: 24, height: 30, scale: (32 / 24) * 1.75 * 1.25 * 1.25,
+  contentHeight: 25, feetY: 26,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
 } as const;
 
-// Общая ограниченная палитра объединяет упрощённый рисунок с лесной поляной.
 const GAME_PALETTE = [
-  0x10231b, 0x1b3225, 0x29432c, 0x3a5331, 0x506b3c, 0x73804d,
-  0x253b2d, 0x40593a, 0x5e7145,
-  0x2d281e, 0x403727, 0x5c4a30, 0x77633c, 0x927746, 0xb2955b,
-  0x83623f, 0xa07f53, 0xb8986b, 0xc7ad85,
-  0x4e5c54, 0x6e7b6c, 0x909b88, 0xb0b7a0, 0xcdd0b6,
-].map(color => [color >>> 16, (color >>> 8) & 255, color & 255]);
+  0x142820,
+  0x2e4931, 0x47613a, 0x667745,
+  0x393022, 0x655134, 0x9c7e53,
+  0xad8b60, 0xc7ab7b,
+  0x637266, 0x9fa98e, 0xc9cbb1,
+];
+const CAMP_PALETTE = [...GAME_PALETTE, 0x203927, 0xaaa17b, 0xbaa26b, 0x88947f];
 
-export function prepareDruidTextures(scene: Phaser.Scene) {
-  for (const art of DRUID_ART) {
-    const texture = scene.textures.get(art.key);
-    if (!texture.has('figure')) texture.add('figure', 0, art.frame.x, art.frame.y, art.frame.width, art.frame.height);
-    texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
-  }
-  if (scene.textures.exists(DRUID_TEXTURES.game)) return;
-  const source = scene.textures.get(DRUID_TEXTURES.gameSource).getSourceImage() as HTMLImageElement;
-  const crop = DRUID_ART.find(art => art.key === DRUID_TEXTURES.gameSource)!.frame;
-  const texture = scene.textures.createCanvas(DRUID_TEXTURES.game, GAME_DRUID.width, GAME_DRUID.height)!;
+interface SmallSprite {
+  key: string; sourceKey: string;
+  width: number; height: number; contentHeight: number;
+  palette: readonly number[];
+}
+
+function prepareSmallSprite(scene: Phaser.Scene, art: SmallSprite) {
+  if (scene.textures.exists(art.key)) return;
+  const source = scene.textures.get(art.sourceKey).getSourceImage() as HTMLImageElement;
+  const crop = DRUID_ART.find(item => item.key === art.sourceKey)!.frame;
+  const texture = scene.textures.createCanvas(art.key, art.width, art.height)!;
   const context = texture.context;
-  context.imageSmoothingEnabled = false;
-  const height = GAME_DRUID.contentHeight;
+  // Усредняем рисунок перед ограничением палитры: тонкие штрихи не становятся шумом.
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  const height = Math.min(art.contentHeight, (art.width - 2) * crop.height / crop.width);
   const width = Math.round(height * crop.width / crop.height);
   context.drawImage(source, crop.x, crop.y, crop.width, crop.height,
-    Math.round((GAME_DRUID.width - width) / 2), 1, width, height);
-  const pixels = context.getImageData(0, 0, GAME_DRUID.width, GAME_DRUID.height);
+    Math.round((art.width - width) / 2), 1, width, Math.round(height));
+  const colors = art.palette.map(color => [color >>> 16, (color >>> 8) & 255, color & 255]);
+  const pixels = context.getImageData(0, 0, art.width, art.height);
   for (let i = 0; i < pixels.data.length; i += 4) {
     if (pixels.data[i + 3] < 128) { pixels.data[i + 3] = 0; continue; }
-    let nearest = GAME_PALETTE[0];
+    let nearest = colors[0];
     let best = Infinity;
-    for (const color of GAME_PALETTE) {
+    for (const color of colors) {
       const distance = (pixels.data[i] - color[0]) ** 2 + (pixels.data[i + 1] - color[1]) ** 2 +
         (pixels.data[i + 2] - color[2]) ** 2;
       if (distance < best) { nearest = color; best = distance; }
@@ -57,5 +70,16 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     pixels.data[i + 3] = 255;
   }
   context.putImageData(pixels, 0, 0);
+  // Готовые пиксели увеличиваются строго без сглаживания.
   texture.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+}
+
+export function prepareDruidTextures(scene: Phaser.Scene) {
+  for (const art of DRUID_ART) {
+    const texture = scene.textures.get(art.key);
+    if (!texture.has('figure')) texture.add('figure', 0, art.frame.x, art.frame.y, art.frame.width, art.frame.height);
+    texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
+  prepareSmallSprite(scene, { ...CAMP_DRUID, key: DRUID_TEXTURES.camp, sourceKey: DRUID_TEXTURES.campSource, palette: CAMP_PALETTE });
+  prepareSmallSprite(scene, { ...GAME_DRUID, key: DRUID_TEXTURES.game, sourceKey: DRUID_TEXTURES.gameSource, palette: GAME_PALETTE });
 }
