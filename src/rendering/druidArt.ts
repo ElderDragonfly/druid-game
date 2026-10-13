@@ -11,21 +11,27 @@ export const DRUID_TEXTURES = {
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 280, y: 86, width: 769, height: 1093 } },
-  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 224, y: 235, width: 754, height: 1049 } },
+  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 87, y: 25, width: 917, height: 1401 } },
+  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 154, y: 88, width: 844, height: 1250 } },
 ] as const;
 
 export const CAMP_DRUID = {
-  width: 40, height: 56, contentHeight: 50,
-  seatOriginY: (1 + 50 * 0.67) / 56,
+  width: 54, height: 75, contentHeight: 67,
+  scale: 265 / 75,
+  seatOriginY: (1 + 67 * 0.67) / 75,
 } as const;
 
+export interface GameSpriteMetrics {
+  width: number; height: number; scale: number; contentHeight: number;
+  feetY: number; bodyWidth: number; bodyHeight: number; bodyCenterY: number;
+}
+
 export const GAME_DRUID = {
-  // Тот же формат кадра, но меньше исходных пикселей и ещё +25% к размеру.
-  width: 24, height: 30, scale: (32 / 24) * 1.75 * 1.25 * 1.25,
-  contentHeight: 25, feetY: 26,
+  // На треть больше пикселей по каждой стороне при прежнем размере на поляне.
+  width: 32, height: 40, scale: 87.5 / 32,
+  contentHeight: 33, feetY: 34,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
-} as const;
+} as const satisfies GameSpriteMetrics;
 
 const GAME_PALETTE = [
   0x142820,
@@ -33,8 +39,9 @@ const GAME_PALETTE = [
   0x393022, 0x655134, 0x9c7e53,
   0xad8b60, 0xc7ab7b,
   0x637266, 0x9fa98e, 0xc9cbb1,
+  0x203927, 0x547348, 0x80765a, 0xb6bba0,
 ];
-const CAMP_PALETTE = [...GAME_PALETTE, 0x203927, 0xaaa17b, 0xbaa26b, 0x88947f];
+const CAMP_PALETTE = [...GAME_PALETTE, 0xaaa17b, 0xbaa26b, 0x88947f, 0x344c3e, 0x796542, 0xd8d6b9];
 
 interface SmallSprite {
   key: string; sourceKey: string;

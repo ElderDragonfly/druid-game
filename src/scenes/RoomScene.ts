@@ -6,7 +6,6 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_MIN_HEIGHT, MEADOW_PIXEL_SCALE, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
 import { createMeadowTextures } from '../rendering/meadowTextures';
-import { DRUID_TEXTURES, GAME_DRUID } from '../rendering/druidArt';
 
 export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
@@ -31,10 +30,12 @@ export class RoomScene extends Phaser.Scene {
     this.playerHealth = SETTINGS.playerHealth;
     this.physics.resume();
     createMeadowTextures(this);
-    const art = GAME_DRUID;
+    const character = CHARACTERS.find(item => item.id === this.characterId)!;
+    const appearance = character.game ?? CHARACTERS[0].game!;
+    const art = appearance.metrics;
     const feetOffset = art.bodyCenterY + art.bodyHeight / 2;
     const originY = art.feetY - feetOffset / art.scale;
-    this.player = this.physics.add.image(0, 0, DRUID_TEXTURES.game)
+    this.player = this.physics.add.image(0, 0, appearance.texture)
       .setOrigin(0.5, originY / art.height).setScale(art.scale)
       .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
       .setOffset((art.width - art.bodyWidth / art.scale) / 2,

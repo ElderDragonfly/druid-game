@@ -106,9 +106,9 @@ try {
     'Три ячейки: крайняя левая доступна, остальные закрыты');
   ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp' && slots.seatedCharacterId === slots.id,
     'На бревне сидит пиксельная версия выбранного друида');
-  ok(slots.seatedWidth === 100 && slots.seatedHeight === 140 && slots.seatedX === 806 && slots.seatedY === 400 &&
-    slots.seatedPixelScale === 960 / slots.pixels.width,
-    'Фигура 40×56 размещена на бревне с тем же размером пикселя, что и задник');
+  ok(Math.abs(slots.seatedWidth - 190.8) < 0.01 && slots.seatedHeight === 265 && slots.seatedX === 806 && slots.seatedY === 400 &&
+    Math.abs(slots.seatedPixelScale - 265 / 75) < 0.01,
+    'Крупная фигура 54×75 сидит на прежнем бревне; её масштаб задаётся отдельно от задника');
   const campPixels = await page.evaluate(() => {
     const canvas = window.__smokeGame.textures.get('druid-camp').getSourceImage();
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -124,9 +124,9 @@ try {
     }
     return { width: canvas.width, height: canvas.height, colors: colors.size, transparent, translucent };
   });
-  ok(campPixels.width === 40 && campPixels.height === 56 && campPixels.colors <= 16 && campPixels.colors >= 8 &&
+  ok(campPixels.width === 54 && campPixels.height === 75 && campPixels.colors <= 22 && campPixels.colors >= 8 &&
     campPixels.transparent > 800 && campPixels.translucent === 0,
-    'Сидящий образ имеет настоящую пиксельную сетку, до 16 цветов и чистый прозрачный фон');
+    'Сидящий образ имеет сетку 54×75, до 22 цветов и чистый прозрачный фон');
   ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
@@ -150,8 +150,13 @@ try {
     texture.context.fillStyle = '#b38b55';
     texture.context.fillRect(10, 5, 20, 48);
     texture.refresh();
+    const gameTexture = scene.textures.createCanvas('_test-game-variant', 32, 40);
+    gameTexture.context.fillStyle = '#b38b55';
+    gameTexture.context.fillRect(8, 4, 12, 30);
+    gameTexture.refresh();
     Object.assign(record, { available: true, name: 'Проверочный друид',
-      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant' } });
+      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant', scale: 2 },
+      game: { texture: '_test-game-variant', metrics: { ...CHARACTERS[0].game.metrics, scale: 1.5 } } });
     const card = scene.children.getByName('character-locked-1');
     scene.scene.restart();
     return card;
@@ -162,11 +167,23 @@ try {
   await clickNamed('CharacterSelect', 'character-locked-1');
   const switched = await selection();
   ok(switched.id === 'locked-1' && switched.preview === '_test-camp-variant' && switched.seatedCharacterId === 'locked-1' &&
-    switched.name === 'Проверочный друид', 'Клик по другому доступному персонажу меняет фигуру на бревне и подпись из данных');
+    switched.name === 'Проверочный друид' && switched.seatedHeight === 112,
+    'Клик по другому доступному персонажу меняет фигуру, её масштаб и подпись из данных');
+  await clickNamed('CharacterSelect', 'start-run');
+  await waitScene('Room');
+  ok(await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    return scene.characterId === 'locked-1' && scene.player.texture.key === '_test-game-variant' &&
+      scene.player.displayWidth === 48 && scene.player.displayHeight === 60 &&
+      scene.player.body.width === 20 && scene.player.body.height === 25;
+  }), 'Игровая комната использует спрайт и масштаб выбранного персонажа из его данных');
+  await page.keyboard.press('Escape');
+  await waitScene('CharacterSelect');
   const fixtureCard = await page.evaluateHandle(() => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');
     const fixture = window.__choiceFixture;
     delete fixture.record.camp;
+    delete fixture.record.game;
     Object.assign(fixture.record, fixture.original);
     delete window.__choiceFixture;
     const card = scene.children.getByName('character-locked-1');
@@ -176,7 +193,10 @@ try {
   await page.waitForFunction(previous => window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('character-locked-1') !== previous, fixtureCard);
   await fixtureCard.dispose();
   await delay(80);
-  await page.evaluate(() => window.__smokeGame.textures.remove('_test-camp-variant'));
+  await page.evaluate(() => {
+    window.__smokeGame.textures.remove('_test-camp-variant');
+    window.__smokeGame.textures.remove('_test-game-variant');
+  });
   const restored = await selection();
   ok(restored.id === 'druid' && restored.preview === 'druid-camp' && !restored.cards[1].enabled && !restored.cards[2].enabled,
     'После теста доступны только исходный друид и его фигура, остальные ячейки закрыты');
@@ -333,12 +353,12 @@ try {
       feetOffset: (lastOpaqueY + 1 - sprite.displayOriginY) * sprite.scaleY,
       bodyFeetOffset: sprite.body.bottom - sprite.y, pixelSize: sprite.scaleY };
   });
-  ok(gameArt.key === 'druid-game' && gameArt.width === 24 && gameArt.height === 30 && gameArt.colors <= 12 && gameArt.colors >= 6,
-    'Игровая версия упрощена до 24×30 пикселей и палитры до 12 цветов');
+  ok(gameArt.key === 'druid-game' && gameArt.width === 32 && gameArt.height === 40 && gameArt.colors <= 16 && gameArt.colors >= 6,
+    'Игровая версия получила сетку 32×40 и палитру до 16 цветов');
   ok(gameArt.transparent > 300 && gameArt.opaque > 150 && gameArt.translucent === 0,
     'Маленький спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
   ok(Math.abs(gameArt.displayWidth - 87.5) < 0.01 && Math.abs(gameArt.displayHeight - 109.375) < 0.01,
-    'Игровой друид увеличен ещё на четверть: 87,5×109,375 вместо 70×87,5');
+    'После повышения детализации размер игрового друида сохраняется: 87,5×109,375');
   ok(Math.abs(gameArt.feetOffset - gameArt.bodyFeetOffset) <= gameArt.pixelSize + 0.01,
     'После увеличения ноги совпадают с нижним краем физического тела в пределах одного пикселя спрайта');
   ok(Math.abs(gameArt.bodyWidth - 20) < 0.01 && Math.abs(gameArt.bodyHeight - 25) < 0.01 &&
