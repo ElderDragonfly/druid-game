@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
-import gameSource from '../../docs/art/druid-turnaround-v3/druid-four-views.png';
+import gameSource from '../../docs/art/druid-front-resolution-v1/druid-front-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
@@ -13,7 +13,7 @@ export const DRUID_TEXTURES = {
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
-  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 0, y: 0, width: 1254, height: 1254 } },
+  { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -27,8 +27,8 @@ export interface GameSpriteMetrics {
 }
 
 export const GAME_DRUID = {
-  // Исходные детали сохраняются; размер в мире и физическое тело независимы.
-  width: 512, height: 640, scale: 87.5 / 512, feetY: 600,
+  // Выбранная сетка 64×80; размер в мире и физическое тело прежние.
+  width: 64, height: 80, scale: 87.5 / 64, feetY: 75,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
 } as const satisfies GameSpriteMetrics;
 
@@ -38,13 +38,14 @@ interface DruidView {
   footX: number;
 }
 
-// Границы из одобренного листа. footX — центр пары сапог относительно кадра,
-// а не середина фигуры вместе с посохом: смена ракурса не сдвигает опору.
+// Пока все четыре слота используют фронтальный спрайт: код поворота сохраняется.
+// Остальные ракурсы позже заменяются здесь, без изменений движения и физики.
+// Последние пять строк PNG прозрачны; опора ног остаётся на строке 75.
 export const DRUID_VIEWS: readonly DruidView[] = [
-  { direction: 'down', x: 174, y: 47, width: 425, height: 549, footX: 200 },
-  { direction: 'left', x: 724, y: 59, width: 349, height: 548, footX: 184 },
-  { direction: 'right', x: 196, y: 648, width: 363, height: 542, footX: 178 },
-  { direction: 'up', x: 697, y: 641, width: 402, height: 546, footX: 213 },
+  { direction: 'down', x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'left', x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'right', x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'up', x: 0, y: 0, width: 64, height: 75, footX: 32 },
 ];
 
 export function prepareDruidTextures(scene: Phaser.Scene) {

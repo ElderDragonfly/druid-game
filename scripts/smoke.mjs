@@ -65,7 +65,7 @@ try {
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source']
-      .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 900);
+      .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
   const mainBackground = await page.evaluate(() => {
@@ -352,10 +352,10 @@ try {
       feetOffset: (lastOpaqueY + 1 - sprite.displayOriginY) * sprite.scaleY,
       bodyFeetOffset: sprite.body.bottom - sprite.y, pixelSize: sprite.scaleY };
   });
-  ok(gameArt.key === 'druid-game' && gameArt.width === 512 && gameArt.height === 640 && gameArt.colors > 256,
-    'Друид использует подробный кадр 512×640 из одобренного листа без ограничения палитры');
-  ok(gameArt.transparent > 150000 && gameArt.opaque + gameArt.translucent > 100000,
-    'Полноразмерный кадр имеет прозрачные поля и целую фигуру');
+  ok(gameArt.key === 'druid-game' && gameArt.width === 64 && gameArt.height === 80 && gameArt.colors > 256,
+    'Друид использует выбранный спрайт 64×80 без нового ограничения палитры');
+  ok(gameArt.transparent > 2000 && gameArt.opaque > 1500 && gameArt.translucent === 0,
+    'Спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
   ok(Math.abs(gameArt.displayWidth - 87.5) < 0.01 && Math.abs(gameArt.displayHeight - 109.375) < 0.01,
     'После повышения детализации размер игрового друида сохраняется: 87,5×109,375');
   ok(Math.abs(gameArt.feetOffset - gameArt.bodyFeetOffset) <= gameArt.pixelSize + 0.01,
@@ -365,27 +365,19 @@ try {
   const directionalArt = await page.evaluate(async () => {
     const texture = window.__smokeGame.textures.get('druid-game');
     const atlas = texture.getSourceImage().getContext('2d');
-    const image = new Image(); image.src = '/docs/art/druid-turnaround-v3/druid-four-views.png'; await image.decode();
+    const image = new Image(); image.src = '/docs/art/druid-front-resolution-v1/druid-front-64x80.png'; await image.decode();
     const reference = document.createElement('canvas'); reference.width = image.width; reference.height = image.height;
     const context = reference.getContext('2d'); context.drawImage(image, 0, 0);
-    const views = [
-      ['down', 174, 47, 425, 549, 200], ['left', 724, 59, 349, 548, 184],
-      ['right', 196, 648, 363, 542, 178], ['up', 697, 641, 402, 546, 213],
-    ];
-    return views.map(([direction, x, y, width, height, footX]) => {
+    const expected = context.getImageData(0, 0, 64, 80).data;
+    return ['down', 'left', 'right', 'up'].map(direction => {
       const frame = texture.get(direction);
-      const expected = context.getImageData(x, y, width, height).data;
-      const actual = atlas.getImageData(frame.cutX + 256 - footX, 600 - height, width, height).data;
-      let preserved = true;
-      for (let i = 0; i < expected.length; i += 4) {
-        if (expected[i + 3] < 128) { if (actual[i + 3] !== 0) preserved = false; continue; }
-        for (let c = 0; c < 4; c++) if (Math.abs(expected[i + c] - actual[i + c]) > 1) preserved = false;
-      }
+      const actual = atlas.getImageData(frame.cutX, frame.cutY, 64, 80).data;
+      const preserved = expected.length === actual.length && actual.every((value, index) => value === expected[index]);
       return { direction, preserved, width: frame.width, height: frame.height };
     });
   });
-  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 512 && view.height === 640),
-    `Все четыре кадра сохраняют пиксели нужного ракурса из одобренного PNG (${JSON.stringify(directionalArt)})`);
+  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 64 && view.height === 80),
+    'Все четыре слота показывают точную копию выбранного фронтального PNG 64×80');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
@@ -400,7 +392,7 @@ try {
     ok((after[axis] - before[axis]) * sign > 25, `WASD: движение на ${key.toUpperCase()}`);
     const expectedFacing = { w: 'up', s: 'down', a: 'left', d: 'right' }[key];
     ok(after.facing === expectedFacing && after.frame === expectedFacing && after.body.width === 20 && after.body.height === 25,
-      `Клавиша ${key.toUpperCase()} меняет ракурс, который сохраняется после остановки; тело остаётся 20×25`);
+      `Клавиша ${key.toUpperCase()} переключает слот направления с фронтальной заглушкой; тело остаётся 20×25`);
     await delay(150);
     ok(Math.abs((await state())[axis] - after[axis]) < 2, `Остановка после отпускания ${key.toUpperCase()}`);
   }
@@ -410,7 +402,7 @@ try {
   await delay(100);
   const diagonal = await state();
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
-  ok(diagonal.facing === 'right' && diagonal.frame === 'right', 'При S+D друид смотрит в сторону последней нажатой D');
+  ok(diagonal.facing === 'right' && diagonal.frame === 'right', 'При S+D код выбирает слот последней нажатой D');
   await page.keyboard.up('d');
   const remaining = await waitState(current => current.frame === 'down' && current.vx === 0);
   ok(remaining.facing === 'down', 'После отпускания D удерживаемая S возвращает фронтальный ракурс');
@@ -422,7 +414,7 @@ try {
   await waitState(current => current.frame === 'up');
   await page.keyboard.up('w');
   const stopped = await waitState(current => current.vx === 0 && current.vy === 0);
-  ok(stopped.frame === 'up', 'После отпускания последней клавиши друид сохраняет взгляд от игрока');
+  ok(stopped.frame === 'up', 'После отпускания клавиш сохраняется слот up, пока с фронтальной заглушкой');
   await page.keyboard.up('s');
   await page.keyboard.up('d');
 
