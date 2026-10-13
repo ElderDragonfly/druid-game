@@ -32,10 +32,13 @@ export class RoomScene extends Phaser.Scene {
     this.physics.resume();
     createMeadowTextures(this);
     const art = GAME_DRUID;
-    this.player = this.physics.add.image(0, 0, DRUID_TEXTURES.game).setScale(art.scale)
+    const feetOffset = art.bodyCenterY + art.bodyHeight / 2;
+    const originY = art.feetY - feetOffset / art.scale;
+    this.player = this.physics.add.image(0, 0, DRUID_TEXTURES.game)
+      .setOrigin(0.5, originY / art.height).setScale(art.scale)
       .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
       .setOffset((art.width - art.bodyWidth / art.scale) / 2,
-        art.height / 2 + (art.bodyCenterY - art.bodyHeight / 2) / art.scale)
+        originY + (art.bodyCenterY - art.bodyHeight / 2) / art.scale)
       .setCollideWorldBounds(true);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();

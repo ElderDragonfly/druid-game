@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from '../data/characters';
-import { addSeatedDruid, DRUID_TEXTURES } from '../rendering/druidArt';
+import { DRUID_TEXTURES } from '../rendering/druidArt';
+import { SEATED_DRUID_TEXTURE } from '../rendering/placeholderDruid';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
 import { addCampBackground, addMenuHint, bindSceneKey } from '../ui/sceneHelpers';
@@ -51,7 +52,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.add.text(70, 402, 'Друид', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#dccda9' });
     this.add.text(70, 435, 'Природная магия · 3 HP', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' });
     const preview = layout.preview;
-    addSeatedDruid(this, preview).setName('selected-character-preview');
+    this.add.image(preview.x, preview.y, SEATED_DRUID_TEXTURE).setScale(preview.scale).setName('selected-character-preview');
     const back = () => this.scene.start(SCENES.mainMenu);
     const start = () => {
       const character = CHARACTERS.find(item => item.id === this.selectedId && item.available);

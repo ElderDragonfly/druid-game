@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import mainCamp from '../assets/main-camp.png';
 import selectionCamp from '../assets/selection-camp.png';
 import { DRUID_ART, prepareDruidTextures } from '../rendering/druidArt';
+import { createPlaceholderDruid } from '../rendering/placeholderDruid';
 import { SCENES } from './keys';
 import { fitMenuCamera } from '../ui/sceneHelpers';
 
@@ -35,6 +36,7 @@ export class BootScene extends Phaser.Scene {
     }
     this.textures.get('selection-camp').setFilter(Phaser.Textures.FilterMode.NEAREST);
     prepareDruidTextures(this);
+    createPlaceholderDruid(this);
     this.scene.start(SCENES.mainMenu);
   }
 }

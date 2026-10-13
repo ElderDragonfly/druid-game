@@ -1,22 +1,20 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
-import seated from '../assets/characters/druid-seated-detail.png';
 import gameSource from '../assets/characters/druid-game-source.png';
 
 export const DRUID_TEXTURES = {
-  standing: 'druid-standing-detail', seated: 'druid-seated-detail',
+  standing: 'druid-standing-detail',
   gameSource: 'druid-game-source', game: 'druid-game',
 } as const;
 
 // Границы фигуры внутри PNG исключают прозрачные поля, сохраняя весь посох.
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  { key: DRUID_TEXTURES.seated, url: seated, frame: { x: 240, y: 52, width: 845, height: 1114 } },
   { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 155, y: 81, width: 869, height: 1254 } },
 ] as const;
 
 export const GAME_DRUID = {
-  width: 32, height: 40, scale: 1.75,
+  width: 32, height: 40, scale: 1.75 * 1.25, contentHeight: 33, feetY: 34,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
 } as const;
 
@@ -37,11 +35,11 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
   }
   if (scene.textures.exists(DRUID_TEXTURES.game)) return;
   const source = scene.textures.get(DRUID_TEXTURES.gameSource).getSourceImage() as HTMLImageElement;
-  const crop = DRUID_ART[2].frame;
+  const crop = DRUID_ART.find(art => art.key === DRUID_TEXTURES.gameSource)!.frame;
   const texture = scene.textures.createCanvas(DRUID_TEXTURES.game, GAME_DRUID.width, GAME_DRUID.height)!;
   const context = texture.context;
   context.imageSmoothingEnabled = false;
-  const height = 33;
+  const height = GAME_DRUID.contentHeight;
   const width = Math.round(height * crop.width / crop.height);
   context.drawImage(source, crop.x, crop.y, crop.width, crop.height,
     Math.round((GAME_DRUID.width - width) / 2), 1, width, height);
@@ -60,9 +58,4 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
   }
   context.putImageData(pixels, 0, 0);
   texture.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
-}
-
-export function addSeatedDruid(scene: Phaser.Scene, placement: { x: number; feetY: number; height: number }) {
-  const sprite = scene.add.image(placement.x, placement.feetY, DRUID_TEXTURES.seated, 'figure').setOrigin(0.5, 1);
-  return sprite.setScale(placement.height / sprite.height);
 }
