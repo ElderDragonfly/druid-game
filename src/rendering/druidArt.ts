@@ -6,6 +6,7 @@ import leftSource from '../assets/characters/druid-left-64x80.png';
 import rightSource from '../assets/characters/druid-right-64x80.png';
 import backSource from '../assets/characters/druid-back-64x80.png';
 import walkDownSource from '../../docs/art/druid-walk-down-v2/walk-down-64x80.png';
+import walkUpSource from '../../docs/art/druid-walk-other-directions-v1/walk-up-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
@@ -14,6 +15,7 @@ export const DRUID_TEXTURES = {
   gameSource: 'druid-game-source', game: 'druid-game',
   leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
   walkDown: 'druid-walk-down-source',
+  walkUp: 'druid-walk-up-source',
 } as const;
 
 export const DRUID_ART = [
@@ -24,6 +26,7 @@ export const DRUID_ART = [
   { key: DRUID_TEXTURES.rightSource, url: rightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.backSource, url: backSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -61,6 +64,8 @@ export const DRUID_VIEWS: readonly DruidView[] = [
 // Новые циклы добавляются сюда; отсутствие цикла оставляет неподвижный ракурс.
 export const DRUID_WALKS = [
   { direction: 'down', sourceKey: DRUID_TEXTURES.walkDown, animationKey: 'druid-walk-down',
+    frameCount: 4, frameDurationMs: 160 },
+  { direction: 'up', sourceKey: DRUID_TEXTURES.walkUp, animationKey: 'druid-walk-up',
     frameCount: 4, frameDurationMs: 160 },
 ] as const;
 

@@ -10,10 +10,6 @@ export class MainMenuScene extends Phaser.Scene {
   create() {
     addCampBackground(this, 'main-camp');
     const layout = MENU_LAYOUT.main;
-    this.add.text(layout.x, 236, 'Лесной лагерь', {
-      fontFamily: 'Georgia, serif', fontSize: '29px', color: '#dfd8b7',
-      shadow: { offsetX: 0, offsetY: 2, color: '#08120b', blur: 5, fill: true },
-    }).setOrigin(0.5);
     const play = () => this.scene.start(SCENES.characterSelect);
     new MenuButton(this, layout.x, layout.playY, {
       name: 'play', label: 'Играть', width: layout.width, height: layout.height, onClick: play,
