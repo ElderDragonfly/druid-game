@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { SETTINGS } from '../settings';
 import { Beetle } from '../entities/Beetle';
+import { CHARACTERS } from '../data/characters';
+import { SCENES } from './keys';
+import { bindSceneKey } from '../ui/sceneHelpers';
 
 export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
@@ -8,6 +11,7 @@ export class RoomScene extends Phaser.Scene {
   enemy!: Beetle;
   playerHealth: number = SETTINGS.playerHealth;
   gameOver = false;
+  characterId = CHARACTERS[0].id;
   private movement!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private arrows!: Phaser.Types.Input.Keyboard.CursorKeys;
   private lastShot = -Infinity;
@@ -17,7 +21,11 @@ export class RoomScene extends Phaser.Scene {
   private healthText!: Phaser.GameObjects.Text;
   private nextContactDamageAt: number | null = null;
 
-  constructor() { super('Room'); }
+  constructor() { super(SCENES.room); }
+
+  init(data: { characterId?: string } = {}) {
+    this.characterId = (CHARACTERS.find(item => item.available && item.id === data.characterId) ?? CHARACTERS[0]).id;
+  }
 
   create() {
     this.lastShot = -Infinity;
@@ -55,6 +63,7 @@ export class RoomScene extends Phaser.Scene {
     const restart = () => this.scene.restart();
     keyboard.on('keydown-R', restart);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => keyboard.off('keydown-R', restart));
+    bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
 
     // Снятие фокуса не оставляет персонажа бегущим с зажатой клавишей.
     const resetInput = () => {
@@ -126,7 +135,7 @@ export class RoomScene extends Phaser.Scene {
       this.status.setText('Друид пал · R — новая попытка');
       this.add.rectangle(480, 336, 390, 140, 0x112019, 0.96).setStrokeStyle(1, 0x7a7651).setDepth(10);
       this.add.text(480, 302, 'Друид пал', { fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#e0e8cc' }).setOrigin(0.5).setDepth(11);
-      this.add.text(480, 353, 'R — начать заново', { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#a7bd91' }).setOrigin(0.5).setDepth(11);
+      this.add.text(480, 353, 'R — снова · Esc — в лагерь', { fontFamily: 'Arial, sans-serif', fontSize: '16px', color: '#a7bd91' }).setOrigin(0.5).setDepth(11);
       return;
     }
     this.time.delayedCall(140, () => { if (!this.gameOver) this.player.clearTint(); });
@@ -239,6 +248,6 @@ export class RoomScene extends Phaser.Scene {
     this.drawHealthHud();
     this.add.text(48, 587, 'W A S D   ДВИЖЕНИЕ', { fontFamily, fontSize: '14px', color: '#c4d4b2' });
     this.add.text(378, 587, '↑ ↓ ← →   СТРЕЛЬБА', { fontFamily, fontSize: '14px', color: '#c4d4b2' });
-    this.add.text(911, 587, 'R   СНАЧАЛА', { fontFamily, fontSize: '14px', color: '#99b295' }).setOrigin(1, 0);
+    this.add.text(911, 587, 'R — СНАЧАЛА · ESC — В ЛАГЕРЬ', { fontFamily, fontSize: '12px', color: '#99b295' }).setOrigin(1, 0);
   }
 }

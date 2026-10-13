@@ -29,10 +29,85 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('http://127.0.0.1:4175');
-  await page.waitForFunction(async () => {
+  await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
-    return game.scene.isActive('Room') && !!game.scene.getScene('Room').player?.body;
+    window.__smokeGame = game;
   });
+  // Предикат ожидания синхронный: Promise сам по себе является truthy.
+  const waitScene = key => page.waitForFunction(sceneKey => {
+    const game = window.__smokeGame;
+    const active = game.scene.getScenes(true);
+    return active.length === 1 && active[0].sys.settings.key === sceneKey;
+  }, key);
+  const activeScenes = () => page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    return game.scene.getScenes(true).map(scene => scene.sys.settings.key);
+  });
+  const clickNamed = async (sceneKey, name) => {
+    const position = await page.evaluate(async ({ key, id }) => {
+      const { game } = await import('/src/main.ts');
+      const object = game.scene.getScene(key).children.getByName(id);
+      const canvas = game.canvas.getBoundingClientRect();
+      return { x: canvas.left + object.x * canvas.width / 960, y: canvas.top + object.y * canvas.height / 640 };
+    }, { key: sceneKey, id: name });
+    await page.mouse.click(position.x, position.y);
+  };
+  await mkdir(new URL('../test-results/', import.meta.url), { recursive: true });
+  await waitScene('MainMenu');
+  const initialScenes = await activeScenes();
+  ok(initialScenes.join() === 'MainMenu', `При запуске открывается только главное меню: ${initialScenes.join()}`);
+  const loaded = await page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    return ['main-camp', 'selection-camp'].every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 900);
+  });
+  ok(loaded, 'Оба лесных фона загружены как настоящие изображения');
+  await page.screenshot({ path: fileURLToPath(new URL('../test-results/main-menu.png', import.meta.url)) });
+  await clickNamed('MainMenu', 'exit');
+  await delay(100);
+  ok((await activeScenes()).join() === 'MainMenu', 'Выход пока не функционален');
+  await clickNamed('MainMenu', 'play');
+  await waitScene('CharacterSelect');
+  ok((await activeScenes()).join() === 'CharacterSelect', 'Играть открывает выбор персонажа');
+  const selection = () => page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    const scene = game.scene.getScene('CharacterSelect');
+    return {
+      id: scene.selectedId,
+      cards: scene.children.list.filter(item => item.name.startsWith('character-')).map(item => ({ name: item.name, enabled: item.enabled })),
+      preview: scene.children.getByName('selected-character-preview').texture.key,
+      background: scene.children.getByName('camp-background').texture.key,
+    };
+  });
+  const slots = await selection();
+  ok(slots.cards.length === 3 && slots.cards[0].enabled && !slots.cards[1].enabled && !slots.cards[2].enabled,
+    'Три ячейки: крайняя левая доступна, остальные закрыты');
+  ok(slots.preview === 'druid-seated' && slots.background === 'selection-camp', 'Заглушка персонажа и фон — отдельные элементы');
+  for (const id of ['character-locked-1', 'character-locked-2']) {
+    await clickNamed('CharacterSelect', id);
+    ok((await selection()).id === 'druid' && (await activeScenes()).join() === 'CharacterSelect', `Закрытую ячейку нельзя выбрать: ${id}`);
+  }
+  await clickNamed('CharacterSelect', 'character-druid');
+  ok((await selection()).id === 'druid', 'Первый персонаж выбирается мышью');
+  await page.screenshot({ path: fileURLToPath(new URL('../test-results/character-select.png', import.meta.url)) });
+  await clickNamed('CharacterSelect', 'back');
+  await waitScene('MainMenu');
+  ok((await activeScenes()).join() === 'MainMenu', 'Назад возвращает главное меню');
+  await page.keyboard.press('Enter');
+  await waitScene('CharacterSelect');
+  ok((await activeScenes()).join() === 'CharacterSelect', 'Главное меню поддерживает Enter');
+  await page.keyboard.press('Escape');
+  await waitScene('MainMenu');
+  ok((await activeScenes()).join() === 'MainMenu', 'Esc возвращает из выбора в главное меню');
+  await clickNamed('MainMenu', 'play');
+  await waitScene('CharacterSelect');
+  await clickNamed('CharacterSelect', 'start-run');
+  await waitScene('Room');
+  ok((await activeScenes()).join() === 'Room', 'Начать запускает игровую комнату');
+  const chosen = await page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    return game.scene.getScene('Room').characterId;
+  });
+  ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
 
   const state = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -61,8 +136,8 @@ try {
       return game.scene.getScene('Room').player;
     });
     await page.keyboard.press('r');
-    await page.waitForFunction(async previous => {
-      const { game } = await import('/src/main.ts');
+    await page.waitForFunction(previous => {
+      const game = window.__smokeGame;
       const scene = game.scene.getScene('Room');
       return scene.player !== previous && scene.player.x === 480 && scene.player.y === 336 && scene.projectiles.getLength() === 0;
     }, previousPlayer);
@@ -266,6 +341,21 @@ try {
   ok(reentered.time - contactBeforeBreak.time < 900, 'Повторное касание после разрыва наносит новый мгновенный удар');
   await restart(true);
   ok((await state()).health === 3, 'Сброс комнаты очищает таймер контакта и возвращает 3 HP');
+  await page.keyboard.press('Escape');
+  await waitScene('CharacterSelect');
+  ok((await activeScenes()).join() === 'CharacterSelect', 'Из комнаты можно вернуться в лагерь через Esc');
+  for (let run = 0; run < 3; run++) {
+    await page.keyboard.press('Enter');
+    await waitScene('Room');
+    ok((await state()).health === 3 && (await activeScenes()).join() === 'Room', `Новый забег после меню: ${run + 1}`);
+    await page.keyboard.press('Escape');
+    await waitScene('CharacterSelect');
+    await page.keyboard.press('Escape');
+    await waitScene('MainMenu');
+    await page.keyboard.press('Enter');
+    await waitScene('CharacterSelect');
+    ok((await activeScenes()).join() === 'CharacterSelect', `Повторные переходы без лишних сцен: ${run + 1}`);
+  }
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}. Скриншот: test-results/room.png`);
 } finally {
