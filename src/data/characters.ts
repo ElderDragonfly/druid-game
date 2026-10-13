@@ -6,7 +6,7 @@ export interface CharacterDefinition {
   available: boolean;
   description: string;
   portrait: { texture: string; frame?: string };
-  camp?: { texture: string; originX: number; originY: number; scale: number };
+  camp?: { texture: string; originX: number; originY: number; scale: number; position?: { x: number; y: number } };
   game?: { texture: string; metrics: GameSpriteMetrics };
 }
 
@@ -15,7 +15,7 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
   {
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
     portrait: { texture: DRUID_TEXTURES.standing, frame: 'figure' },
-    camp: { texture: DRUID_TEXTURES.camp, originX: 0.5, originY: CAMP_DRUID.seatOriginY, scale: CAMP_DRUID.scale },
+    camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID },
   },
   { id: 'locked-1', name: 'Закрыто', available: false, description: 'Пока недоступен', portrait: { texture: DRUID_TEXTURES.standing, frame: 'figure' } },

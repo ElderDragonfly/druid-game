@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
-import campSource from '../assets/characters/druid-camp-source.png';
+import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
 import gameSource from '../assets/characters/druid-game-source.png';
 
 export const DRUID_TEXTURES = {
@@ -11,14 +11,14 @@ export const DRUID_TEXTURES = {
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
-  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 280, y: 86, width: 769, height: 1093 } },
+  // Правый лагерь из явно указанного эскиза: интерфейс слева исключён из кадра.
+  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
   { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 154, y: 88, width: 844, height: 1250 } },
 ] as const;
 
 export const CAMP_DRUID = {
-  width: 40, height: 56, contentHeight: 50,
-  scale: 2.5,
-  seatOriginY: (1 + 50 * 0.67) / 56,
+  width: 696, height: 864, scale: 960 / 1536,
+  position: { x: 525, y: 50 },
 } as const;
 
 export interface GameSpriteMetrics {
@@ -40,15 +40,6 @@ const GAME_PALETTE = [
   0xad8b60, 0xc7ab7b,
   0x637266, 0x9fa98e, 0xc9cbb1,
   0x203927, 0x547348, 0x80765a, 0xb6bba0,
-];
-// Палитра меню независима: изменения игрового спрайта не меняют сидящего друида.
-const CAMP_PALETTE = [
-  0x142820,
-  0x2e4931, 0x47613a, 0x667745,
-  0x393022, 0x655134, 0x9c7e53,
-  0xad8b60, 0xc7ab7b,
-  0x637266, 0x9fa98e, 0xc9cbb1,
-  0x203927, 0xaaa17b, 0xbaa26b, 0x88947f,
 ];
 
 interface SmallSprite {
@@ -95,6 +86,13 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     if (!texture.has('figure')) texture.add('figure', 0, art.frame.x, art.frame.y, art.frame.width, art.frame.height);
     texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
-  prepareSmallSprite(scene, { ...CAMP_DRUID, key: DRUID_TEXTURES.camp, sourceKey: DRUID_TEXTURES.campSource, palette: CAMP_PALETTE });
+  if (!scene.textures.exists(DRUID_TEXTURES.camp)) {
+    const crop = DRUID_ART.find(art => art.key === DRUID_TEXTURES.campSource)!.frame;
+    const source = scene.textures.get(DRUID_TEXTURES.campSource).getSourceImage() as HTMLImageElement;
+    const camp = scene.textures.createCanvas(DRUID_TEXTURES.camp, crop.width, crop.height)!;
+    // Копируем исходные пиксели: ни перерисовки, ни новой сетки, ни изменения палитры.
+    camp.context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    camp.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
   prepareSmallSprite(scene, { ...GAME_DRUID, key: DRUID_TEXTURES.game, sourceKey: DRUID_TEXTURES.gameSource, palette: GAME_PALETTE });
 }

@@ -70,8 +70,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (!character?.camp) return false;
     this.selectedId = character.id;
     this.cards.forEach(card => card.setSelected(card.getData('characterId') === character.id));
+    const position = character.camp.position ?? { x: MENU_LAYOUT.select.preview.x, y: MENU_LAYOUT.select.preview.seatY };
     this.campPreview.setTexture(character.camp.texture).setOrigin(character.camp.originX, character.camp.originY)
-      .setScale(character.camp.scale).setData('characterId', character.id);
+      .setScale(character.camp.scale).setPosition(position.x, position.y).setData('characterId', character.id);
     this.nameLabel.setText(character.name);
     this.descriptionLabel.setText(character.description);
     return true;

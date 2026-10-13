@@ -106,27 +106,26 @@ try {
     'Три ячейки: крайняя левая доступна, остальные закрыты');
   ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp' && slots.seatedCharacterId === slots.id,
     'На бревне сидит пиксельная версия выбранного друида');
-  ok(slots.seatedWidth === 100 && slots.seatedHeight === 140 && slots.seatedX === 806 && slots.seatedY === 400 &&
-    slots.seatedPixelScale === 2.5,
-    'Возвращён прежний сидящий друид 40×56 с исходным размером и положением на бревне');
-  const campPixels = await page.evaluate(() => {
+  ok(slots.seatedWidth === 435 && slots.seatedHeight === 540 && slots.seatedX === 525 && slots.seatedY === 50 &&
+    slots.seatedPixelScale === 0.625,
+    'Правый лагерь из выбранного эскиза стоит в исходной композиции, за пределами панели кнопок');
+  const campPixels = await page.evaluate(async () => {
     const canvas = window.__smokeGame.textures.get('druid-camp').getSourceImage();
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-    const colors = new Set();
-    let transparent = 0;
-    let translucent = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) transparent++;
-      else {
-        colors.add(`${data[i]},${data[i + 1]},${data[i + 2]}`);
-        if (data[i + 3] !== 255) translucent++;
-      }
-    }
-    return { width: canvas.width, height: canvas.height, colors: colors.size, transparent, translucent };
+    // Phaser загружает текстуры через blob URL; эталон читаем независимо по выбранному пути.
+    const source = new Image();
+    source.src = '/docs/art/druid-detail-preview-v1/character-selection-preview.png';
+    await source.decode();
+    const reference = document.createElement('canvas');
+    reference.width = 1536; reference.height = 1024;
+    const context = reference.getContext('2d');
+    context.drawImage(source, 0, 0);
+    const approvedPixels = context.getImageData(840, 80, 696, 864).data;
+    return { width: canvas.width, height: canvas.height,
+      identical: data.length === approvedPixels.length && data.every((value, index) => value === approvedPixels[index]) };
   });
-  ok(campPixels.width === 40 && campPixels.height === 56 && campPixels.colors <= 16 && campPixels.colors >= 8 &&
-    campPixels.transparent > 800 && campPixels.translucent === 0,
-    'Сидящий образ сохраняет прежнюю сетку 40×56, до 16 цветов и чистый прозрачный фон');
+  ok(campPixels.width === 696 && campPixels.height === 864 && campPixels.identical,
+    `Каждый пиксель лагеря совпадает с явно указанным PNG: без генерации, упрощения и изменения цветов (${JSON.stringify(campPixels)})`);
   ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
@@ -155,7 +154,7 @@ try {
     gameTexture.context.fillRect(8, 4, 12, 30);
     gameTexture.refresh();
     Object.assign(record, { available: true, name: 'Проверочный друид',
-      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant', scale: 2 },
+      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant', scale: 2, position: { x: 806, y: 400 } },
       game: { texture: '_test-game-variant', metrics: { ...CHARACTERS[0].game.metrics, scale: 1.5 } } });
     const card = scene.children.getByName('character-locked-1');
     scene.scene.restart();
@@ -167,7 +166,7 @@ try {
   await clickNamed('CharacterSelect', 'character-locked-1');
   const switched = await selection();
   ok(switched.id === 'locked-1' && switched.preview === '_test-camp-variant' && switched.seatedCharacterId === 'locked-1' &&
-    switched.name === 'Проверочный друид' && switched.seatedHeight === 112,
+    switched.name === 'Проверочный друид' && switched.seatedHeight === 112 && switched.seatedX === 806 && switched.seatedY === 400,
     'Клик по другому доступному персонажу меняет фигуру, её масштаб и подпись из данных');
   await clickNamed('CharacterSelect', 'start-run');
   await waitScene('Room');
@@ -398,8 +397,18 @@ try {
           if (axis === 'x') center.x = sign > 0 ? obstacle.x - 10 - distance : obstacle.right + 10 + distance;
           else center.y = sign > 0 ? obstacle.y - 12.5 - distance : obstacle.bottom + 12.5 + distance;
           const body = { x: center.x - 10, y: center.y - 12.5, right: center.x + 10, bottom: center.y + 12.5 };
+          // Свободным должен быть весь подход, а не только старт: иначе соседний куст
+          // может остановить героя до дерева и случайно провалить проверку дерева.
+          const corridor = { ...body };
+          if (axis === 'x') {
+            if (sign > 0) corridor.right += distance; else corridor.x -= distance;
+          } else {
+            if (sign > 0) corridor.bottom += distance; else corridor.y -= distance;
+          }
           if (body.x >= 0 && body.y >= 0 && body.right <= current.layout.width && body.bottom <= current.layout.height &&
-            !current.obstacles.some(other => intersects(body, other))) { fixture = { obstacle, center, distance }; break; }
+            !current.obstacles.some(other => other !== obstacle && intersects(corridor, other)) && !intersects(body, obstacle)) {
+            fixture = { obstacle, center, distance }; break;
+          }
         }
       if (fixture) break;
       }
@@ -416,7 +425,7 @@ try {
       const edge = axis === 'x' ? (sign > 0 ? after.body.right - o.x : after.body.x - o.right)
         : (sign > 0 ? after.body.bottom - o.y : after.body.y - o.bottom);
       ok(Math.abs(edge) < 1 && (after[axis] - before[axis]) * sign > fixture.distance - 1 && !intersects(after.body, o),
-        `Препятствие ${kind} блокирует реальное движение ${key.toUpperCase()}`);
+        `Препятствие ${kind} блокирует реальное движение ${key.toUpperCase()}${Math.abs(edge) >= 1 ? `: ${JSON.stringify({ fixture, before: before.body, after: after.body, edge })}` : ''}`);
     }
   }
 
