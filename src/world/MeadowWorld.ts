@@ -26,7 +26,7 @@ export class MeadowWorld {
     });
   }
 
-  bindPlayer(player: Phaser.Physics.Arcade.Image) {
+  bindPlayer(player: Phaser.Physics.Arcade.Image | Phaser.Physics.Arcade.Sprite) {
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
   }
 

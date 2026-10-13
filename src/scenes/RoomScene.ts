@@ -9,7 +9,7 @@ import { createMeadowTextures } from '../rendering/meadowTextures';
 import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
 export class RoomScene extends Phaser.Scene {
-  player!: Phaser.Physics.Arcade.Image;
+  player!: Phaser.Physics.Arcade.Sprite;
   playerHealth: number = SETTINGS.playerHealth;
   characterId = CHARACTERS[0].id;
   layout!: MeadowLayout;
@@ -18,6 +18,8 @@ export class RoomScene extends Phaser.Scene {
   private movement!: MovementKeys;
   private facingInput!: FourWayFacing;
   private facingFrames?: Record<Facing, string>;
+  private idleTexture!: string;
+  private walkAnimations?: Partial<Record<Facing, string>>;
   facing: Facing = 'down';
   private direction = new Phaser.Math.Vector2();
   private shadow!: Phaser.GameObjects.Image;
@@ -39,9 +41,11 @@ export class RoomScene extends Phaser.Scene {
     const art = appearance.metrics;
     this.facing = 'down';
     this.facingFrames = appearance.frames;
+    this.idleTexture = appearance.texture;
+    this.walkAnimations = appearance.walkAnimations;
     const feetOffset = art.bodyCenterY + art.bodyHeight / 2;
     const originY = art.feetY - feetOffset / art.scale;
-    this.player = this.physics.add.image(0, 0, appearance.texture, this.facingFrames?.down)
+    this.player = this.physics.add.sprite(0, 0, appearance.texture, this.facingFrames?.down)
       .setOrigin(0.5, originY / art.height).setScale(art.scale)
       .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
       .setOffset((art.width - art.bodyWidth / art.scale) / 2,
@@ -58,7 +62,7 @@ export class RoomScene extends Phaser.Scene {
     this.facingInput = new FourWayFacing(this.movement);
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
-    const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); };
+    const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); this.updateAppearance(false); };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
     const resize = () => this.buildWorld(true);
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
@@ -71,16 +75,28 @@ export class RoomScene extends Phaser.Scene {
 
   update() {
     const keys = this.movement;
-    const facing = this.facingInput.read();
-    if (facing !== this.facing) {
-      this.facing = facing;
-      const frame = this.facingFrames?.[facing];
-      if (frame) this.player.setFrame(frame, false, false);
-    }
+    this.facing = this.facingInput.read();
     this.direction.set(Number(keys.right.isDown) - Number(keys.left.isDown), Number(keys.down.isDown) - Number(keys.up.isDown))
       .normalize().scale(SETTINGS.playerSpeed);
     this.player.setVelocity(this.direction.x, this.direction.y).setDepth(this.player.y + 25);
+    const blocked = (this.player.body as Phaser.Physics.Arcade.Body).blocked;
+    const moving = (this.direction.x < 0 && !blocked.left) || (this.direction.x > 0 && !blocked.right) ||
+      (this.direction.y < 0 && !blocked.up) || (this.direction.y > 0 && !blocked.down);
+    this.updateAppearance(moving);
     this.shadow.setPosition(this.player.x, this.player.y + 22).setDepth(this.player.y + 24);
+  }
+
+  private updateAppearance(moving: boolean) {
+    const animation = moving ? this.walkAnimations?.[this.facing] : undefined;
+    if (animation) {
+      // ignoreIfPlaying сохраняет текущий шаг, а не запускает цикл заново каждый кадр.
+      this.player.play(animation, true);
+      return;
+    }
+    this.player.anims.stop();
+    const frame = this.facingFrames?.[this.facing];
+    if (this.player.texture.key !== this.idleTexture) this.player.setTexture(this.idleTexture, frame);
+    else if (frame && this.player.frame.name !== frame) this.player.setFrame(frame, false, false);
   }
 
   private buildWorld(preservePosition = false) {

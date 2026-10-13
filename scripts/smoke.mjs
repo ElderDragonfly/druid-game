@@ -65,7 +65,7 @@ try {
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source',
-      'druid-left-source', 'druid-right-source', 'druid-back-source']
+      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
@@ -230,6 +230,7 @@ try {
     const view = scene.cameras.main.worldView;
     return {
       x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y, facing: scene.facing, frame: p.frame.name,
+      animationPlaying: p.anims.isPlaying, animationKey: p.anims.currentAnim?.key,
       body: rect(p.body), health: scene.playerHealth,
       healthLabel: scene.hud.getByName('health-label').text,
       layout: scene.layout,
@@ -395,6 +396,59 @@ try {
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
 
+  const walkPixels = await page.evaluate(async () => {
+    const image = new Image(); image.src = '/docs/art/druid-walk-down-v2/walk-down-64x80.png'; await image.decode();
+    const texture = window.__smokeGame.textures.get('druid-walk-down-source');
+    const read = source => {
+      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+      const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
+      return context.getImageData(0, 0, 256, 80).data;
+    };
+    const expected = read(image); const actual = read(texture.getSourceImage());
+    return actual.every((value, index) => value === expected[index]);
+  });
+  ok(walkPixels, 'Цикл ходьбы использует каждый пиксель принятого PNG без перерисовки или уменьшения');
+
+  // Длинный свободный проход нужен, чтобы препятствие не прервало проверяемый цикл.
+  const corridorStart = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
+    for (let y = 50; y < scene.layout.height - 250; y += 20) {
+      for (let x = 30; x < scene.layout.width - 30; x += 20) {
+        const corridor = { x: x - 10, y: y - 12.5, right: x + 10, bottom: y + 230 };
+        if (obstacles.some(o => corridor.x < o.right && corridor.right > o.x && corridor.y < o.bottom && corridor.bottom > o.y)) continue;
+        scene.player.body.reset(x, y - 10);
+        return true;
+      }
+    }
+    return false;
+  });
+  assert.ok(corridorStart, 'Нет свободного прохода для проверки цикла');
+  await page.keyboard.down('s');
+  await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-down');
+  const walkCycle = await page.evaluate(async () => {
+    const scene = window.__smokeGame.scene.getScene('Room'); const p = scene.player;
+    const frames = []; const startY = p.y; const startTime = performance.now();
+    let geometryPreserved = true;
+    while (performance.now() - startTime < 850) {
+      if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
+      geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+        Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
+        Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    return { frames, geometryPreserved, distance: p.y - startY, playing: p.anims.isPlaying };
+  });
+  const indices = walkCycle.frames.map(frame => Number(frame.replace('walk-down-', '')));
+  ok(new Set(indices).size === 4 && indices.length >= 5 && indices.every((value, index) =>
+    value >= 0 && value < 4 && (!index || value === (indices[index - 1] + 1) % 4)),
+    `Удержание S последовательно проигрывает все четыре кадра и повторяет цикл: ${walkCycle.frames.join(', ')}`);
+  ok(walkCycle.playing && walkCycle.distance > 150 && walkCycle.geometryPreserved,
+    'Друид движется во время анимации; размер, опора ног и физическое тело остаются прежними');
+  await page.keyboard.up('s');
+  const idleAfterWalk = await waitState(current => !current.animationPlaying && current.frame === 'down' && current.vy === 0);
+  ok(idleAfterWalk.facing === 'down', 'Отпускание S останавливает цикл и возвращает стоящий фронтальный спрайт');
+
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
     await restart();
     const before = await state();
@@ -417,8 +471,8 @@ try {
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
   ok(diagonal.facing === 'right' && diagonal.frame === 'right', 'При S+D код выбирает слот последней нажатой D');
   await page.keyboard.up('d');
-  const remaining = await waitState(current => current.frame === 'down' && current.vx === 0);
-  ok(remaining.facing === 'down', 'После отпускания D удерживаемая S возвращает фронтальный ракурс');
+  const remaining = await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-down' && current.vx === 0);
+  ok(remaining.facing === 'down', 'После отпускания D удерживаемая S включает ходьбу вниз');
   await page.keyboard.down('w');
   await waitState(current => current.vx === 0 && current.vy === 0);
   const canceled = await state();
@@ -465,6 +519,12 @@ try {
         scene.player.setVelocity(0, 0);
       }, fixture.center);
       const before = await state();
+      if (key === 's') {
+        await page.keyboard.down(key);
+        await waitState(current => !current.animationPlaying && Math.abs(current.body.bottom - fixture.obstacle.y) < 1);
+        ok(!(await state()).animationPlaying, `Упор в ${kind} останавливает ходьбу вниз даже при удержании S`);
+        await page.keyboard.up(key);
+      }
       await hold(key, 450);
       const after = await state();
       const o = fixture.obstacle;

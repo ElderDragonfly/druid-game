@@ -5,6 +5,7 @@ import gameSource from '../../docs/art/druid-front-resolution-v1/druid-front-64x
 import leftSource from '../assets/characters/druid-left-64x80.png';
 import rightSource from '../assets/characters/druid-right-64x80.png';
 import backSource from '../assets/characters/druid-back-64x80.png';
+import walkDownSource from '../../docs/art/druid-walk-down-v2/walk-down-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
@@ -12,6 +13,7 @@ export const DRUID_TEXTURES = {
   campSource: 'druid-camp-source', camp: 'druid-camp',
   gameSource: 'druid-game-source', game: 'druid-game',
   leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
+  walkDown: 'druid-walk-down-source',
 } as const;
 
 export const DRUID_ART = [
@@ -21,6 +23,7 @@ export const DRUID_ART = [
   { key: DRUID_TEXTURES.leftSource, url: leftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.rightSource, url: rightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.backSource, url: backSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -55,6 +58,16 @@ export const DRUID_VIEWS: readonly DruidView[] = [
   { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
 ];
 
+// Новые циклы добавляются сюда; отсутствие цикла оставляет неподвижный ракурс.
+export const DRUID_WALKS = [
+  { direction: 'down', sourceKey: DRUID_TEXTURES.walkDown, animationKey: 'druid-walk-down',
+    frameCount: 4, frameDurationMs: 160 },
+] as const;
+
+export const DRUID_WALK_ANIMATIONS = Object.fromEntries(
+  DRUID_WALKS.map(walk => [walk.direction, walk.animationKey]),
+) as Partial<Record<Facing, string>>;
+
 export function prepareDruidTextures(scene: Phaser.Scene) {
   for (const art of DRUID_ART) {
     const texture = scene.textures.get(art.key);
@@ -88,5 +101,16 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     }
     atlas.context.putImageData(pixels, 0, 0);
     atlas.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
+  for (const walk of DRUID_WALKS) {
+    const texture = scene.textures.get(walk.sourceKey);
+    const frames = Array.from({ length: walk.frameCount }, (_, index) => {
+      const frame = `walk-${walk.direction}-${index}`;
+      if (!texture.has(frame)) texture.add(frame, 0, index * GAME_DRUID.width, 0, GAME_DRUID.width, GAME_DRUID.height);
+      return { key: walk.sourceKey, frame };
+    });
+    if (!scene.anims.exists(walk.animationKey)) {
+      scene.anims.create({ key: walk.animationKey, frames, frameRate: 1000 / walk.frameDurationMs, repeat: -1 });
+    }
   }
 }
