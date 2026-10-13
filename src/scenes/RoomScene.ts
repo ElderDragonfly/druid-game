@@ -1,13 +1,16 @@
 import Phaser from 'phaser';
 import { SETTINGS } from '../settings';
+import { Beetle } from '../entities/Beetle';
 
 export class RoomScene extends Phaser.Scene {
   player!: Phaser.Physics.Arcade.Image;
   projectiles!: Phaser.Physics.Arcade.Group;
+  enemy!: Beetle;
   private movement!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private arrows!: Phaser.Types.Input.Keyboard.CursorKeys;
   private lastShot = -Infinity;
   private shadow!: Phaser.GameObjects.Ellipse;
+  private status!: Phaser.GameObjects.Text;
 
   constructor() { super('Room'); }
 
@@ -24,6 +27,14 @@ export class RoomScene extends Phaser.Scene {
     this.player = this.physics.add.image(centerX, centerY, 'druid').setDepth(2);
     this.player.setSize(24, 30).setOffset(10, 12).setCollideWorldBounds(true);
     this.projectiles = this.physics.add.group({ maxSize: 32 });
+    this.enemy = this.spawnEnemy();
+    this.physics.add.overlap(this.enemy, this.projectiles, (_enemy, projectile) => {
+      const shot = projectile as Phaser.Physics.Arcade.Image;
+      if (!shot.active || !this.enemy.active) return;
+      this.removeShot(shot);
+      this.enemy.takeHit();
+      if (!this.enemy.active) this.status.setText('Жук побеждён! Нажмите R, чтобы попробовать снова.');
+    });
 
     const keyboard = this.input.keyboard!;
     // Физические коды клавиш сохраняют WASD и при русской раскладке.
@@ -53,6 +64,7 @@ export class RoomScene extends Phaser.Scene {
     ).normalize().scale(SETTINGS.playerSpeed);
     this.player.setVelocity(direction.x, direction.y);
     this.shadow.setPosition(this.player.x, this.player.y + 16);
+    this.enemy.follow(this.player);
 
     // Один снаряд за выстрел; при нескольких стрелках приоритет вверх/вниз/влево/вправо.
     let shotX = 0;
@@ -71,10 +83,35 @@ export class RoomScene extends Phaser.Scene {
       const shot = object as Phaser.Physics.Arcade.Image;
       if (shot.active && (shot.x < room.x + 5 || shot.x > room.x + room.width - 5 ||
         shot.y < room.y + 5 || shot.y > room.y + room.height - 5)) {
-        this.projectiles.killAndHide(shot);
-        shot.disableBody(true, true);
+        this.removeShot(shot);
       }
     }
+  }
+
+  private spawnEnemy() {
+    const room = SETTINGS.room;
+    const inset = 40;
+    const left = room.x + inset;
+    const right = room.x + room.width - inset;
+    const top = room.y + inset;
+    const bottom = room.y + room.height - inset;
+    for (let attempt = 0; attempt < 32; attempt++) {
+      const x = Phaser.Math.Between(left, right);
+      const y = Phaser.Math.Between(top, bottom);
+      if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= SETTINGS.enemy.minSpawnDistance) {
+        return new Beetle(this, x, y);
+      }
+    }
+    // Ограниченное число попыток: запасной вариант — самый дальний угол.
+    const corners = [[left, top], [right, top], [left, bottom], [right, bottom]];
+    corners.sort((a, b) => Phaser.Math.Distance.Between(b[0], b[1], this.player.x, this.player.y) -
+      Phaser.Math.Distance.Between(a[0], a[1], this.player.x, this.player.y));
+    return new Beetle(this, corners[0][0], corners[0][1]);
+  }
+
+  private removeShot(shot: Phaser.Physics.Arcade.Image) {
+    this.projectiles.killAndHide(shot);
+    shot.disableBody(true, true);
   }
 
   private fire(x: number, y: number) {
@@ -102,6 +139,19 @@ export class RoomScene extends Phaser.Scene {
     g.fillStyle(0xbcdf93, 0.25).fillCircle(8, 8, 8);
     g.fillStyle(0xd6edac).fillCircle(8, 8, 5);
     g.generateTexture('seed', 16, 16);
+    g.clear();
+    // Медный лесной жук: шесть лап, панцирь и усики. Смотрит вверх.
+    g.lineStyle(3, 0x604735);
+    for (const y of [19, 27, 35]) {
+      g.lineBetween(15, y, 7, y + 3).lineBetween(33, y, 41, y + 3);
+    }
+    g.lineBetween(20, 12, 16, 5).lineBetween(28, 12, 32, 5);
+    g.fillStyle(0x392c23).fillEllipse(24, 28, 28, 32).fillCircle(24, 13, 9);
+    g.fillStyle(0xb8794d).fillEllipse(24, 27, 23, 28);
+    g.fillStyle(0xd6a15e).fillEllipse(20, 24, 8, 19);
+    g.lineStyle(2, 0x70472e).lineBetween(24, 14, 24, 39);
+    g.fillStyle(0xe8d49d).fillCircle(20, 11, 2).fillCircle(28, 11, 2);
+    g.generateTexture('beetle', 48, 48);
     g.destroy();
   }
 
@@ -126,7 +176,7 @@ export class RoomScene extends Phaser.Scene {
     }
     const fontFamily = 'Arial, sans-serif';
     this.add.text(48, 33, 'ПЕРВАЯ КОМНАТА', { fontFamily, fontSize: '26px', color: '#e0e8cc' });
-    this.add.text(49, 72, 'Друид · движение и природная магия', { fontFamily, fontSize: '14px', color: '#99b295' });
+    this.status = this.add.text(49, 72, 'Лесной жук · 3 попадания · R — новая попытка', { fontFamily, fontSize: '14px', color: '#99b295' });
     this.add.text(909, 48, '01 / ПРОТОТИП', { fontFamily, fontSize: '12px', color: '#a7bd91' }).setOrigin(1, 0);
     this.add.text(48, 587, 'W A S D   ДВИЖЕНИЕ', { fontFamily, fontSize: '14px', color: '#c4d4b2' });
     this.add.text(378, 587, '↑ ↓ ← →   СТРЕЛЬБА', { fontFamily, fontSize: '14px', color: '#c4d4b2' });

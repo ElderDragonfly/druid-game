@@ -6,4 +6,5 @@ export const SETTINGS = {
   playerSpeed: 220,
   projectileSpeed: 440,
   fireInterval: 220,
+  enemy: { speed: 90, health: 3, minSpawnDistance: 240, stopDistance: 32 },
 } as const;

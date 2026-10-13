@@ -43,14 +43,29 @@ try {
       body: { x: p.body.x, y: p.body.y, right: p.body.right, bottom: p.body.bottom },
       shots: scene.projectiles.getChildren().filter(s => s.active).map(s => ({ x: s.x, y: s.y, vx: s.body.velocity.x, vy: s.body.velocity.y })),
       poolSize: scene.projectiles.getLength(),
+      enemy: scene.enemy.active ? {
+        x: scene.enemy.x, y: scene.enemy.y, health: scene.enemy.health,
+        vx: scene.enemy.body.velocity.x, vy: scene.enemy.body.velocity.y,
+      } : null,
     };
   });
-  const restart = async () => {
+  const restart = async (withEnemy = false) => {
+    const previousPlayer = await page.evaluateHandle(async () => {
+      const { game } = await import('/src/main.ts');
+      return game.scene.getScene('Room').player;
+    });
     await page.keyboard.press('r');
-    await page.waitForFunction(async () => {
+    await page.waitForFunction(async previous => {
       const { game } = await import('/src/main.ts');
       const scene = game.scene.getScene('Room');
-      return scene.player.x === 480 && scene.player.y === 336 && scene.projectiles.getLength() === 0;
+      return scene.player !== previous && scene.player.x === 480 && scene.player.y === 336 && scene.projectiles.getLength() === 0;
+    }, previousPlayer);
+    await previousPlayer.dispose();
+    // Исходные проверки управления выполняются в очищенной комнате.
+    // Ниже враг отдельно проверяется с настоящим движением и попаданиями.
+    if (!withEnemy) await page.evaluate(async () => {
+      const { game } = await import('/src/main.ts');
+      game.scene.getScene('Room').enemy.destroy();
     });
   };
   const hold = async (key, ms) => {
@@ -133,6 +148,61 @@ try {
   await restart();
   const reset = await state();
   ok(reset.x === 480 && reset.y === 336 && reset.shots.length === 0, 'R сбрасывает комнату и снаряды');
+
+  const spawns = new Set();
+  for (let run = 0; run < 5; run++) {
+    await restart(true);
+    const spawn = await state();
+    const e = spawn.enemy;
+    ok(e !== null && e.health === 3 && e.x >= 100 && e.x <= 860 && e.y >= 164 && e.y <= 508 &&
+      Math.hypot(e.x - spawn.x, e.y - spawn.y) >= 235, `Безопасное появление жука внутри комнаты: попытка ${run + 1}`);
+    spawns.add(`${Math.round(e.x)},${Math.round(e.y)}`);
+  }
+  ok(spawns.size > 1, 'Место появления меняется между попытками');
+  const beforeChase = await state();
+  const startingDistance = Math.hypot(beforeChase.enemy.x - beforeChase.x, beforeChase.enemy.y - beforeChase.y);
+  const chasing = await waitState(current => current.enemy &&
+    Math.hypot(current.enemy.x - current.x, current.enemy.y - current.y) < startingDistance - 25);
+  ok(Math.abs(Math.hypot(chasing.enemy.vx, chasing.enemy.vy) - 90) < 0.1 &&
+    Math.hypot(chasing.enemy.vx, chasing.enemy.vy) < 220, 'Жук приближается к игроку медленнее его');
+  await hold('d', 350);
+  const retargeted = await state();
+  const dx = retargeted.x - retargeted.enemy.x;
+  const dy = retargeted.y - retargeted.enemy.y;
+  const aim = (dx * retargeted.enemy.vx + dy * retargeted.enemy.vy) / (Math.hypot(dx, dy) * 90);
+  ok(aim > 0.99, 'Жук меняет направление вслед за перемещением игрока');
+
+  await restart(true);
+  // Фиксируем только начальные позиции для воспроизводимого боевого сценария.
+  // AI, физика, обработка клавиш и попадания работают без подмены.
+  await page.evaluate(async () => {
+    const { game } = await import('/src/main.ts');
+    const scene = game.scene.getScene('Room');
+    scene.player.body.reset(480, 336);
+    scene.enemy.body.reset(640, 336);
+  });
+  await waitState(current => current.enemy.vx === 0 && current.enemy.vy === 0 && current.enemy.x < 515);
+  const close = await state();
+  const closeDistance = Math.hypot(close.enemy.x - close.x, close.enemy.y - close.y);
+  await delay(200);
+  const staying = await state();
+  ok(closeDistance > 25 && closeDistance <= 33 && Math.abs(staying.enemy.x - close.enemy.x) < 1,
+    'Жук останавливается рядом с друидом');
+
+  for (const health of [2, 1, 0]) {
+    await page.keyboard.down('ArrowRight');
+    await waitState(current => current.shots.length > 0 || !current.enemy || current.enemy.health === health);
+    await page.keyboard.up('ArrowRight');
+    const hit = await waitState(current => health === 0 ? current.enemy === null : current.enemy?.health === health);
+    ok(health === 0 ? hit.enemy === null : hit.enemy.health === health,
+      health === 0 ? 'Третье попадание уничтожает жука' : `Попадание снимает ровно одно здоровье: осталось ${health}`);
+    ok(hit.shots.length === 0, 'Попавший снаряд исчезает и не наносит повторный урон');
+  }
+  await hold('ArrowRight', 400);
+  ok((await state()).shots.length > 0, 'После гибели жука стрельба продолжает работать');
+  await restart(true);
+  const newRun = await state();
+  ok(newRun.enemy?.health === 3 && newRun.shots.length === 0, 'R создаёт нового жука с полным здоровьем');
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}. Скриншот: test-results/room.png`);
 } finally {
