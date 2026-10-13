@@ -15,8 +15,8 @@ export class CharacterSelectScene extends Phaser.Scene {
   create() {
     this.selectedId = CHARACTERS[0].id;
     this.cards = [];
-    addCampBackground(this, 'selection-camp');
     const layout = MENU_LAYOUT.select;
+    addCampBackground(this, 'selection-camp', layout.backgroundPixelScale);
     const p = layout.panel;
     this.add.rectangle(p.x, p.y, p.width, p.height, 0x0d1b14, 0.87).setStrokeStyle(1, 0x44563f);
     this.add.text(70, 125, 'Выбор персонажа', {

@@ -75,7 +75,7 @@ try {
       id: scene.selectedId,
       cards: scene.children.list.filter(item => item.name.startsWith('character-')).map(item => ({ name: item.name, enabled: item.enabled })),
       preview: scene.children.getByName('selected-character-preview').texture.key,
-      background: scene.children.getByName('camp-background').texture.key,
+      background: scene.children.getByName('camp-background').getData('sourceTexture'),
     };
   });
   const slots = await selection();
