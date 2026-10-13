@@ -2,18 +2,25 @@ import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
 import gameSource from '../../docs/art/druid-front-resolution-v1/druid-front-64x80.png';
+import leftSource from '../assets/characters/druid-left-64x80.png';
+import rightSource from '../assets/characters/druid-right-64x80.png';
+import backSource from '../assets/characters/druid-back-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail',
   campSource: 'druid-camp-source', camp: 'druid-camp',
   gameSource: 'druid-game-source', game: 'druid-game',
+  leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
 } as const;
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
   { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.leftSource, url: leftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.rightSource, url: rightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.backSource, url: backSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -34,18 +41,18 @@ export const GAME_DRUID = {
 
 interface DruidView {
   direction: Facing;
+  sourceKey: string;
   x: number; y: number; width: number; height: number;
   footX: number;
 }
 
-// Пока все четыре слота используют фронтальный спрайт: код поворота сохраняется.
-// Остальные ракурсы позже заменяются здесь, без изменений движения и физики.
+// Каждый ракурс задаётся собственным PNG; замена не затрагивает движение и физику.
 // Последние пять строк PNG прозрачны; опора ног остаётся на строке 75.
 export const DRUID_VIEWS: readonly DruidView[] = [
-  { direction: 'down', x: 0, y: 0, width: 64, height: 75, footX: 32 },
-  { direction: 'left', x: 0, y: 0, width: 64, height: 75, footX: 32 },
-  { direction: 'right', x: 0, y: 0, width: 64, height: 75, footX: 32 },
-  { direction: 'up', x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'down', sourceKey: DRUID_TEXTURES.gameSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'left', sourceKey: DRUID_TEXTURES.leftSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'right', sourceKey: DRUID_TEXTURES.rightSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
 ];
 
 export function prepareDruidTextures(scene: Phaser.Scene) {
@@ -62,11 +69,11 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     camp.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
   if (!scene.textures.exists(DRUID_TEXTURES.game)) {
-    const source = scene.textures.get(DRUID_TEXTURES.gameSource).getSourceImage() as HTMLImageElement;
     const { width, height, feetY } = GAME_DRUID;
     const atlas = scene.textures.createCanvas(DRUID_TEXTURES.game, width * DRUID_VIEWS.length, height)!;
     atlas.context.imageSmoothingEnabled = false;
     DRUID_VIEWS.forEach((view, index) => {
+      const source = scene.textures.get(view.sourceKey).getSourceImage() as HTMLImageElement;
       const frameX = index * width;
       const x = frameX + width / 2 - view.footX;
       const y = feetY - view.height;

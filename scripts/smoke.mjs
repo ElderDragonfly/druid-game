@@ -64,7 +64,8 @@ try {
   ok(initialScenes.join() === 'MainMenu', `При запуске открывается только главное меню: ${initialScenes.join()}`);
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
-    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source']
+    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source',
+      'druid-left-source', 'druid-right-source', 'druid-back-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
@@ -365,19 +366,31 @@ try {
   const directionalArt = await page.evaluate(async () => {
     const texture = window.__smokeGame.textures.get('druid-game');
     const atlas = texture.getSourceImage().getContext('2d');
-    const image = new Image(); image.src = '/docs/art/druid-front-resolution-v1/druid-front-64x80.png'; await image.decode();
-    const reference = document.createElement('canvas'); reference.width = image.width; reference.height = image.height;
-    const context = reference.getContext('2d'); context.drawImage(image, 0, 0);
-    const expected = context.getImageData(0, 0, 64, 80).data;
-    return ['down', 'left', 'right', 'up'].map(direction => {
+    const sources = {
+      down: '/docs/art/druid-front-resolution-v1/druid-front-64x80.png',
+      left: '/src/assets/characters/druid-left-64x80.png',
+      right: '/src/assets/characters/druid-right-64x80.png',
+      up: '/src/assets/characters/druid-back-64x80.png',
+    };
+    return Promise.all(Object.entries(sources).map(async ([direction, path]) => {
+      const image = new Image(); image.src = path; await image.decode();
+      const reference = document.createElement('canvas'); reference.width = 64; reference.height = 80;
+      const context = reference.getContext('2d'); context.drawImage(image, 0, 0);
+      const expected = context.getImageData(0, 0, 64, 80).data;
       const frame = texture.get(direction);
       const actual = atlas.getImageData(frame.cutX, frame.cutY, 64, 80).data;
       const preserved = expected.length === actual.length && actual.every((value, index) => value === expected[index]);
-      return { direction, preserved, width: frame.width, height: frame.height };
-    });
+      let signature = 2166136261;
+      let lastY = -1;
+      for (let i = 0; i < actual.length; i++) signature = Math.imul(signature ^ actual[i], 16777619);
+      for (let i = 3; i < actual.length; i += 4) if (actual[i]) lastY = Math.floor(i / 4 / 64);
+      return { direction, preserved, width: frame.width, height: frame.height, signature, feetY: lastY + 1 };
+    }));
   });
   ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 64 && view.height === 80),
-    'Все четыре слота показывают точную копию выбранного фронтального PNG 64×80');
+    'Все четыре кадра точно совпадают с соответствующими отдельными PNG 64×80');
+  ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 75),
+    'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 75');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
@@ -392,7 +405,7 @@ try {
     ok((after[axis] - before[axis]) * sign > 25, `WASD: движение на ${key.toUpperCase()}`);
     const expectedFacing = { w: 'up', s: 'down', a: 'left', d: 'right' }[key];
     ok(after.facing === expectedFacing && after.frame === expectedFacing && after.body.width === 20 && after.body.height === 25,
-      `Клавиша ${key.toUpperCase()} переключает слот направления с фронтальной заглушкой; тело остаётся 20×25`);
+      `Клавиша ${key.toUpperCase()} включает свой ракурс, сохраняемый после остановки; тело остаётся 20×25`);
     await delay(150);
     ok(Math.abs((await state())[axis] - after[axis]) < 2, `Остановка после отпускания ${key.toUpperCase()}`);
   }
@@ -414,7 +427,7 @@ try {
   await waitState(current => current.frame === 'up');
   await page.keyboard.up('w');
   const stopped = await waitState(current => current.vx === 0 && current.vy === 0);
-  ok(stopped.frame === 'up', 'После отпускания клавиш сохраняется слот up, пока с фронтальной заглушкой');
+  ok(stopped.frame === 'up', 'После отпускания клавиш сохраняется вид со спины');
   await page.keyboard.up('s');
   await page.keyboard.up('d');
 
