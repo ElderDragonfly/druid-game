@@ -1,9 +1,11 @@
-export type ObstacleKind = 'tree' | 'bush' | 'stump';
+import { ENVIRONMENT_VARIANTS, environmentVariant, type EnvironmentKind } from '../data/environment';
+
+export type ObstacleKind = EnvironmentKind;
 export interface ObstaclePlacement { kind: ObstacleKind; x: number; y: number; variant: number }
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface MeadowLayout {
   width: number; height: number; seed: number;
-  counts: { trees: number; bushes: number };
+  counts: { trees: number; bushes: number; rocks: number };
   spawn: { x: number; y: number };
   obstacles: ObstaclePlacement[];
 }
@@ -19,15 +21,9 @@ export const MEADOW_WORLD = {
 export const MEADOW_GENERATION = {
   trees: { min: 45, max: 63 },
   bushes: { min: 4, max: 7 },
+  rocks: { min: 12, max: 20 },
   obstacleGap: 28,
   spawnClearance: 16,
-} as const;
-
-// Препятствия совпадают с основанием объекта, кроны остаются навесами.
-export const OBSTACLE_SIZES = {
-  tree: { textureWidth: 44, textureHeight: 44, bodyWidth: 20, bodyHeight: 14 },
-  bush: { textureWidth: 28, textureHeight: 22, bodyWidth: 20, bodyHeight: 12 },
-  stump: { textureWidth: 64, textureHeight: 44, bodyWidth: 52, bodyHeight: 28 },
 } as const;
 
 export function seededRandom(seed: number) {
@@ -41,10 +37,14 @@ export function seededRandom(seed: number) {
 }
 
 export function obstacleRect(object: ObstaclePlacement): Rect {
-  const size = OBSTACLE_SIZES[object.kind];
-  const width = size.bodyWidth * MEADOW_PIXEL_SCALE;
-  const height = size.bodyHeight * MEADOW_PIXEL_SCALE;
-  return { x: object.x - width / 2, y: object.y - height, width, height };
+  const art = environmentVariant(object.kind, object.variant);
+  return { x: object.x - art.bodyWidth / 2, y: object.y - art.bodyHeight, width: art.bodyWidth, height: art.bodyHeight };
+}
+
+export function obstacleVisualRect(object: ObstaclePlacement): Rect {
+  const art = environmentVariant(object.kind, object.variant);
+  return { x: object.x - art.anchorX * art.scale, y: object.y - art.anchorY * art.scale,
+    width: art.width * art.scale, height: art.height * art.scale };
 }
 
 export function overlaps(a: Rect, b: Rect, gap = 0) {
@@ -58,6 +58,7 @@ export function generateMeadow(seed: number): MeadowLayout {
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
   const trees = integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max);
   const bushes = integer(MEADOW_GENERATION.bushes.min, MEADOW_GENERATION.bushes.max);
+  const rocks = integer(MEADOW_GENERATION.rocks.min, MEADOW_GENERATION.rocks.max);
   const spawn = { x: width / 2, y: height / 2 };
   const spawnArea = { x: spawn.x - 64, y: spawn.y - 58, width: 128, height: 128 };
   // Counts are drawn once; retries preserve the chosen range and deterministic seed.
@@ -66,27 +67,29 @@ export function generateMeadow(seed: number): MeadowLayout {
     const fits = (object: ObstaclePlacement) => {
       const rect = obstacleRect(object);
       return !overlaps(rect, spawnArea, MEADOW_GENERATION.spawnClearance) &&
+        !overlaps(obstacleVisualRect(object), spawnArea) &&
         obstacles.every(other => !overlaps(rect, obstacleRect(other), MEADOW_GENERATION.obstacleGap));
     };
-    for (const [kind, count] of [['bush', bushes], ['tree', trees]] as const) {
-      const size = OBSTACLE_SIZES[kind];
-      const marginX = size.textureWidth * MEADOW_PIXEL_SCALE / 2 + 3;
-      const marginTop = size.textureHeight * MEADOW_PIXEL_SCALE + 3;
+    for (const [kind, count] of [['bush', bushes], ['tree', trees], ['rock', rocks]] as const) {
       let placed = 0;
       for (let attempt = 0; attempt < 1200 && placed < count; attempt++) {
+        const variant = integer(0, ENVIRONMENT_VARIANTS[kind].length - 1);
+        const art = environmentVariant(kind, variant);
+        const left = art.anchorX * art.scale + 3, right = (art.width - art.anchorX) * art.scale + 3;
+        const top = art.anchorY * art.scale + 3, bottom = (art.height - art.anchorY) * art.scale + 3;
         const object: ObstaclePlacement = {
           kind,
-          x: marginX + random() * (width - marginX * 2),
-          y: marginTop + random() * (height - marginTop - 3),
-          variant: integer(0, 2),
+          x: left + random() * (width - left - right),
+          y: top + random() * (height - top - bottom),
+          variant,
         };
         if (fits(object)) { obstacles.push(object); placed++; }
       }
       if (placed !== count) break;
     }
-    if (obstacles.length === trees + bushes) {
-      return { width, height, seed, counts: { trees, bushes }, spawn, obstacles };
+    if (obstacles.length === trees + bushes + rocks) {
+      return { width, height, seed, counts: { trees, bushes, rocks }, spawn, obstacles };
     }
   }
-  throw new Error(`Не удалось разместить поляну ${width}×${height}: ${trees} деревьев, ${bushes} кустов`);
+  throw new Error(`Не удалось разместить поляну ${width}×${height}: ${trees} деревьев, ${bushes} кустов, ${rocks} камней`);
 }

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { createMeadowTextures } from '../rendering/meadowTextures';
+import { environmentVariant } from '../data/environment';
 import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
-import { MEADOW_PIXEL_SCALE, OBSTACLE_SIZES, seededRandom, type MeadowLayout } from './meadowLayout';
+import { MEADOW_PIXEL_SCALE, seededRandom, type MeadowLayout } from './meadowLayout';
 
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
@@ -9,20 +9,17 @@ export class MeadowWorld {
   private collider?: Phaser.Physics.Arcade.Collider;
 
   constructor(private scene: Phaser.Scene, readonly layout: MeadowLayout) {
-    createMeadowTextures(scene);
     this.floor = this.drawFloor();
     this.obstacles = scene.physics.add.staticGroup();
     layout.obstacles.forEach((object, index) => {
-      const texture = object.kind === 'stump' ? 'meadow-stump' : `meadow-${object.kind}-${object.variant}`;
-      const image = this.obstacles.create(object.x, object.y, texture) as Phaser.Physics.Arcade.Image;
-      image.setName(`obstacle-${index}`).setData('kind', object.kind).setOrigin(0.5, 1)
-        .setScale(MEADOW_PIXEL_SCALE).setDepth(object.y);
+      const art = environmentVariant(object.kind, object.variant);
+      const image = this.obstacles.create(object.x, object.y, art.texture, art.frame) as Phaser.Physics.Arcade.Image;
+      image.setName(`obstacle-${index}`).setData('kind', object.kind).setOrigin(art.anchorX / art.width, art.anchorY / art.height)
+        .setScale(art.scale).setDepth(object.y);
       image.refreshBody();
       const body = image.body as Phaser.Physics.Arcade.StaticBody;
-      const size = OBSTACLE_SIZES[object.kind];
-      const width = size.bodyWidth * MEADOW_PIXEL_SCALE;
-      const height = size.bodyHeight * MEADOW_PIXEL_SCALE;
-      body.setSize(width, height, false).setOffset((image.displayWidth - width) / 2, image.displayHeight - height);
+      body.setSize(art.bodyWidth, art.bodyHeight, false)
+        .setOffset(art.anchorX * art.scale - art.bodyWidth / 2, art.anchorY * art.scale - art.bodyHeight);
     });
   }
 
@@ -73,9 +70,9 @@ export class MeadowWorld {
       }
     }
     for (const object of this.layout.obstacles) {
-      const size = OBSTACLE_SIZES[object.kind];
+      const size = environmentVariant(object.kind, object.variant);
       p.ellipse(MEADOW_PALETTE.forestShadow, Math.round(object.x / scale + 4), Math.round(object.y / scale - 2),
-        size.bodyWidth * 0.7, size.bodyHeight * 0.45);
+        size.bodyWidth / scale * 0.7, size.bodyHeight / scale * 0.45);
     }
     const floor = this.scene.add.renderTexture(width / 2, height / 2, w, h).draw(g).setDisplaySize(width, height).setDepth(-1000);
     floor.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);

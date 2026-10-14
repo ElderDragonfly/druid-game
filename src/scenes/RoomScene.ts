@@ -6,7 +6,6 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
 import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
-import { createMeadowTextures } from '../rendering/meadowTextures';
 import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
 export class RoomScene extends Phaser.Scene {
@@ -39,7 +38,6 @@ export class RoomScene extends Phaser.Scene {
   create() {
     this.playerHealth = SETTINGS.playerHealth;
     this.physics.resume();
-    createMeadowTextures(this);
     const character = CHARACTERS.find(item => item.id === this.characterId)!;
     const appearance = character.game ?? CHARACTERS[0].game!;
     const art = appearance.metrics;

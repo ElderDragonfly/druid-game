@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import mainCamp from '../assets/main-camp.png';
 import selectionCamp from '../assets/selection-camp.png';
 import { DRUID_ART, prepareDruidTextures } from '../rendering/druidArt';
+import { FOREST_ART, prepareForestTextures } from '../rendering/forestArt';
 import { SCENES } from './keys';
 import { fitMenuCamera } from '../ui/sceneHelpers';
 
@@ -26,6 +27,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('main-camp', mainCamp);
     this.load.image('selection-camp', selectionCamp);
     DRUID_ART.forEach(art => this.load.image(art.key, art.url));
+    FOREST_ART.forEach(art => this.load.image(art.key, art.url));
   }
 
   create() {
@@ -35,6 +37,7 @@ export class BootScene extends Phaser.Scene {
     }
     this.textures.get('selection-camp').setFilter(Phaser.Textures.FilterMode.NEAREST);
     prepareDruidTextures(this);
+    prepareForestTextures(this);
     this.scene.start(SCENES.mainMenu);
   }
 }

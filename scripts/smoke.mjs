@@ -69,6 +69,28 @@ try {
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
+  const forestArt = await page.evaluate(async () => {
+    const { ENVIRONMENT_VARIANTS } = await import('/src/data/environment.ts');
+    const game = window.__smokeGame;
+    const variants = [...ENVIRONMENT_VARIANTS.tree, ...ENVIRONMENT_VARIANTS.rock];
+    const preserved = await Promise.all(variants.map(async art => {
+      const image = new Image(); image.src = `/docs/art/forest-environment-v1/sprites/${art.id}.png`; await image.decode();
+      const texture = game.textures.get(art.texture), frame = texture.get(art.frame);
+      const canvas = document.createElement('canvas'); canvas.width = art.width; canvas.height = art.height;
+      const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
+      context.drawImage(image, 0, 0); const expected = context.getImageData(0, 0, art.width, art.height).data;
+      context.clearRect(0, 0, art.width, art.height);
+      context.drawImage(texture.getSourceImage(), frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
+        0, 0, art.width, art.height);
+      const actual = context.getImageData(0, 0, art.width, art.height).data;
+      return frame.cutWidth === art.width && frame.cutHeight === art.height &&
+        texture.source[0].scaleMode === 1 && actual.every((value, index) => value === expected[index]);
+    }));
+    return { count: preserved.length, preserved: preserved.every(Boolean),
+      oldTreesAbsent: !['meadow-tree-0','meadow-tree-1','meadow-tree-2','meadow-stump'].some(key => game.textures.exists(key)) };
+  });
+  ok(forestArt.count === 35 && forestArt.preserved, 'Все пять деревьев и 30 камней совпадают с выбранными PNG пиксель в пиксель; фильтр NEAREST');
+  ok(forestArt.oldTreesAbsent, 'Старые текстуры деревьев и пня больше не создаются');
   const mainBackground = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('MainMenu');
     return { texture: scene.children.getByName('camp-background').getData('sourceTexture'),
@@ -224,7 +246,8 @@ try {
   });
   ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
 
-  const state = () => page.evaluate(() => {
+  const state = () => page.evaluate(async () => {
+    const { obstacleRect, obstacleVisualRect } = await import('/src/world/meadowLayout.ts');
     const game = window.__smokeGame;
     const scene = game.scene.getScene('Room');
     const p = scene.player;
@@ -237,7 +260,11 @@ try {
       body: rect(p.body), health: scene.playerHealth,
       healthLabel: scene.hud.getByName('health-label').text,
       layout: scene.layout,
-      obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body) })),
+      expectedBodies: scene.layout.obstacles.map(obstacleRect),
+      expectedImages: scene.layout.obstacles.map(obstacleVisualRect),
+      obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body),
+        texture: object.texture.key, frame: object.frame.name, imageBounds: { x: object.getBounds().x, y: object.getBounds().y,
+          width: object.displayWidth, height: object.displayHeight } })),
       colliders: scene.physics.world.colliders.getActive().length,
       view: { x: view.x, y: view.y, width: view.width, height: view.height },
       hudView: { x: scene.hudCamera.worldView.x, y: scene.hudCamera.worldView.y, zoom: scene.hudCamera.zoom,
@@ -288,48 +315,56 @@ try {
       current.hudView.width === viewport.width && current.hudView.height === viewport.height && current.cameraCount === 2,
       'HP закреплены на экране отдельной камерой без масштаба; камер ровно две');
     ok(current.obstacles.every((body, i) => {
-      const object = layout.obstacles[i];
-      const size = { tree: [50, 35], bush: [50, 30], stump: [130, 70] }[object.kind];
-      return body.kind === object.kind && body.width === size[0] && body.height === size[1] &&
-        Math.abs(body.x - (object.x - size[0] / 2)) < 0.1 && Math.abs(body.y - (object.y - size[1])) < 0.1;
-    }), 'Физические препятствия совпадают с основаниями нарисованных объектов');
+      const object = layout.obstacles[i], expected = current.expectedBodies[i], image = current.expectedImages[i];
+      return body.kind === object.kind && body.width === expected.width && body.height === expected.height &&
+        Math.abs(body.x - expected.x) < 0.1 && Math.abs(body.y - expected.y) < 0.1 &&
+        Math.abs(body.imageBounds.x - image.x) < 0.1 && Math.abs(body.imageBounds.y - image.y) < 0.1 &&
+        body.imageBounds.width === image.width && body.imageBounds.height === image.height &&
+        (object.kind === 'bush' ? body.texture.startsWith('meadow-bush-') : body.texture === `forest-${object.kind === 'tree' ? 'trees' : 'rocks'}`);
+    }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
     ok(current.colliders === 1, `Столкновения подключены один раз: ${current.colliders}`);
   };
 
   const generation = await page.evaluate(async () => {
-    const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
-    const failures = []; const bushCounts = new Set(); const treeCounts = new Set();
+    const { generateMeadow, obstacleRect, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const failures = []; const bushCounts = new Set(); const treeCounts = new Set(); const rockCounts = new Set();
+    const treeVariants = new Set(); const rockVariants = new Set();
     let interiorTrees = 0; let totalTrees = 0;
     for (let seed = 0; seed < 2000; seed++) {
       const layout = generateMeadow(seed); const { width, height } = layout;
       const trees = layout.obstacles.filter(o => o.kind === 'tree');
       const bushes = layout.obstacles.filter(o => o.kind === 'bush');
+      const rocks = layout.obstacles.filter(o => o.kind === 'rock');
+      rockCounts.add(rocks.length);trees.forEach(o => treeVariants.add(o.variant));rocks.forEach(o => rockVariants.add(o.variant));
       bushCounts.add(bushes.length); treeCounts.add(trees.length); totalTrees += trees.length;
       interiorTrees += trees.filter(o => o.x > width * 0.25 && o.x < width * 0.75 &&
         o.y > height * 0.25 && o.y < height * 0.75).length;
       const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
       if (width !== 3840 || height !== 2160 || trees.length < 45 || trees.length > 63 || bushes.length < 4 || bushes.length > 7 ||
-        trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes ||
-        layout.obstacles.length !== trees.length + bushes.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
+        trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes || rocks.length !== layout.counts.rocks || rocks.length < 12 || rocks.length > 20 ||
+        layout.obstacles.length !== trees.length + bushes.length + rocks.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
         layout.obstacles.some((object, i) => {
-          const r = obstacleRect(object);
-          return r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
+          const r = obstacleRect(object), visual = obstacleVisualRect(object);
+          return visual.x < 0 || visual.y < 0 || visual.x + visual.width > width || visual.y + visual.height > height || overlaps(visual, spawn) || r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
             layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
         })) failures.push(seed);
     }
-    return { failures, bushCounts: [...bushCounts].sort((a, b) => a - b), treeCounts: [...treeCounts].sort((a, b) => a - b),
+    return { failures, treeVariants: [...treeVariants].sort((a,b) => a-b), rockVariants: [...rockVariants].sort((a,b) => a-b),
+      rockCounts: [...rockCounts].sort((a,b) => a-b), bushCounts: [...bushCounts].sort((a, b) => a - b), treeCounts: [...treeCounts].sort((a, b) => a - b),
       interiorFraction: interiorTrees / totalTrees,
       repeatable: JSON.stringify(generateMeadow(123)) === JSON.stringify(generateMeadow(123)),
       different: JSON.stringify(generateMeadow(123).obstacles) !== JSON.stringify(generateMeadow(124).obstacles),
     };
   });
-  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, 4–7 кустов, нет пня; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
-  ok(generation.bushCounts.join() === '4,5,6,7' && generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
-    'Генерация использует все допустимые количества деревьев и кустов, включая границы диапазонов');
+  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, 4–7 кустов, 12–20 камней, нет пня; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.bushCounts.join() === '4,5,6,7' && generation.rockCounts.join() === Array.from({ length: 9 }, (_,i) => i+12).join() && generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
+    'Генерация использует все допустимые количества деревьев, кустов и камней, включая границы диапазонов');
   ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
     'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
+  ok(generation.treeVariants.join() === '0,1,2,3,4' && generation.rockVariants.join() === Array.from({ length: 30 }, (_,i) => i).join(),
+    'Все пять деревьев и 30 вариантов камней участвуют в случайной генерации');
 
   const followMath = await page.evaluate(async () => {
     const { EllipticalFollowCamera } = await import('/src/camera/EllipticalFollowCamera.ts');
@@ -671,7 +706,7 @@ try {
   await page.keyboard.up('d');
 
   // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
-  for (const kind of ['tree', 'bush']) {
+  for (const kind of ['tree', 'bush', 'rock']) {
     await restart();
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
