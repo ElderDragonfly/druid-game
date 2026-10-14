@@ -12,8 +12,9 @@
       131
     ],
     "backgroundTolerance": 16,
-    "removedEdgePixels": 1540,
-    "method": "original RGB pixels, transparent background, largest connected tree, pale JPEG edge cleanup"
+    "removedEdgePixels": 504,
+    "edgeCleanupScope": "one exterior contour layer; interior pixels and enclosed gaps preserved",
+    "method": "original RGB pixels, transparent background, largest connected tree, exterior-only pale JPEG cleanup"
   },
   "sprites": [
     {

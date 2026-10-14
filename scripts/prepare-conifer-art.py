@@ -43,28 +43,31 @@ def connected_tree(points):
 
 
 def clean_edge_background(crop, points):
-    """Remove pale JPEG background overshoot only where it meets transparency."""
+    """Clean one exterior contour layer; never grow the mask into the crown."""
     pixels = crop.load()
-    candidates = set()
+    outside = {(x, y) for y in range(crop.height) for x in range(crop.width)
+               if (x in (0, crop.width - 1) or y in (0, crop.height - 1))
+               and (x, y) not in points}
+    queue = deque(outside)
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in NEIGHBORS[:4]:
+            adjacent = (x + dx, y + dy)
+            if (0 <= adjacent[0] < crop.width and 0 <= adjacent[1] < crop.height
+                    and adjacent not in points and adjacent not in outside):
+                outside.add(adjacent)
+                queue.append(adjacent)
+
+    removed = set()
     for point in points:
         rgb = pixels[point]
         if (max(rgb) - min(rgb) <= 32 and sum(rgb) >= 360
-                and max(abs(a - b) for a, b in zip(rgb, BACKGROUND)) <= 40):
-            candidates.add(point)
-    removed = {point for point in candidates
-               if any((point[0] + dx, point[1] + dy) not in points
-                      for dx, dy in NEIGHBORS[:4])}
-    queue = deque(removed)
-    while queue:
-        x, y = queue.popleft()
-        for dx, dy in NEIGHBORS:
-            adjacent = (x + dx, y + dy)
-            if adjacent in candidates and adjacent not in removed:
-                removed.add(adjacent)
-                queue.append(adjacent)
-    # Remove tiny JPEG specks that were previously joined to the tree only by the halo.
-    clean = connected_tree(points - removed)
-    return clean, len(points) - len(clean)
+                and max(abs(a - b) for a, b in zip(rgb, BACKGROUND)) <= 40
+                and any((point[0] + dx, point[1] + dy) in outside
+                        for dx, dy in NEIGHBORS[:4])):
+            removed.add(point)
+    # Test against the original exterior once: no erosion passes or island pruning.
+    return points - removed, len(removed)
 
 
 def foreground(crop):
@@ -135,7 +138,8 @@ metadata = {
     "sourceSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
     "extraction": {"backgroundRgb": BACKGROUND, "backgroundTolerance": TOLERANCE,
                    "removedEdgePixels": removed_edge_pixels,
-                   "method": "original RGB pixels, transparent background, largest connected tree, pale JPEG edge cleanup"},
+                   "edgeCleanupScope": "one exterior contour layer; interior pixels and enclosed gaps preserved",
+                   "method": "original RGB pixels, transparent background, largest connected tree, exterior-only pale JPEG cleanup"},
     "sprites": sprites,
 }
 (OUTPUT / "sprites.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
