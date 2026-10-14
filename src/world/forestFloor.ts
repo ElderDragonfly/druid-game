@@ -2,12 +2,20 @@ import { seededRandom } from './meadowLayout';
 
 export interface FloorRaster { width: number; height: number; pixels: Uint8ClampedArray }
 export const FOREST_FLOOR = {
+  pixelScale: 1.25,
   sampleSize: 256,
   patchSize: 96,
   overlap: 24,
   candidates: 12,
   matchStride: 4,
 } as const;
+
+function copyPixel(source: Uint8ClampedArray, from: number, target: Uint8ClampedArray, to: number) {
+  target[to] = source[from];
+  target[to + 1] = source[from + 1];
+  target[to + 2] = source[from + 2];
+  target[to + 3] = source[from + 3];
+}
 
 function orientations(source: FloorRaster) {
   const size = source.width;
@@ -17,7 +25,7 @@ function orientations(source: FloorRaster) {
       let sx = variant >= 4 ? size - 1 - x : x, sy = y;
       for (let turn = 0; turn < variant % 4; turn++) [sx, sy] = [sy, size - 1 - sx];
       const from = (sy * size + sx) * 4, to = (y * size + x) * 4;
-      pixels.set(source.pixels.subarray(from, from + 4), to);
+      copyPixel(source.pixels, from, pixels, to);
     }
     return pixels;
   });
@@ -94,7 +102,7 @@ export function generateForestFloor(source: FloorRaster, width: number, height: 
     for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
       if ((vertical && px < vertical[py]) || (horizontal && py < horizontal[px])) continue;
       const from = ((oy + py) * source.width + ox + px) * 4, to = ((y + py) * width + x + px) * 4;
-      pixels.set(chosen.subarray(from, from + 4), to);
+      copyPixel(chosen, from, pixels, to);
     }
     patchCount++;
   }

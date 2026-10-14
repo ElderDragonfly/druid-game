@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { environmentVariant } from '../data/environment';
 import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
 import { drawForestFloor } from '../rendering/forestFloor';
-import { MEADOW_PIXEL_SCALE, type MeadowLayout } from './meadowLayout';
+import { FOREST_FLOOR } from './forestFloor';
+import type { MeadowLayout } from './meadowLayout';
 
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
@@ -36,7 +37,7 @@ export class MeadowWorld {
   }
 
   private drawFloor() {
-    const scale = MEADOW_PIXEL_SCALE;
+    const scale = FOREST_FLOOR.pixelScale;
     const floor = drawForestFloor(this.scene, this.layout);
     const g = this.scene.add.graphics();
     const p = new PixelArt(g);

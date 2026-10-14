@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FOREST_FLOOR, generateForestFloor, type FloorRaster } from '../world/forestFloor';
-import { MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
+import type { MeadowLayout } from '../world/meadowLayout';
 
 const samples = new WeakMap<object, FloorRaster>();
 
@@ -20,7 +20,7 @@ export function forestFloorSample(image: CanvasImageSource): FloorRaster {
 
 export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
   const sample = forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource);
-  const w = Math.ceil(layout.width / MEADOW_PIXEL_SCALE), h = Math.ceil(layout.height / MEADOW_PIXEL_SCALE);
+  const w = Math.ceil(layout.width / FOREST_FLOOR.pixelScale), h = Math.ceil(layout.height / FOREST_FLOOR.pixelScale);
   const raster = generateForestFloor(sample, w, h, layout.seed);
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const context = canvas.getContext('2d')!;

@@ -291,9 +291,9 @@ try {
   ok(floorGeneration.originalColors && floorGeneration.opaque && floorGeneration.uniformCovered,
     'Стыки сохраняют исходные цвета и непрозрачность, включая углы и неполные крайние фрагменты');
   ok(floorGeneration.source === 'forest-floor-source' && floorGeneration.seed === floorGeneration.layoutSeed &&
-    floorGeneration.width === 1536 && floorGeneration.height === 864 && floorGeneration.displayWidth === 3840 &&
-    floorGeneration.displayHeight === 2160 && floorGeneration.patches === 252 && floorGeneration.nearest && floorGeneration.covered,
-    'Принятая подстилка покрывает весь мир: 252 случайных фрагмента, NEAREST, без прозрачных швов');
+    floorGeneration.width === 3072 && floorGeneration.height === 1728 && floorGeneration.displayWidth === 3840 &&
+    floorGeneration.displayHeight === 2160 && floorGeneration.patches === 1032 && floorGeneration.nearest && floorGeneration.covered,
+    'Подстилка покрывает весь мир: пиксель 1,25 единицы, 1032 фрагмента, NEAREST, без прозрачных швов');
   ok(floorGeneration.noStamp, 'Временная текстура подстилки удалена после отрисовки');
 
   const state = () => page.evaluate(async () => {
