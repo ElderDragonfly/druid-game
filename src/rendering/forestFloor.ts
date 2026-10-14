@@ -1,0 +1,38 @@
+import Phaser from 'phaser';
+import { FOREST_FLOOR, generateForestFloor, type FloorRaster } from '../world/forestFloor';
+import { MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
+
+const samples = new WeakMap<object, FloorRaster>();
+
+export function forestFloorSample(image: CanvasImageSource): FloorRaster {
+  const cached = samples.get(image);
+  if (cached) return cached;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = FOREST_FLOOR.sampleSize;
+  const context = canvas.getContext('2d')!;
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const sample = { width: canvas.width, height: canvas.height,
+    pixels: context.getImageData(0, 0, canvas.width, canvas.height).data };
+  samples.set(image, sample);
+  return sample;
+}
+
+export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
+  const sample = forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource);
+  const w = Math.ceil(layout.width / MEADOW_PIXEL_SCALE), h = Math.ceil(layout.height / MEADOW_PIXEL_SCALE);
+  const raster = generateForestFloor(sample, w, h, layout.seed);
+  const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+  const context = canvas.getContext('2d')!;
+  const image = context.createImageData(w, h); image.data.set(raster.pixels); context.putImageData(image, 0, 0);
+  const key = '_forest-floor-stamp';
+  scene.textures.addCanvas(key, canvas)!.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  const stamp = scene.make.image({ key, add: false }).setOrigin(0);
+  const floor = scene.add.renderTexture(layout.width / 2, layout.height / 2, w, h)
+    .draw(stamp).setDisplaySize(layout.width, layout.height).setDepth(-1000).setName('forest-floor')
+    .setData({ seed: layout.seed, sourceTexture: 'forest-floor-source', patchCount: raster.patchCount });
+  floor.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  stamp.destroy();
+  scene.textures.remove(key);
+  return floor;
+}

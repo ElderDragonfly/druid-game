@@ -2,10 +2,12 @@ import Phaser from 'phaser';
 import trees from '../../docs/art/conifer-trees-v1/trees-atlas.png';
 import conifers from '../../docs/art/conifer-trees-v1/sprites.json';
 import shadow from '../assets/environment/meadow-druid-shadow.png';
+import floor from '../../docs/art/forest-floor-v1/forest-floor-darker.png';
 
 export const FOREST_ART = [
   { key: 'forest-trees', url: trees },
   { key: 'meadow-druid-shadow', url: shadow },
+  { key: 'forest-floor-source', url: floor },
 ] as const;
 
 export function prepareForestTextures(scene: Phaser.Scene) {

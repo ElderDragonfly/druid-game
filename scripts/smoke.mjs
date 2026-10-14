@@ -246,6 +246,56 @@ try {
   });
   ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
 
+  const floorGeneration = await page.evaluate(async () => {
+    const { generateForestFloor } = await import('/src/world/forestFloor.ts');
+    const { forestFloorSample } = await import('/src/rendering/forestFloor.ts');
+    const game = window.__smokeGame, scene = game.scene.getScene('Room');
+    const sample = forestFloorSample(game.textures.get('forest-floor-source').getSourceImage());
+    const fingerprint = pixels => {
+      let hash = 2166136261;
+      for (const value of pixels) hash = Math.imul(hash ^ value, 16777619);
+      return hash >>> 0;
+    };
+    const a = generateForestFloor(sample, 320, 241, 123);
+    const b = generateForestFloor(sample, 320, 241, 123);
+    const c = generateForestFloor(sample, 320, 241, 124);
+    const palette = new Set();
+    const color = (pixels, index) => pixels[index] | pixels[index + 1] << 8 | pixels[index + 2] << 16;
+    for (let i = 0; i < sample.pixels.length; i += 4) palette.add(color(sample.pixels, i));
+    let originalColors = true, opaque = true;
+    for (let i = 0; i < a.pixels.length; i += 4) {
+      originalColors &&= palette.has(color(a.pixels, i));
+      opaque &&= a.pixels[i + 3] === 255;
+    }
+    const uniform = new Uint8ClampedArray(128 * 128 * 4);
+    for (let i = 0; i < uniform.length; i += 4) uniform.set([37, 59, 41, 255], i);
+    const solid = generateForestFloor({ width: 128, height: 128, pixels: uniform }, 257, 193, 55);
+    const uniformCovered = solid.pixels.every((value, i) => value === [37, 59, 41, 255][i % 4]);
+    const hashes = new Set();
+    for (let seed = 0; seed < 8; seed++) hashes.add(fingerprint(generateForestFloor(sample, 241, 193, seed).pixels));
+    const floor = scene.children.getByName('forest-floor');
+    const canvas = floor.texture.getSourceImage();
+    const actual = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let covered = true;
+    for (let i = 3; i < actual.length; i += 4) if (actual[i] !== 255) covered = false;
+    return { repeatable: a.pixels.every((value, i) => value === b.pixels[i]),
+      different: fingerprint(a.pixels) !== fingerprint(c.pixels) && hashes.size === 8,
+      originalColors, opaque, uniformCovered, covered,
+      source: floor.getData('sourceTexture'), seed: floor.getData('seed'), layoutSeed: scene.layout.seed,
+      width: canvas.width, height: canvas.height, displayWidth: floor.displayWidth, displayHeight: floor.displayHeight,
+      patches: floor.getData('patchCount'), nearest: floor.texture.source[0].scaleMode === 1,
+      noStamp: !game.textures.exists('_forest-floor-stamp') };
+  });
+  ok(floorGeneration.repeatable && floorGeneration.different,
+    'Подстилка воспроизводится по seed; разные seed дают разные рисунки');
+  ok(floorGeneration.originalColors && floorGeneration.opaque && floorGeneration.uniformCovered,
+    'Стыки сохраняют исходные цвета и непрозрачность, включая углы и неполные крайние фрагменты');
+  ok(floorGeneration.source === 'forest-floor-source' && floorGeneration.seed === floorGeneration.layoutSeed &&
+    floorGeneration.width === 1536 && floorGeneration.height === 864 && floorGeneration.displayWidth === 3840 &&
+    floorGeneration.displayHeight === 2160 && floorGeneration.patches === 252 && floorGeneration.nearest && floorGeneration.covered,
+    'Принятая подстилка покрывает весь мир: 252 случайных фрагмента, NEAREST, без прозрачных швов');
+  ok(floorGeneration.noStamp, 'Временная текстура подстилки удалена после отрисовки');
+
   const state = () => page.evaluate(async () => {
     const { obstacleRect, obstacleVisualRect } = await import('/src/world/meadowLayout.ts');
     const game = window.__smokeGame;
