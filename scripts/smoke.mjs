@@ -65,7 +65,7 @@ try {
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source',
-      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source']
+      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
@@ -500,14 +500,65 @@ try {
   ok(upCycle.playing && upCycle.distance > 150 && upCycle.geometryPreserved,
     'Во время ходьбы вверх сохраняются движение, размер, опора ног и физическое тело');
   // Проверяем смену активного цикла на неподвижную боковую заглушку во время движения.
-  await page.keyboard.down('a');
-  const leftDuringWalk = await waitState(current => current.facing === 'left' && current.frame === 'left' && !current.animationPlaying);
-  ok(leftDuringWalk.vx < 0, 'Переход с W на W+A останавливает анимацию и показывает прежний левый спрайт');
-  await page.keyboard.up('a');
+  await page.keyboard.down('d');
+  const rightDuringWalk = await waitState(current => current.facing === 'right' && current.frame === 'right' && !current.animationPlaying);
+  ok(rightDuringWalk.vx > 0, 'Переход с W на W+D останавливает анимацию и показывает прежний правый спрайт');
+  await page.keyboard.up('d');
   await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-up');
   await page.keyboard.up('w');
   const idleAfterUp = await waitState(current => !current.animationPlaying && current.frame === 'up' && current.vy === 0);
   ok(idleAfterUp.facing === 'up', 'Отпускание W возвращает стоящий вид со спины');
+
+  const leftWalkPixels = await page.evaluate(async () => {
+    const image = new Image(); image.src = '/docs/art/druid-walk-left-v3/walk-left-64x80.png'; await image.decode();
+    const texture = window.__smokeGame.textures.get('druid-walk-left-source');
+    const read = source => {
+      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+      const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
+      return context.getImageData(0, 0, 256, 80).data;
+    };
+    const expected = read(image); const actual = read(texture.getSourceImage());
+    return actual.every((value, index) => value === expected[index]);
+  });
+  ok(leftWalkPixels, 'Ходьба влево использует каждый пиксель принятого PNG со стабильной рукой и посохом');
+  const leftCorridor = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
+    for (let y = 30; y < scene.layout.height - 30; y += 20) {
+      for (let x = 250; x < scene.layout.width - 30; x += 20) {
+        const corridor = { x: x - 230, y: y - 12.5, right: x + 10, bottom: y + 12.5 };
+        if (obstacles.some(o => corridor.x < o.right && corridor.right > o.x && corridor.y < o.bottom && corridor.bottom > o.y)) continue;
+        scene.player.body.reset(x, y - 10);
+        return true;
+      }
+    }
+    return false;
+  });
+  assert.ok(leftCorridor, 'Нет свободного прохода для проверки ходьбы влево');
+  await page.keyboard.down('a');
+  await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-left');
+  const leftCycle = await page.evaluate(async () => {
+    const p = window.__smokeGame.scene.getScene('Room').player;
+    const frames = []; const startX = p.x; const startTime = performance.now();
+    let geometryPreserved = true;
+    while (performance.now() - startTime < 850) {
+      if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
+      geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+        Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
+        Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    return { frames, geometryPreserved, distance: startX - p.x, playing: p.anims.isPlaying };
+  });
+  const leftIndices = leftCycle.frames.map(frame => Number(frame.replace('walk-left-', '')));
+  ok(new Set(leftIndices).size === 4 && leftIndices.length >= 5 && leftIndices.every((value, index) =>
+    value >= 0 && value < 4 && (!index || value === (leftIndices[index - 1] + 1) % 4)),
+    `Удержание A проигрывает и повторяет четыре кадра: ${leftCycle.frames.join(', ')}`);
+  ok(leftCycle.playing && leftCycle.distance > 150 && leftCycle.geometryPreserved,
+    'При ходьбе влево сохраняются размер, движение, опора ног и физическое тело');
+  await page.keyboard.up('a');
+  const idleAfterLeft = await waitState(current => !current.animationPlaying && current.frame === 'left' && current.vx === 0);
+  ok(idleAfterLeft.facing === 'left', 'Отпускание A возвращает стоящий левый спрайт');
 
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
     await restart();
@@ -579,10 +630,11 @@ try {
         scene.player.setVelocity(0, 0);
       }, fixture.center);
       const before = await state();
-      if (key === 's' || key === 'w') {
+      if (key === 's' || key === 'w' || key === 'a') {
         await page.keyboard.down(key);
-        await waitState(current => !current.animationPlaying && Math.abs(key === 's'
-          ? current.body.bottom - fixture.obstacle.y : current.body.y - fixture.obstacle.bottom) < 1);
+        await waitState(current => !current.animationPlaying && Math.abs(key === 'a'
+          ? current.body.x - fixture.obstacle.right : key === 's'
+            ? current.body.bottom - fixture.obstacle.y : current.body.y - fixture.obstacle.bottom) < 1);
         ok(!(await state()).animationPlaying, `Упор в ${kind} останавливает ходьбу при удержании ${key.toUpperCase()}`);
         await page.keyboard.up(key);
       }

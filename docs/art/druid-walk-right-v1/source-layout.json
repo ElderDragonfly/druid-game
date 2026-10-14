@@ -1,0 +1,47 @@
+{
+  "bodyViews": [
+    {
+      "x": 142,
+      "y": 79,
+      "width": 385,
+      "height": 510,
+      "headX": 248.0,
+      "scale": 0.125
+    },
+    {
+      "x": 722,
+      "y": 79,
+      "width": 322,
+      "height": 522,
+      "headX": 245.0,
+      "scale": 0.125
+    },
+    {
+      "x": 141,
+      "y": 682,
+      "width": 413,
+      "height": 508,
+      "headX": 249.0,
+      "scale": 0.125
+    },
+    {
+      "x": 728,
+      "y": 682,
+      "width": 326,
+      "height": 512,
+      "headX": 248.0,
+      "scale": 0.125
+    }
+  ],
+  "arm": {
+    "x": 65,
+    "y": 28,
+    "width": 655,
+    "height": 1905,
+    "scale": 0.032020997375328084,
+    "anchorX": 65,
+    "anchorY": 762,
+    "targetX": 31,
+    "targetY": 29
+  }
+}

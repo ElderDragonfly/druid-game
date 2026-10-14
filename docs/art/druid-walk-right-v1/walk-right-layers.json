@@ -1,0 +1,14 @@
+{
+  "frameWidth": 64,
+  "frameHeight": 80,
+  "bodySheet": "walk-right-body-64x80.png",
+  "foreground": "left-arm-staff-64x80.png",
+  "offsetsY": [
+    0,
+    -1,
+    0,
+    1
+  ],
+  "frameDurationMs": 160,
+  "foregroundOnTop": false
+}
