@@ -12,9 +12,11 @@
       131
     ],
     "backgroundTolerance": 16,
-    "removedEdgePixels": 504,
-    "edgeCleanupScope": "one exterior contour layer; interior pixels and enclosed gaps preserved",
-    "method": "original RGB pixels, transparent background, largest connected tree, exterior-only pale JPEG cleanup"
+    "method": "approved PNG frames directly; light neutral exterior flecks only",
+    "removedEdgePixels": 109,
+    "baselineCommit": "4e1d475",
+    "baselineAtlasSha256": "4721a3fd325fa49216bc84fc71bd0ffda6a8d68588a75c9bd50afca5c23982cb",
+    "edgeCleanupScope": "outside row/column silhouette; branch gaps protected"
   },
   "sprites": [
     {
