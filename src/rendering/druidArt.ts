@@ -8,6 +8,7 @@ import backSource from '../assets/characters/druid-back-64x80.png';
 import walkDownSource from '../../docs/art/druid-walk-down-v2/walk-down-64x80.png';
 import walkUpSource from '../../docs/art/druid-walk-other-directions-v1/walk-up-64x80.png';
 import walkLeftSource from '../../docs/art/druid-walk-left-v3/walk-left-64x80.png';
+import walkRightSource from '../../docs/art/druid-walk-right-v1/walk-right-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
 
 export const DRUID_TEXTURES = {
@@ -18,6 +19,7 @@ export const DRUID_TEXTURES = {
   walkDown: 'druid-walk-down-source',
   walkUp: 'druid-walk-up-source',
   walkLeft: 'druid-walk-left-source',
+  walkRight: 'druid-walk-right-source',
 } as const;
 
 export const DRUID_ART = [
@@ -30,6 +32,7 @@ export const DRUID_ART = [
   { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkLeft, url: walkLeftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.walkRight, url: walkRightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
 
 export const CAMP_DRUID = {
@@ -71,6 +74,8 @@ export const DRUID_WALKS = [
   { direction: 'up', sourceKey: DRUID_TEXTURES.walkUp, animationKey: 'druid-walk-up',
     frameCount: 4, frameDurationMs: 160 },
   { direction: 'left', sourceKey: DRUID_TEXTURES.walkLeft, animationKey: 'druid-walk-left',
+    frameCount: 4, frameDurationMs: 160 },
+  { direction: 'right', sourceKey: DRUID_TEXTURES.walkRight, animationKey: 'druid-walk-right',
     frameCount: 4, frameDurationMs: 160 },
 ] as const;
 

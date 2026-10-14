@@ -65,7 +65,7 @@ try {
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source',
-      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source']
+      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source', 'druid-walk-right-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
@@ -499,66 +499,72 @@ try {
     `Удержание W проигрывает и повторяет четыре кадра: ${upCycle.frames.join(', ')}`);
   ok(upCycle.playing && upCycle.distance > 150 && upCycle.geometryPreserved,
     'Во время ходьбы вверх сохраняются движение, размер, опора ног и физическое тело');
-  // Проверяем смену активного цикла на неподвижную боковую заглушку во время движения.
+  // Проверяем переключение между активными циклами без остановки движения.
   await page.keyboard.down('d');
-  const rightDuringWalk = await waitState(current => current.facing === 'right' && current.frame === 'right' && !current.animationPlaying);
-  ok(rightDuringWalk.vx > 0, 'Переход с W на W+D останавливает анимацию и показывает прежний правый спрайт');
+  const rightDuringWalk = await waitState(current => current.facing === 'right' && current.animationKey === 'druid-walk-right' && current.animationPlaying);
+  ok(rightDuringWalk.vx > 0, 'Переход с W на W+D переключает ходьбу вверх на принятый цикл вправо');
   await page.keyboard.up('d');
   await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-up');
   await page.keyboard.up('w');
   const idleAfterUp = await waitState(current => !current.animationPlaying && current.frame === 'up' && current.vy === 0);
   ok(idleAfterUp.facing === 'up', 'Отпускание W возвращает стоящий вид со спины');
 
-  const leftWalkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-walk-left-v3/walk-left-64x80.png'; await image.decode();
-    const texture = window.__smokeGame.textures.get('druid-walk-left-source');
-    const read = source => {
-      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
-      const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-      return context.getImageData(0, 0, 256, 80).data;
-    };
-    const expected = read(image); const actual = read(texture.getSourceImage());
-    return actual.every((value, index) => value === expected[index]);
-  });
-  ok(leftWalkPixels, 'Ходьба влево использует каждый пиксель принятого PNG со стабильной рукой и посохом');
-  const leftCorridor = await page.evaluate(() => {
-    const scene = window.__smokeGame.scene.getScene('Room');
-    const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
-    for (let y = 30; y < scene.layout.height - 30; y += 20) {
-      for (let x = 250; x < scene.layout.width - 30; x += 20) {
-        const corridor = { x: x - 230, y: y - 12.5, right: x + 10, bottom: y + 12.5 };
-        if (obstacles.some(o => corridor.x < o.right && corridor.right > o.x && corridor.y < o.bottom && corridor.bottom > o.y)) continue;
-        scene.player.body.reset(x, y - 10);
-        return true;
+  for (const { key, direction, sign, folder } of [
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-walk-left-v3' },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v1' },
+  ]) {
+    const walkPixels = await page.evaluate(async ({ direction, folder }) => {
+      const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-64x80.png`; await image.decode();
+      const texture = window.__smokeGame.textures.get(`druid-walk-${direction}-source`);
+      const read = source => {
+        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+        const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
+        return context.getImageData(0, 0, 256, 80).data;
+      };
+      const expected = read(image); const actual = read(texture.getSourceImage());
+      return actual.every((value, index) => value === expected[index]);
+    }, { direction, folder });
+    ok(walkPixels, `${direction}: игра использует каждый пиксель PNG, подготовленного из принятой GIF`);
+    const corridorFound = await page.evaluate(sign => {
+      const scene = window.__smokeGame.scene.getScene('Room');
+      const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
+      for (let y = 30; y < scene.layout.height - 30; y += 20) {
+        for (let x = sign < 0 ? 250 : 30; x < scene.layout.width - (sign < 0 ? 30 : 250); x += 20) {
+          const corridor = { x: x - (sign < 0 ? 230 : 10), y: y - 12.5,
+            right: x + (sign < 0 ? 10 : 230), bottom: y + 12.5 };
+          if (obstacles.some(o => corridor.x < o.right && corridor.right > o.x && corridor.y < o.bottom && corridor.bottom > o.y)) continue;
+          scene.player.body.reset(x, y - 10);
+          return true;
+        }
       }
-    }
-    return false;
-  });
-  assert.ok(leftCorridor, 'Нет свободного прохода для проверки ходьбы влево');
-  await page.keyboard.down('a');
-  await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-left');
-  const leftCycle = await page.evaluate(async () => {
-    const p = window.__smokeGame.scene.getScene('Room').player;
-    const frames = []; const startX = p.x; const startTime = performance.now();
-    let geometryPreserved = true;
-    while (performance.now() - startTime < 850) {
-      if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
-      geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
-        Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
-        Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
-      await new Promise(resolve => requestAnimationFrame(resolve));
-    }
-    return { frames, geometryPreserved, distance: startX - p.x, playing: p.anims.isPlaying };
-  });
-  const leftIndices = leftCycle.frames.map(frame => Number(frame.replace('walk-left-', '')));
-  ok(new Set(leftIndices).size === 4 && leftIndices.length >= 5 && leftIndices.every((value, index) =>
-    value >= 0 && value < 4 && (!index || value === (leftIndices[index - 1] + 1) % 4)),
-    `Удержание A проигрывает и повторяет четыре кадра: ${leftCycle.frames.join(', ')}`);
-  ok(leftCycle.playing && leftCycle.distance > 150 && leftCycle.geometryPreserved,
-    'При ходьбе влево сохраняются размер, движение, опора ног и физическое тело');
-  await page.keyboard.up('a');
-  const idleAfterLeft = await waitState(current => !current.animationPlaying && current.frame === 'left' && current.vx === 0);
-  ok(idleAfterLeft.facing === 'left', 'Отпускание A возвращает стоящий левый спрайт');
+      return false;
+    }, sign);
+    assert.ok(corridorFound, `Нет свободного прохода для проверки ${direction}`);
+    await page.keyboard.down(key);
+    await waitState(current => current.animationPlaying && current.animationKey === `druid-walk-${direction}`);
+    const cycle = await page.evaluate(async sign => {
+      const p = window.__smokeGame.scene.getScene('Room').player;
+      const frames = []; const startX = p.x; const startTime = performance.now();
+      let geometryPreserved = true;
+      while (performance.now() - startTime < 850) {
+        if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
+        geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+          Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
+          Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+      }
+      return { frames, geometryPreserved, distance: (p.x - startX) * sign, playing: p.anims.isPlaying };
+    }, sign);
+    const indices = cycle.frames.map(frame => Number(frame.replace(`walk-${direction}-`, '')));
+    ok(new Set(indices).size === 4 && indices.length >= 5 && indices.every((value, index) =>
+      value >= 0 && value < 4 && (!index || value === (indices[index - 1] + 1) % 4)),
+      `Удержание ${key.toUpperCase()} повторяет четыре кадра: ${cycle.frames.join(', ')}`);
+    ok(cycle.playing && cycle.distance > 150 && cycle.geometryPreserved,
+      `${direction}: сохраняются размер, движение, опора ног и физическое тело`);
+    await page.keyboard.up(key);
+    const idle = await waitState(current => !current.animationPlaying && current.frame === direction && current.vx === 0);
+    ok(idle.facing === direction, `Отпускание ${key.toUpperCase()} возвращает стоящий спрайт ${direction}`);
+  }
 
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
     await restart();
@@ -580,7 +586,7 @@ try {
   await delay(100);
   const diagonal = await state();
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
-  ok(diagonal.facing === 'right' && diagonal.frame === 'right', 'При S+D код выбирает слот последней нажатой D');
+  ok(diagonal.facing === 'right' && diagonal.animationPlaying && diagonal.animationKey === 'druid-walk-right', 'При S+D последняя нажатая D включает ходьбу вправо');
   await page.keyboard.up('d');
   const remaining = await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-down' && current.vx === 0);
   ok(remaining.facing === 'down', 'После отпускания D удерживаемая S включает ходьбу вниз');
@@ -630,11 +636,11 @@ try {
         scene.player.setVelocity(0, 0);
       }, fixture.center);
       const before = await state();
-      if (key === 's' || key === 'w' || key === 'a') {
+      {
         await page.keyboard.down(key);
-        await waitState(current => !current.animationPlaying && Math.abs(key === 'a'
-          ? current.body.x - fixture.obstacle.right : key === 's'
-            ? current.body.bottom - fixture.obstacle.y : current.body.y - fixture.obstacle.bottom) < 1);
+        await waitState(current => !current.animationPlaying && Math.abs(axis === 'x'
+          ? (sign > 0 ? current.body.right - fixture.obstacle.x : current.body.x - fixture.obstacle.right)
+          : (sign > 0 ? current.body.bottom - fixture.obstacle.y : current.body.y - fixture.obstacle.bottom)) < 1);
         ok(!(await state()).animationPlaying, `Упор в ${kind} останавливает ходьбу при удержании ${key.toUpperCase()}`);
         await page.keyboard.up(key);
       }
