@@ -4,7 +4,8 @@ import { CHARACTERS } from '../data/characters';
 import { SCENES } from './keys';
 import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
-import { generateMeadow, MEADOW_MIN_HEIGHT, MEADOW_PIXEL_SCALE, obstacleRect, overlaps, type MeadowLayout } from '../world/meadowLayout';
+import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
+import { CircularFollowCamera } from '../camera/CircularFollowCamera';
 import { createMeadowTextures } from '../rendering/meadowTextures';
 import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
@@ -24,6 +25,9 @@ export class RoomScene extends Phaser.Scene {
   private direction = new Phaser.Math.Vector2();
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
+  private hudCamera!: Phaser.Cameras.Scene2D.Camera;
+  private hint!: Phaser.GameObjects.Text;
+  private cameraFollow!: CircularFollowCamera;
 
   constructor() { super(SCENES.room); }
 
@@ -64,7 +68,7 @@ export class RoomScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); this.updateAppearance(false); };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
-    const resize = () => this.buildWorld(true);
+    const resize = () => this.resizeCameras();
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.facingInput.destroy();
@@ -73,7 +77,7 @@ export class RoomScene extends Phaser.Scene {
     });
   }
 
-  update() {
+  update(_time: number, delta: number) {
     const keys = this.movement;
     this.facing = this.facingInput.read();
     this.direction.set(Number(keys.right.isDown) - Number(keys.left.isDown), Number(keys.down.isDown) - Number(keys.up.isDown))
@@ -84,6 +88,8 @@ export class RoomScene extends Phaser.Scene {
       (this.direction.y < 0 && !blocked.up) || (this.direction.y > 0 && !blocked.down);
     this.updateAppearance(moving);
     this.shadow.setPosition(this.player.x, this.player.y + 22).setDepth(this.player.y + 24);
+    const center = this.cameraFollow.update(this.player.x, this.player.y, delta);
+    this.cameras.main.centerOn(center.x, center.y);
   }
 
   private updateAppearance(moving: boolean) {
@@ -99,26 +105,33 @@ export class RoomScene extends Phaser.Scene {
     else if (frame && this.player.frame.name !== frame) this.player.setFrame(frame, false, false);
   }
 
-  private buildWorld(preservePosition = false) {
-    // Очень широкое окно расширяет луг, сохраняя место для пня и проходов.
-    const zoom = Math.min(this.scale.width / SETTINGS.width, this.scale.height / MEADOW_MIN_HEIGHT);
-    const width = this.scale.width / zoom;
-    const height = this.scale.height / zoom;
-    const previousHeight = this.layout?.height;
-    const old = { x: this.player.x, y: this.player.y };
-    if (preservePosition) { this.world.destroy(); this.hud.destroy(); }
-    this.layout = generateMeadow(width, height, this.seed);
+  private buildWorld() {
+    this.layout = generateMeadow(this.seed);
+    const { width, height, cameraRadius, cameraResponseMs } = MEADOW_WORLD;
     this.physics.world.setBounds(0, 0, width, height);
-    this.cameras.main.setZoom(zoom).centerOn(width / 2, height / 2);
+    this.cameras.main.setBounds(0, 0, width, height);
+    this.cameraFollow = new CircularFollowCamera(width, height, cameraRadius, cameraResponseMs);
     this.world = new MeadowWorld(this, this.layout);
     this.world.bindPlayer(this.player);
-    const candidate = { x: old.x, y: previousHeight ? old.y * height / previousHeight : old.y };
-    const feet = { x: candidate.x - 12, y: candidate.y - 3, width: 24, height: 28 };
-    const safe = preservePosition && feet.x >= 0 && feet.x + feet.width <= width && feet.y >= 0 && feet.y + feet.height <= height &&
-      this.layout.obstacles.every(object => !overlaps(feet, obstacleRect(object), 4));
-    const position = safe ? candidate : this.layout.spawn;
+    const position = this.layout.spawn;
     (this.player.body as Phaser.Physics.Arcade.Body).reset(position.x, position.y);
     this.drawHud();
+    // A separate unzoomed camera keeps HP and hints attached to the screen.
+    this.hudCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height).setName('hud');
+    this.cameras.main.ignore(this.hud);
+    this.hudCamera.ignore(this.children.list.filter(object => object !== this.hud));
+    this.resizeCameras();
+  }
+
+  private resizeCameras() {
+    const { width, height } = this.scale;
+    const zoom = Math.max(height / MEADOW_WORLD.viewHeight, width / MEADOW_WORLD.width);
+    this.cameras.main.setSize(width, height).setZoom(zoom);
+    this.cameraFollow.resize(width / zoom, height / zoom);
+    const { x, y } = this.cameraFollow.center;
+    this.cameras.main.centerOn(x, y);
+    this.hudCamera.setSize(width, height);
+    this.hint.setY(height - 22);
   }
 
   private drawHud() {
@@ -132,9 +145,9 @@ export class RoomScene extends Phaser.Scene {
       const x = 104 + i * 26;
       hearts.fillStyle(0xd98278).fillCircle(x - 4, 35, 5).fillCircle(x + 4, 35, 5).fillTriangle(x - 9, 36, x + 9, 36, x, 47);
     }
-    const hint = this.add.text(20, this.layout.height - 22, 'WASD — движение · R — новая поляна · Esc — в лагерь', {
+    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · R — новая поляна · Esc — в лагерь', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
-    this.hud.add([panel, label, hearts, hint]);
+    this.hud.add([panel, label, hearts, this.hint]);
   }
 }

@@ -240,6 +240,10 @@ try {
       obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body) })),
       colliders: scene.physics.world.colliders.getActive().length,
       view: { x: view.x, y: view.y, width: view.width, height: view.height },
+      hudView: { x: scene.hudCamera.worldView.x, y: scene.hudCamera.worldView.y, zoom: scene.hudCamera.zoom,
+        width: scene.hudCamera.width, height: scene.hudCamera.height },
+      cameraCount: scene.cameras.cameras.length,
+      cameraCenter: { x: scene.cameras.main.midPoint.x, y: scene.cameras.main.midPoint.y },
       canvas: { x: canvas.x, y: canvas.y, width: canvas.width, height: canvas.height },
       viewport: { width: innerWidth, height: innerHeight },
       combat: !!scene.enemy || !!scene.projectiles,
@@ -268,15 +272,21 @@ try {
       if (predicate(current)) return current;
       await delay(30);
     }
-    throw new Error(`Игровое состояние не достигнуто: ${JSON.stringify(await state())}`);
+    const { obstacles, layout, ...current } = await state();
+    throw new Error(`Игровое состояние не достигнуто: ${JSON.stringify(current)}`);
   };
   const intersects = (a, b) => a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
   const assertMeadow = current => {
     const { canvas, viewport, view, layout } = current;
     ok(Math.abs(canvas.x) < 1 && Math.abs(canvas.y) < 1 && Math.abs(canvas.width - viewport.width) < 1 &&
       Math.abs(canvas.height - viewport.height) < 1, `Поле занимает всё окно ${viewport.width}×${viewport.height}`);
-    ok(Math.abs(view.x) < 1 && Math.abs(view.y) < 1 && Math.abs(view.width - layout.width) < 1 &&
-      Math.abs(view.height - layout.height) < 1, 'Камера показывает всю поляну без полей');
+    ok(layout.width === 3840 && layout.height === 2160 && Math.abs(view.height - 720) < 1 &&
+      view.width < layout.width && view.x >= -0.01 && view.y >= -0.01 &&
+      view.x + view.width <= layout.width + 0.01 && view.y + view.height <= layout.height + 0.01,
+      'Мир 3840×2160; камера показывает часть локации и не выходит за её границы');
+    ok(current.hudView.zoom === 1 && current.hudView.x === 0 && current.hudView.y === 0 &&
+      current.hudView.width === viewport.width && current.hudView.height === viewport.height && current.cameraCount === 2,
+      'HP закреплены на экране отдельной камерой без масштаба; камер ровно две');
     ok(current.obstacles.every((body, i) => {
       const object = layout.obstacles[i];
       const size = { tree: [50, 35], bush: [50, 30], stump: [130, 70] }[object.kind];
@@ -288,47 +298,62 @@ try {
   };
 
   const generation = await page.evaluate(async () => {
-    const { generateMeadow, obstacleRect, overlaps, treeBaseline } = await import('/src/world/meadowLayout.ts');
-    const failures = [];
-    let total = 0;
-    const bushCounts = new Set();
-    const landscapeTreeCounts = new Set();
-    for (const [width, height] of [[960, 405], [960, 540], [960, 640], [960, 716], [960, 960], [960, 1440], [1440, 405], [1944, 405]]) {
-      for (let seed = 0; seed < 1000; seed++) {
-        const layout = generateMeadow(width, height, seed);
-        total++;
-        const trees = layout.obstacles.filter(o => o.kind === 'tree');
-        const bushes = layout.obstacles.filter(o => o.kind === 'bush');
-        const stumps = layout.obstacles.filter(o => o.kind === 'stump');
-        bushCounts.add(bushes.length);
-        if (height === 540) landscapeTreeCounts.add(trees.length);
-        const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
-        const band = Math.min(135, width * 0.18, height * 0.25) + 42;
-        const base = treeBaseline(width, height);
-        if (trees.length < base - 4 || trees.length > base + 4 || bushes.length < 4 || bushes.length > 7 ||
-          trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes || layout.counts.treeBase !== base ||
-          stumps.length !== 1 || stumps[0].x !== width / 2 || stumps[0].y !== height / 2 + 35 ||
-          !trees.every(o => Math.min(o.x, width - o.x, o.y, height - o.y) <= band) ||
-          !bushes.every(o => o.x >= width * 0.23 && o.x <= width * 0.77 && o.y >= height * 0.23 && o.y <= height * 0.78) ||
-          layout.obstacles.some((object, i) => {
-            const r = obstacleRect(object);
-            return r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
-              layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
-          })) failures.push({ width, height, seed });
-      }
+    const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const failures = []; const bushCounts = new Set(); const treeCounts = new Set();
+    let interiorTrees = 0; let totalTrees = 0;
+    for (let seed = 0; seed < 2000; seed++) {
+      const layout = generateMeadow(seed); const { width, height } = layout;
+      const trees = layout.obstacles.filter(o => o.kind === 'tree');
+      const bushes = layout.obstacles.filter(o => o.kind === 'bush');
+      bushCounts.add(bushes.length); treeCounts.add(trees.length); totalTrees += trees.length;
+      interiorTrees += trees.filter(o => o.x > width * 0.25 && o.x < width * 0.75 &&
+        o.y > height * 0.25 && o.y < height * 0.75).length;
+      const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
+      if (width !== 3840 || height !== 2160 || trees.length < 45 || trees.length > 63 || bushes.length < 4 || bushes.length > 7 ||
+        trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes ||
+        layout.obstacles.length !== trees.length + bushes.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
+        layout.obstacles.some((object, i) => {
+          const r = obstacleRect(object);
+          return r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
+            layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
+        })) failures.push(seed);
     }
-    return {
-      total, failures,
-      bushCounts: [...bushCounts].sort((a, b) => a - b),
-      landscapeTreeCounts: [...landscapeTreeCounts].sort((a, b) => a - b),
-      repeatable: JSON.stringify(generateMeadow(960, 640, 123)) === JSON.stringify(generateMeadow(960, 640, 123)),
-      different: JSON.stringify(generateMeadow(960, 640, 123).obstacles) !== JSON.stringify(generateMeadow(960, 640, 124).obstacles),
+    return { failures, bushCounts: [...bushCounts].sort((a, b) => a - b), treeCounts: [...treeCounts].sort((a, b) => a - b),
+      interiorFraction: interiorTrees / totalTrees,
+      repeatable: JSON.stringify(generateMeadow(123)) === JSON.stringify(generateMeadow(123)),
+      different: JSON.stringify(generateMeadow(123).obstacles) !== JSON.stringify(generateMeadow(124).obstacles),
     };
   });
-  ok(generation.failures.length === 0, `${generation.total} планировок: 4–7 кустов, базовое число деревьев ±4, пень в центре, свободные проходы и безопасный старт (${JSON.stringify(generation.failures)})`);
-  ok(generation.bushCounts.join() === '4,5,6,7' && generation.landscapeTreeCounts.join() === '31,32,33,34,35,36,37,38,39',
-    'Генерация использует каждый допустимый вариант количества, включая границы диапазонов');
+  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, 4–7 кустов, нет пня; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.bushCounts.join() === '4,5,6,7' && generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
+    'Генерация использует все допустимые количества деревьев и кустов, включая границы диапазонов');
+  ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
+    'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
+
+  const followMath = await page.evaluate(async () => {
+    const { CircularFollowCamera } = await import('/src/camera/CircularFollowCamera.ts');
+    const make = () => { const f = new CircularFollowCamera(3840, 2160, 108, 140); f.resize(1280, 720); return f; };
+    const inside = make(); inside.update(2000, 1140, 16);
+    const diagonal = make(); diagonal.update(2020, 1180, 16);
+    const a = make(), b = make();
+    for (let i = 0; i < 60; i++) a.update(2200, 1080, 1000 / 60);
+    for (let i = 0; i < 30; i++) b.update(2200, 1080, 1000 / 30);
+    const atEdge = make(); for (let i = 0; i < 120; i++) atEdge.update(2200, 1080, 1000 / 60);
+    const before = { ...atEdge.center }; for (let i = 0; i < 120; i++) atEdge.update(2200, 1080, 1000 / 60);
+    return {
+      inside: inside.center.x === 1920 && inside.center.y === 1080,
+      circle: diagonal.center.x > 1920 && diagonal.center.y > 1080 &&
+        Math.abs((diagonal.center.x - 1920) - (diagonal.center.y - 1080)) < 0.001,
+      smooth: a.center.x < 2200 - 108 && a.center.x > 1920,
+      frameIndependent: Math.abs(a.center.x - b.center.x) < 0.01,
+      settled: Math.abs(Math.hypot(2200 - atEdge.center.x, 1080 - atEdge.center.y) - 108) < 0.01 &&
+        before.x === atEdge.center.x && before.y === atEdge.center.y,
+    };
+  });
+  ok(followMath.inside && followMath.circle, 'Зона действительно круглая: внутри радиуса 108 камера стоит, диагональ за кругом запускает следование');
+  ok(followMath.smooth && followMath.frameIndependent, 'Сглаживание догоняет постепенно и не зависит от частоты кадров');
+  ok(followMath.settled, 'После остановки камера завершает догоняющее движение у края круга и не центрирует героя');
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
   const initial = await state();
   ok(initial.health === 3 && initial.healthLabel === 'HP 3/3', 'Друид сохраняет 3 HP и счётчик');
@@ -398,6 +423,49 @@ try {
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
+
+  // A collision-free corridor isolates the camera behavior from random trees.
+  const cameraCorridor = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
+    for (const offset of [0, 80, -80, 160, -160, 240, -240]) {
+      const x = 1920, y = 1080 + offset;
+      const r = { x: x - 10, right: x + 500, y: y - 12.5, bottom: y + 12.5 };
+      if (obstacles.some(o => r.x < o.right && r.right > o.x && r.y < o.bottom && r.bottom > o.y)) continue;
+      scene.player.body.reset(x, y - 10);
+      scene.cameraFollow.center.x = x; scene.cameraFollow.center.y = y - 10;
+      scene.cameras.main.centerOn(x, y - 10);
+      return true;
+    }
+    return false;
+  });
+  assert.ok(cameraCorridor, 'Нет свободного прохода для проверки камеры');
+  await delay(60);
+  const beforeCamera = await state();
+  await hold('d', 250);
+  const insideCamera = await state();
+  ok(insideCamera.x > beforeCamera.x + 40 && insideCamera.x < beforeCamera.x + 80 &&
+    Math.abs(insideCamera.view.x - beforeCamera.view.x) < 0.01 && Math.abs(insideCamera.view.y - beforeCamera.view.y) < 0.01,
+    'Друид свободно движется внутри круга, камера остаётся на месте');
+  await page.keyboard.down('d'); await delay(1000);
+  const followingCamera = await state();
+  const followDistance = Math.hypot(followingCamera.x - followingCamera.cameraCenter.x,
+    followingCamera.y - followingCamera.cameraCenter.y);
+  ok(followingCamera.view.x > beforeCamera.view.x + 100 && followDistance > 108 && followDistance < 180,
+    'За кругом камера плавно движется за героем с небольшим отставанием');
+  await page.keyboard.up('d');
+  const stoppedCamera = await waitState(current => Math.abs(Math.hypot(current.x - current.cameraCenter.x,
+    current.y - current.cameraCenter.y) - 108) < 0.02);
+  await delay(300); const settledCamera = await state();
+  ok(Math.abs(settledCamera.cameraCenter.x - stoppedCamera.cameraCenter.x) < 0.03 &&
+    Math.hypot(settledCamera.x - settledCamera.cameraCenter.x,
+      settledCamera.y - settledCamera.cameraCenter.y) > 107,
+    'После догоняющего движения камера стоит у границы круга, не возвращает героя в центр');
+  await hold('a', 250); const returnedInside = await state();
+  ok(Math.abs(returnedInside.cameraCenter.x - settledCamera.cameraCenter.x) < 0.01,
+    'Обратное движение внутрь круга снова оставляет камеру неподвижной');
+  ok(returnedInside.healthLabel === 'HP 3/3' && returnedInside.hudView.x === 0 && returnedInside.hudView.y === 0,
+    'HP остаются на экране во время движения камеры');
 
   const walkPixels = await page.evaluate(async () => {
     const image = new Image(); image.src = '/docs/art/druid-walk-down-v2/walk-down-64x80.png'; await image.decode();
@@ -603,7 +671,7 @@ try {
   await page.keyboard.up('d');
 
   // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
-  for (const kind of ['tree', 'bush', 'stump']) {
+  for (const kind of ['tree', 'bush']) {
     await restart();
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
@@ -672,6 +740,12 @@ try {
     const coordinate = { top: b.y, bottom: b.bottom, left: b.x, right: b.right }[side];
     const expected = { top: 0, bottom: current.layout.height, left: 0, right: current.layout.width }[side];
     ok(Math.abs(coordinate - expected) < 1, `Граница поля удерживает друида: ${side}`);
+    const bounded = await waitState(current => {
+      const v = current.view;
+      return Math.abs(({ top: v.y, bottom: v.y + v.height, left: v.x, right: v.x + v.width })[side] - expected) < 0.1;
+    });
+    ok(bounded.view.x >= -0.01 && bounded.view.y >= -0.01 && bounded.view.x + bounded.view.width <= 3840.01 &&
+      bounded.view.y + bounded.view.height <= 2160.01, `Камера ограничена краем мира: ${side}`);
   }
 
   await restart();
@@ -685,13 +759,17 @@ try {
   ok(regenerated.layout.seed !== oldSeed && JSON.stringify(regenerated.layout.obstacles) !== oldLayout, 'R создаёт новое случайное окружение');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
+  const beforeResize = await state();
   for (const viewport of [{ width: 1280, height: 720 }, { width: 1920, height: 540 }, { width: 720, height: 900 }, { width: 1100, height: 820 }]) {
     await page.setViewportSize(viewport);
-    const zoom = Math.min(viewport.width / 960, viewport.height / 405);
     await waitState(current => current.viewport.width === viewport.width && Math.abs(current.canvas.width - viewport.width) < 1 &&
-      Math.abs(current.layout.height - viewport.height / zoom) < 1 && Math.abs(current.layout.width - viewport.width / zoom) < 1);
+      Math.abs(current.view.width - viewport.width * 720 / viewport.height) < 1 && Math.abs(current.view.height - 720) < 1 &&
+      current.hudView.width === viewport.width && current.hudView.height === viewport.height);
     await delay(80);
-    assertMeadow(await state());
+    const resized = await state();
+    assertMeadow(resized);
+    ok(JSON.stringify(resized.layout) === JSON.stringify(beforeResize.layout) && resized.x === beforeResize.x && resized.y === beforeResize.y,
+      'Изменение окна сохраняет seed, препятствия, размеры мира и положение героя');
   }
   await page.keyboard.press('Escape');
   await waitScene('CharacterSelect');
