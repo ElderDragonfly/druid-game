@@ -5,7 +5,7 @@ export interface ObstaclePlacement { kind: ObstacleKind; x: number; y: number; v
 export interface Rect { x: number; y: number; width: number; height: number }
 export interface MeadowLayout {
   width: number; height: number; seed: number;
-  counts: { trees: number; bushes: number; rocks: number };
+  counts: { trees: number; rocks: number };
   spawn: { x: number; y: number };
   obstacles: ObstaclePlacement[];
 }
@@ -20,7 +20,6 @@ export const MEADOW_WORLD = {
 
 export const MEADOW_GENERATION = {
   trees: { min: 45, max: 63 },
-  bushes: { min: 4, max: 7 },
   rocks: { min: 12, max: 20 },
   obstacleGap: 28,
   spawnClearance: 16,
@@ -57,7 +56,6 @@ export function generateMeadow(seed: number): MeadowLayout {
   const random = seededRandom(seed);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
   const trees = integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max);
-  const bushes = integer(MEADOW_GENERATION.bushes.min, MEADOW_GENERATION.bushes.max);
   const rocks = integer(MEADOW_GENERATION.rocks.min, MEADOW_GENERATION.rocks.max);
   const spawn = { x: width / 2, y: height / 2 };
   const spawnArea = { x: spawn.x - 64, y: spawn.y - 58, width: 128, height: 128 };
@@ -70,7 +68,7 @@ export function generateMeadow(seed: number): MeadowLayout {
         !overlaps(obstacleVisualRect(object), spawnArea) &&
         obstacles.every(other => !overlaps(rect, obstacleRect(other), MEADOW_GENERATION.obstacleGap));
     };
-    for (const [kind, count] of [['bush', bushes], ['tree', trees], ['rock', rocks]] as const) {
+    for (const [kind, count] of [['tree', trees], ['rock', rocks]] as const) {
       let placed = 0;
       for (let attempt = 0; attempt < 1200 && placed < count; attempt++) {
         const variant = integer(0, ENVIRONMENT_VARIANTS[kind].length - 1);
@@ -87,9 +85,9 @@ export function generateMeadow(seed: number): MeadowLayout {
       }
       if (placed !== count) break;
     }
-    if (obstacles.length === trees + bushes + rocks) {
-      return { width, height, seed, counts: { trees, bushes, rocks }, spawn, obstacles };
+    if (obstacles.length === trees + rocks) {
+      return { width, height, seed, counts: { trees, rocks }, spawn, obstacles };
     }
   }
-  throw new Error(`Не удалось разместить поляну ${width}×${height}: ${trees} деревьев, ${bushes} кустов, ${rocks} камней`);
+  throw new Error(`Не удалось разместить поляну ${width}×${height}: ${trees} деревьев, ${rocks} камней`);
 }

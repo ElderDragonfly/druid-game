@@ -54,21 +54,6 @@ export class MeadowWorld {
       p.ellipse(color, x, y, rx, ry);
       p.ellipse(color, x + rx * 0.6, y + ry * 0.6, rx * 0.6, ry * 0.6);
     }
-    // Короткие травинки и листья видны сверху; их плотность идёт пятнами.
-    for (let i = 0; i < Math.round(3800 * area); i++) {
-      const x = Math.floor(random() * w);
-      const y = Math.floor(random() * h);
-      const patch = Math.sin(x / 16) + Math.cos(y / 11) + Math.sin((x + y) / 27);
-      if (patch < -0.6 && random() < 0.8) continue;
-      const color = MEADOW_PALETTE.grass[Math.floor(random() * 4)];
-      p.rect(color, x, y, 2, 1);
-      if (i % 3 === 0) p.rect(color, x + 1, y - 1);
-      if (i % 5 === 0) p.rect(color, x - 2, y + 2, 2, 1);
-      if (i % 109 === 0 && patch > 0) {
-        p.rect(0x526842, x, y - 2, 1, 3);
-        p.rect(MEADOW_PALETTE.flower[i % 3], x - 1, y - 3, 2, 2);
-      }
-    }
     for (const object of this.layout.obstacles) {
       const size = environmentVariant(object.kind, object.variant);
       p.ellipse(MEADOW_PALETTE.forestShadow, Math.round(object.x / scale + 4), Math.round(object.y / scale - 2),

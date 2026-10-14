@@ -1,6 +1,7 @@
 import collection from '../../docs/art/forest-environment-v1/sprites.json';
+import conifers from '../../docs/art/conifer-trees-v1/sprites.json';
 
-export type EnvironmentKind = 'tree' | 'bush' | 'rock';
+export type EnvironmentKind = 'tree' | 'rock';
 export interface EnvironmentVariant {
   id: string;
   texture: string;
@@ -11,25 +12,12 @@ export interface EnvironmentVariant {
   bodyWidth: number; bodyHeight: number;
 }
 
-// Native PNGs retain the approved art. Physics uses only the base, not the canopy.
-const treeBases: Record<string, { anchorX: number; width: number; height: number }> = {
-  'tree-01-oak-large': { anchorX: 254.5, width: 64, height: 30 },
-  'tree-02-oak-medium': { anchorX: 158.5, width: 58, height: 26 },
-  'tree-03-oak-small': { anchorX: 122.5, width: 36, height: 20 },
-  'tree-04-pine': { anchorX: 175, width: 56, height: 26 },
-  'tree-05-sapling': { anchorX: 72, width: 30, height: 16 },
-};
-
+// Trees use only the four upright sprites from the latest reference.
 export const ENVIRONMENT_VARIANTS: Record<EnvironmentKind, readonly EnvironmentVariant[]> = {
-  tree: collection.sprites.filter(sprite => sprite.category === 'tree').map(sprite => {
-    const base = treeBases[sprite.id];
-    return { id: sprite.id, texture: 'forest-trees', frame: sprite.id, width: sprite.width, height: sprite.height,
-      scale: 0.5, anchorX: base.anchorX, anchorY: sprite.height - collection.padding,
-      bodyWidth: base.width, bodyHeight: base.height };
-  }),
-  bush: Array.from({ length: 3 }, (_, variant) => ({
-    id: `meadow-bush-${variant}`, texture: `meadow-bush-${variant}`,
-    width: 28, height: 22, scale: 2.5, anchorX: 14, anchorY: 22, bodyWidth: 50, bodyHeight: 30,
+  tree: conifers.sprites.map(sprite => ({
+    id: sprite.id, texture: 'forest-trees', frame: sprite.id, width: sprite.width, height: sprite.height,
+    scale: conifers.scale, anchorX: sprite.anchorX, anchorY: sprite.anchorY,
+    bodyWidth: Math.round(sprite.baseWidth * conifers.scale), bodyHeight: Math.round(sprite.baseHeight * conifers.scale),
   })),
   rock: collection.sprites.filter(sprite => sprite.category === 'rock').map(sprite => ({
     id: sprite.id, texture: 'forest-rocks', frame: sprite.id, width: sprite.width, height: sprite.height,

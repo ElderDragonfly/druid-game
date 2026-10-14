@@ -74,7 +74,7 @@ try {
     const game = window.__smokeGame;
     const variants = [...ENVIRONMENT_VARIANTS.tree, ...ENVIRONMENT_VARIANTS.rock];
     const preserved = await Promise.all(variants.map(async art => {
-      const image = new Image(); image.src = `/docs/art/forest-environment-v1/sprites/${art.id}.png`; await image.decode();
+      const image = new Image(); image.src = `/docs/art/${art.texture === 'forest-trees' ? 'conifer-trees-v1' : 'forest-environment-v1'}/sprites/${art.id}.png`; await image.decode();
       const texture = game.textures.get(art.texture), frame = texture.get(art.frame);
       const canvas = document.createElement('canvas'); canvas.width = art.width; canvas.height = art.height;
       const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
@@ -87,10 +87,10 @@ try {
         texture.source[0].scaleMode === 1 && actual.every((value, index) => value === expected[index]);
     }));
     return { count: preserved.length, preserved: preserved.every(Boolean),
-      oldTreesAbsent: !['meadow-tree-0','meadow-tree-1','meadow-tree-2','meadow-stump'].some(key => game.textures.exists(key)) };
+      oldTreesAbsent: !['meadow-tree-0','meadow-tree-1','meadow-tree-2','meadow-stump','meadow-bush-0','meadow-bush-1','meadow-bush-2'].some(key => game.textures.exists(key)) };
   });
-  ok(forestArt.count === 35 && forestArt.preserved, 'Все пять деревьев и 30 камней совпадают с выбранными PNG пиксель в пиксель; фильтр NEAREST');
-  ok(forestArt.oldTreesAbsent, 'Старые текстуры деревьев и пня больше не создаются');
+  ok(forestArt.count === 34 && forestArt.preserved, 'Все четыре дерева и 30 камней совпадают с выбранными PNG пиксель в пиксель; фильтр NEAREST');
+  ok(forestArt.oldTreesAbsent, 'Старые деревья, кусты и пень не загружаются');
   const mainBackground = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('MainMenu');
     return { texture: scene.children.getByName('camp-background').getData('sourceTexture'),
@@ -320,7 +320,7 @@ try {
         Math.abs(body.x - expected.x) < 0.1 && Math.abs(body.y - expected.y) < 0.1 &&
         Math.abs(body.imageBounds.x - image.x) < 0.1 && Math.abs(body.imageBounds.y - image.y) < 0.1 &&
         body.imageBounds.width === image.width && body.imageBounds.height === image.height &&
-        (object.kind === 'bush' ? body.texture.startsWith('meadow-bush-') : body.texture === `forest-${object.kind === 'tree' ? 'trees' : 'rocks'}`);
+        body.texture === `forest-${object.kind === 'tree' ? 'trees' : 'rocks'}`;
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
     ok(current.colliders === 1, `Столкновения подключены один раз: ${current.colliders}`);
@@ -328,22 +328,21 @@ try {
 
   const generation = await page.evaluate(async () => {
     const { generateMeadow, obstacleRect, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
-    const failures = []; const bushCounts = new Set(); const treeCounts = new Set(); const rockCounts = new Set();
+    const failures = []; const treeCounts = new Set(); const rockCounts = new Set();
     const treeVariants = new Set(); const rockVariants = new Set();
     let interiorTrees = 0; let totalTrees = 0;
     for (let seed = 0; seed < 2000; seed++) {
       const layout = generateMeadow(seed); const { width, height } = layout;
       const trees = layout.obstacles.filter(o => o.kind === 'tree');
-      const bushes = layout.obstacles.filter(o => o.kind === 'bush');
       const rocks = layout.obstacles.filter(o => o.kind === 'rock');
       rockCounts.add(rocks.length);trees.forEach(o => treeVariants.add(o.variant));rocks.forEach(o => rockVariants.add(o.variant));
-      bushCounts.add(bushes.length); treeCounts.add(trees.length); totalTrees += trees.length;
+      treeCounts.add(trees.length); totalTrees += trees.length;
       interiorTrees += trees.filter(o => o.x > width * 0.25 && o.x < width * 0.75 &&
         o.y > height * 0.25 && o.y < height * 0.75).length;
       const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
-      if (width !== 3840 || height !== 2160 || trees.length < 45 || trees.length > 63 || bushes.length < 4 || bushes.length > 7 ||
-        trees.length !== layout.counts.trees || bushes.length !== layout.counts.bushes || rocks.length !== layout.counts.rocks || rocks.length < 12 || rocks.length > 20 ||
-        layout.obstacles.length !== trees.length + bushes.length + rocks.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
+      if (width !== 3840 || height !== 2160 || trees.length < 45 || trees.length > 63 ||
+        trees.length !== layout.counts.trees || rocks.length !== layout.counts.rocks || rocks.length < 12 || rocks.length > 20 ||
+        layout.obstacles.length !== trees.length + rocks.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
         layout.obstacles.some((object, i) => {
           const r = obstacleRect(object), visual = obstacleVisualRect(object);
           return visual.x < 0 || visual.y < 0 || visual.x + visual.width > width || visual.y + visual.height > height || overlaps(visual, spawn) || r.x < 0 || r.y < 0 || r.x + r.width > width || r.y + r.height > height || overlaps(r, spawn) ||
@@ -351,20 +350,20 @@ try {
         })) failures.push(seed);
     }
     return { failures, treeVariants: [...treeVariants].sort((a,b) => a-b), rockVariants: [...rockVariants].sort((a,b) => a-b),
-      rockCounts: [...rockCounts].sort((a,b) => a-b), bushCounts: [...bushCounts].sort((a, b) => a - b), treeCounts: [...treeCounts].sort((a, b) => a - b),
+      rockCounts: [...rockCounts].sort((a,b) => a-b), treeCounts: [...treeCounts].sort((a, b) => a - b),
       interiorFraction: interiorTrees / totalTrees,
       repeatable: JSON.stringify(generateMeadow(123)) === JSON.stringify(generateMeadow(123)),
       different: JSON.stringify(generateMeadow(123).obstacles) !== JSON.stringify(generateMeadow(124).obstacles),
     };
   });
-  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, 4–7 кустов, 12–20 камней, нет пня; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
-  ok(generation.bushCounts.join() === '4,5,6,7' && generation.rockCounts.join() === Array.from({ length: 9 }, (_,i) => i+12).join() && generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
-    'Генерация использует все допустимые количества деревьев, кустов и камней, включая границы диапазонов');
+  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, 12–20 камней, нет старых растений; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.rockCounts.join() === Array.from({ length: 9 }, (_,i) => i+12).join() && generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
+    'Генерация использует все допустимые количества деревьев и камней, включая границы диапазонов');
   ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
     'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
-  ok(generation.treeVariants.join() === '0,1,2,3,4' && generation.rockVariants.join() === Array.from({ length: 30 }, (_,i) => i).join(),
-    'Все пять деревьев и 30 вариантов камней участвуют в случайной генерации');
+  ok(generation.treeVariants.join() === '0,1,2,3' && generation.rockVariants.join() === Array.from({ length: 30 }, (_,i) => i).join(),
+    'Все четыре дерева и 30 вариантов камней участвуют в случайной генерации');
 
   const followMath = await page.evaluate(async () => {
     const { EllipticalFollowCamera } = await import('/src/camera/EllipticalFollowCamera.ts');
@@ -706,7 +705,7 @@ try {
   await page.keyboard.up('d');
 
   // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
-  for (const kind of ['tree', 'bush', 'rock']) {
+  for (const kind of ['tree', 'rock']) {
     await restart();
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
@@ -717,7 +716,7 @@ try {
           if (axis === 'x') center.x = sign > 0 ? obstacle.x - 10 - distance : obstacle.right + 10 + distance;
           else center.y = sign > 0 ? obstacle.y - 12.5 - distance : obstacle.bottom + 12.5 + distance;
           const body = { x: center.x - 10, y: center.y - 12.5, right: center.x + 10, bottom: center.y + 12.5 };
-          // Свободным должен быть весь подход, а не только старт: иначе соседний куст
+          // Свободным должен быть весь подход, а не только старт: иначе соседнее препятствие
           // может остановить героя до дерева и случайно провалить проверку дерева.
           const corridor = { ...body };
           if (axis === 'x') {
