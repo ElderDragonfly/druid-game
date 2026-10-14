@@ -27,5 +27,7 @@ export class PixelArt {
 export const MEADOW_PALETTE = {
   ground: 0x263d30,
   groundShades: [0x20362b, 0x2b4433, 0x304a35, 0x344d36],
+  grass: [0x3b573a, 0x48613e, 0x526b43, 0x1c3429],
   forestShadow: 0x192e25,
+  flower: [0x9a8550, 0xae985c, 0x8d603c],
 } as const;
