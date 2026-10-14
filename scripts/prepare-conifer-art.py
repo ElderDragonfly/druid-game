@@ -16,23 +16,22 @@ PADDING = 8
 BOXES = [(52, 60, 225, 455), (225, 60, 433, 455),
          (433, 60, 598, 455), (598, 60, 810, 455)]
 IDS = ["pine-01-dark", "pine-02-purple", "pine-03-light", "pine-04-bright"]
+NEIGHBORS = [(1, 0), (-1, 0), (0, 1), (0, -1),
+             (1, 1), (-1, 1), (1, -1), (-1, -1)]
 
 
-def foreground(crop):
-    pixels = crop.load()
-    points = {(x, y) for y in range(crop.height) for x in range(crop.width)
-              if max(abs(a - b) for a, b in zip(pixels[x, y], BACKGROUND)) > TOLERANCE}
+def connected_tree(points):
+    pending = set(points)
     components = []
-    while points:
-        first = points.pop()
+    while pending:
+        first = pending.pop()
         queue, component = deque([first]), {first}
         while queue:
             x, y = queue.popleft()
-            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1),
-                           (1, 1), (-1, 1), (1, -1), (-1, -1)]:
+            for dx, dy in NEIGHBORS:
                 adjacent = (x + dx, y + dy)
-                if adjacent in points:
-                    points.remove(adjacent)
+                if adjacent in pending:
+                    pending.remove(adjacent)
                     component.add(adjacent)
                     queue.append(adjacent)
         components.append(component)
@@ -41,6 +40,38 @@ def foreground(crop):
     assert len(components[0]) > 20_000
     assert all(len(component) <= 2 for component in components[1:])
     return components[0]
+
+
+def clean_edge_background(crop, points):
+    """Remove pale JPEG background overshoot only where it meets transparency."""
+    pixels = crop.load()
+    candidates = set()
+    for point in points:
+        rgb = pixels[point]
+        if (max(rgb) - min(rgb) <= 32 and sum(rgb) >= 360
+                and max(abs(a - b) for a, b in zip(rgb, BACKGROUND)) <= 40):
+            candidates.add(point)
+    removed = {point for point in candidates
+               if any((point[0] + dx, point[1] + dy) not in points
+                      for dx, dy in NEIGHBORS[:4])}
+    queue = deque(removed)
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in NEIGHBORS:
+            adjacent = (x + dx, y + dy)
+            if adjacent in candidates and adjacent not in removed:
+                removed.add(adjacent)
+                queue.append(adjacent)
+    # Remove tiny JPEG specks that were previously joined to the tree only by the halo.
+    clean = connected_tree(points - removed)
+    return clean, len(points) - len(clean)
+
+
+def foreground(crop):
+    pixels = crop.load()
+    points = {(x, y) for y in range(crop.height) for x in range(crop.width)
+              if max(abs(a - b) for a, b in zip(pixels[x, y], BACKGROUND)) > TOLERANCE}
+    return connected_tree(points)
 
 
 source = Image.open(SOURCE).convert("RGB")
@@ -56,18 +87,22 @@ for y in range(0, preview.height, 16):
 
 sprites = []
 preserved_pixels = 0
+removed_edge_pixels = 0
 for index, (box, sprite_id) in enumerate(zip(BOXES, IDS)):
     crop = source.crop(box)
     points = foreground(crop)
     xs, ys = zip(*points)
     x0, y0, x1, y1 = min(xs), min(ys), max(xs) + 1, max(ys) + 1
+    # Preserve the approved frame, anchor and collision dimensions while cleaning alpha.
+    base = [(x - x0 + PADDING, y - y0 + PADDING)
+            for x, y in points if y >= y1 - 28]
+    points, removed = clean_edge_background(crop, points)
+    removed_edge_pixels += removed
     image = Image.new("RGBA", (x1 - x0 + PADDING * 2, y1 - y0 + PADDING * 2))
     for x, y in points:
         rgb = crop.getpixel((x, y))
         image.putpixel((x - x0 + PADDING, y - y0 + PADDING), (*rgb, 255))
         preserved_pixels += 1
-    base = [(x - x0 + PADDING, y - y0 + PADDING)
-            for x, y in points if y >= y1 - 28]
     base_left, base_right = min(x for x, _ in base), max(x for x, _ in base) + 1
     width, height = image.size
     frame_x, frame_y = index * 240 + (240 - width) // 2, 410 - height
@@ -99,11 +134,13 @@ metadata = {
     "sourceFile": "../DarbxwNV4AAsS-l.jpg",
     "sourceSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
     "extraction": {"backgroundRgb": BACKGROUND, "backgroundTolerance": TOLERANCE,
-                   "method": "original RGB pixels, transparent background, largest connected tree"},
+                   "removedEdgePixels": removed_edge_pixels,
+                   "method": "original RGB pixels, transparent background, largest connected tree, pale JPEG edge cleanup"},
     "sprites": sprites,
 }
 (OUTPUT / "sprites.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n")
 print(f"Extracted 4 trees; verified {preserved_pixels} unchanged opaque RGB pixels.")
+print(f"Removed {removed_edge_pixels} pale JPEG edge pixels; frame and collision sizes preserved.")
 for sprite in sprites:
     print(sprite["id"], f'{sprite["width"]}x{sprite["height"]}',
           f'world height {sprite["height"] * metadata["scale"]:.1f}',

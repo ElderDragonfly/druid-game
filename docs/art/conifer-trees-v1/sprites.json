@@ -12,7 +12,8 @@
       131
     ],
     "backgroundTolerance": 16,
-    "method": "original RGB pixels, transparent background, largest connected tree"
+    "removedEdgePixels": 1540,
+    "method": "original RGB pixels, transparent background, largest connected tree, pale JPEG edge cleanup"
   },
   "sprites": [
     {
