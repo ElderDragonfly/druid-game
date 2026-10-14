@@ -1,24 +1,41 @@
 {
-  "status": "awaiting-original-source",
+  "status": "integrated",
   "padding": 8,
-  "scale": 0.375,
+  "scale": 0.6875,
   "referenceCredit": "@KIANAMOSSER (label in the supplied reference)",
+  "sourceFile": "../DarbxwNV4AAsS-l.jpg",
+  "sourceSha256": "06e9ac8ec935f8c2a41ede03726f2eabe4ad04562ae0150d73a02b32e98e0411",
+  "extraction": {
+    "backgroundRgb": [
+      139,
+      142,
+      131
+    ],
+    "backgroundTolerance": 16,
+    "method": "original RGB pixels, transparent background, largest connected tree"
+  },
   "sprites": [
     {
       "id": "pine-01-dark",
       "title": "Дерево 01",
       "category": "tree",
-      "width": 338,
-      "height": 606,
-      "anchorX": 162.5,
-      "anchorY": 598,
-      "baseWidth": 166,
-      "baseHeight": 54,
+      "width": 176,
+      "height": 331,
+      "anchorX": 85.5,
+      "anchorY": 323,
+      "baseWidth": 87,
+      "baseHeight": 28,
       "atlasFrame": {
-        "x": 61,
-        "y": 146,
-        "width": 338,
-        "height": 606
+        "x": 32,
+        "y": 79,
+        "width": 176,
+        "height": 331
+      },
+      "sourceCrop": {
+        "x": 59,
+        "y": 132,
+        "width": 160,
+        "height": 315
       },
       "file": "sprites/pine-01-dark.png"
     },
@@ -26,17 +43,23 @@
       "id": "pine-02-purple",
       "title": "Дерево 02",
       "category": "tree",
-      "width": 419,
-      "height": 727,
-      "anchorX": 193.5,
-      "anchorY": 719,
-      "baseWidth": 170,
-      "baseHeight": 64,
+      "width": 217,
+      "height": 394,
+      "anchorX": 99.5,
+      "anchorY": 386,
+      "baseWidth": 87,
+      "baseHeight": 28,
       "atlasFrame": {
-        "x": 481,
-        "y": 25,
-        "width": 419,
-        "height": 727
+        "x": 251,
+        "y": 16,
+        "width": 217,
+        "height": 394
+      },
+      "sourceCrop": {
+        "x": 228,
+        "y": 69,
+        "width": 201,
+        "height": 378
       },
       "file": "sprites/pine-02-purple.png"
     },
@@ -44,17 +67,23 @@
       "id": "pine-03-light",
       "title": "Дерево 03",
       "category": "tree",
-      "width": 345,
-      "height": 617,
-      "anchorX": 169,
-      "anchorY": 609,
-      "baseWidth": 161,
-      "baseHeight": 54,
+      "width": 176,
+      "height": 331,
+      "anchorX": 84.5,
+      "anchorY": 323,
+      "baseWidth": 87,
+      "baseHeight": 28,
       "atlasFrame": {
-        "x": 978,
-        "y": 135,
-        "width": 345,
-        "height": 617
+        "x": 512,
+        "y": 79,
+        "width": 176,
+        "height": 331
+      },
+      "sourceCrop": {
+        "x": 435,
+        "y": 132,
+        "width": 160,
+        "height": 315
       },
       "file": "sprites/pine-03-light.png"
     },
@@ -62,17 +91,23 @@
       "id": "pine-04-bright",
       "title": "Дерево 04",
       "category": "tree",
-      "width": 425,
-      "height": 730,
-      "anchorX": 197,
-      "anchorY": 722,
-      "baseWidth": 171,
-      "baseHeight": 64,
+      "width": 217,
+      "height": 396,
+      "anchorX": 99.5,
+      "anchorY": 388,
+      "baseWidth": 87,
+      "baseHeight": 28,
       "atlasFrame": {
-        "x": 1398,
-        "y": 22,
-        "width": 425,
-        "height": 730
+        "x": 731,
+        "y": 14,
+        "width": 217,
+        "height": 396
+      },
+      "sourceCrop": {
+        "x": 600,
+        "y": 68,
+        "width": 201,
+        "height": 380
       },
       "file": "sprites/pine-04-bright.png"
     }
