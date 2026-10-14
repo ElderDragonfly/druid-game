@@ -11,7 +11,7 @@ export interface EnvironmentVariant {
   bodyWidth: number; bodyHeight: number;
 }
 
-// Trees use only the four upright sprites from the latest reference.
+// Archived sprites remain available independently of the active spawn pool.
 export const ENVIRONMENT_VARIANTS: Record<EnvironmentKind, readonly EnvironmentVariant[]> = {
   tree: conifers.sprites.map(sprite => ({
     id: sprite.id, texture: 'forest-trees', frame: sprite.id, width: sprite.width, height: sprite.height,
@@ -20,6 +20,9 @@ export const ENVIRONMENT_VARIANTS: Record<EnvironmentKind, readonly EnvironmentV
   })),
 
 };
+
+// Empty while the new pine sprite is being reviewed. Use catalog IDs to re-enable trees.
+export const TREE_SPAWN_POOL: readonly string[] = [];
 
 export function environmentVariant(kind: EnvironmentKind, variant: number) {
   const result = ENVIRONMENT_VARIANTS[kind][variant];

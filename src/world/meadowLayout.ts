@@ -1,4 +1,4 @@
-import { ENVIRONMENT_VARIANTS, environmentVariant, type EnvironmentKind } from '../data/environment';
+import { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL, environmentVariant, type EnvironmentKind } from '../data/environment';
 
 export type ObstacleKind = EnvironmentKind;
 export interface ObstaclePlacement { kind: ObstacleKind; x: number; y: number; variant: number }
@@ -50,11 +50,12 @@ export function overlaps(a: Rect, b: Rect, gap = 0) {
     a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
 }
 
-export function generateMeadow(seed: number): MeadowLayout {
+export function generateMeadow(seed: number, treePool: readonly string[] = TREE_SPAWN_POOL): MeadowLayout {
   const { width, height } = MEADOW_WORLD;
   const random = seededRandom(seed);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
-  const trees = integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max);
+  const treeVariants = ENVIRONMENT_VARIANTS.tree.flatMap((art, index) => treePool.includes(art.id) ? [index] : []);
+  const trees = treeVariants.length ? integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max) : 0;
   const spawn = { x: width / 2, y: height / 2 };
   const spawnArea = { x: spawn.x - 64, y: spawn.y - 58, width: 128, height: 128 };
   // Counts are drawn once; retries preserve the chosen range and deterministic seed.
@@ -69,7 +70,7 @@ export function generateMeadow(seed: number): MeadowLayout {
     for (const [kind, count] of [['tree', trees]] as const) {
       let placed = 0;
       for (let attempt = 0; attempt < 1200 && placed < count; attempt++) {
-        const variant = integer(0, ENVIRONMENT_VARIANTS[kind].length - 1);
+        const variant = treeVariants[integer(0, treeVariants.length - 1)];
         const art = environmentVariant(kind, variant);
         const left = art.anchorX * art.scale + 3, right = (art.width - art.anchorX) * art.scale + 3;
         const top = art.anchorY * art.scale + 3, bottom = (art.height - art.anchorY) * art.scale + 3;

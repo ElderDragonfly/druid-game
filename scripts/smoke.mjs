@@ -378,11 +378,15 @@ try {
 
   const generation = await page.evaluate(async () => {
     const { generateMeadow, obstacleRect, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL } = await import('/src/data/environment.ts');
+    const archivedPool = ENVIRONMENT_VARIANTS.tree.map(art => art.id);
+    const inactiveEmpty = TREE_SPAWN_POOL.length === 0 && Array.from({ length: 20 }, (_, seed) => generateMeadow(seed))
+      .every(layout => layout.obstacles.length === 0 && layout.counts.trees === 0);
     const failures = []; const treeCounts = new Set();
     const treeVariants = new Set();
     let interiorTrees = 0; let totalTrees = 0;
     for (let seed = 0; seed < 2000; seed++) {
-      const layout = generateMeadow(seed); const { width, height } = layout;
+      const layout = generateMeadow(seed, archivedPool); const { width, height } = layout;
       const trees = layout.obstacles.filter(o => o.kind === 'tree');
       trees.forEach(o => treeVariants.add(o.variant));
       treeCounts.add(trees.length); totalTrees += trees.length;
@@ -398,21 +402,22 @@ try {
             layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
         })) failures.push(seed);
     }
-    return { failures, treeVariants: [...treeVariants].sort((a,b) => a-b),
+    return { failures, inactiveEmpty, treeVariants: [...treeVariants].sort((a,b) => a-b),
       treeCounts: [...treeCounts].sort((a, b) => a - b),
       interiorFraction: interiorTrees / totalTrees,
-      repeatable: JSON.stringify(generateMeadow(123)) === JSON.stringify(generateMeadow(123)),
-      different: JSON.stringify(generateMeadow(123).obstacles) !== JSON.stringify(generateMeadow(124).obstacles),
+      repeatable: JSON.stringify(generateMeadow(123, archivedPool)) === JSON.stringify(generateMeadow(123, archivedPool)),
+      different: JSON.stringify(generateMeadow(123, archivedPool).obstacles) !== JSON.stringify(generateMeadow(124, archivedPool).obstacles),
     };
   });
-  ok(generation.failures.length === 0, `2000 планировок: 45–63 дерева, нет старых растений; безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.inactiveEmpty, 'Текущий пул пуст: архивные деревья не появляются на поляне');
+  ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 45–63 дерева, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
   ok(generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
     'Генерация использует все допустимые количества деревьев, включая границы диапазонов');
   ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
     'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
   ok(generation.treeVariants.join() === '0,1,2,3',
-    'Все четыре текущих вида деревьев участвуют в случайной генерации');
+    'Все четыре архивных вида доступны при явном включении пула');
 
   const followMath = await page.evaluate(async () => {
     const { EllipticalFollowCamera } = await import('/src/camera/EllipticalFollowCamera.ts');
@@ -756,6 +761,20 @@ try {
   // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
   for (const kind of ['tree']) {
     await restart();
+    // Exercise the real world/collider with archived art without enabling its live spawn pool.
+    await page.evaluate(async () => {
+      const scene = window.__smokeGame.scene.getScene('Room');
+      const { MeadowWorld } = await import('/src/world/MeadowWorld.ts');
+      const { generateMeadow } = await import('/src/world/meadowLayout.ts');
+      const { ENVIRONMENT_VARIANTS } = await import('/src/data/environment.ts');
+      const previousChildren = new Set(scene.children.list);
+      scene.world.destroy();
+      scene.layout = generateMeadow(scene.layout.seed, ENVIRONMENT_VARIANTS.tree.map(art => art.id));
+      scene.world = new MeadowWorld(scene, scene.layout);
+      scene.world.bindPlayer(scene.player);
+      scene.cameras.getCamera('hud').ignore(scene.children.list.filter(object => !previousChildren.has(object)));
+    });
+    assertMeadow(await state());
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
       let fixture;
@@ -836,10 +855,20 @@ try {
   const peaceful = await state();
   ok(!peaceful.combat && peaceful.health === 3, 'В текущей поляне нет жука, стрельбы и контактного урона');
   const oldSeed = peaceful.layout.seed;
-  const oldLayout = JSON.stringify(peaceful.layout.obstacles);
+  const floorSignature = () => page.evaluate(() => {
+    const floor = window.__smokeGame.scene.getScene('Room').children.getByName('forest-floor');
+    const canvas = floor.texture.getSourceImage();
+    const pixels = canvas.getContext('2d').getImageData(canvas.width / 2 - 64, canvas.height / 2 - 64, 128, 128).data;
+    let hash = 2166136261;
+    for (const value of pixels) hash = Math.imul(hash ^ value, 16777619);
+    return hash >>> 0;
+  });
+  const oldFloor = await floorSignature();
   await restart();
   const regenerated = await state();
-  ok(regenerated.layout.seed !== oldSeed && JSON.stringify(regenerated.layout.obstacles) !== oldLayout, 'R создаёт новое случайное окружение');
+  ok(regenerated.layout.seed !== oldSeed && await floorSignature() !== oldFloor &&
+    regenerated.layout.obstacles.length === 0 && regenerated.layout.counts.trees === 0,
+    'R меняет случайную подстилку; архивные деревья остаются выключены');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
   const beforeResize = await state();

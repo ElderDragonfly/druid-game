@@ -1,0 +1,15 @@
+{
+  "status": "preview-only",
+  "source": "../1a01c02e21e6853499f9df607190c50f.jpg",
+  "sourceSha256": "c067ef79ca75fc4ed3a7267fe0143e0b55ebb535e59eb25279208adb4a6e50c0",
+  "sprite": "pine.png",
+  "width": 935,
+  "height": 1682,
+  "opaqueBounds": [
+    0,
+    19,
+    897,
+    1666
+  ],
+  "notes": "Background removed with minor edge cleanup; processed sprite, not a pixel-exact source crop. Not included in the live spawn pool."
+}
