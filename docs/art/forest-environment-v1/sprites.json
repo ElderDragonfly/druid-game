@@ -1,0 +1,762 @@
+{
+  "status": "preview-only",
+  "padding": 8,
+  "sprites": [
+    {
+      "id": "tree-01-oak-large",
+      "title": "01 — Большое лиственное",
+      "category": "tree",
+      "width": 472,
+      "height": 587,
+      "sourceBox": [
+        143,
+        15,
+        599,
+        586
+      ],
+      "atlasFrame": {
+        "x": 24,
+        "y": 25,
+        "width": 472,
+        "height": 587
+      },
+      "file": "sprites/tree-01-oak-large.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "tree-02-oak-medium",
+      "title": "02 — Среднее лиственное",
+      "category": "tree",
+      "width": 311,
+      "height": 456,
+      "sourceBox": [
+        696,
+        139,
+        991,
+        579
+      ],
+      "atlasFrame": {
+        "x": 625,
+        "y": 156,
+        "width": 311,
+        "height": 456
+      },
+      "file": "sprites/tree-02-oak-medium.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "tree-03-oak-small",
+      "title": "03 — Малое лиственное",
+      "category": "tree",
+      "width": 239,
+      "height": 307,
+      "sourceBox": [
+        1129,
+        256,
+        1352,
+        547
+      ],
+      "atlasFrame": {
+        "x": 1181,
+        "y": 305,
+        "width": 239,
+        "height": 307
+      },
+      "file": "sprites/tree-03-oak-small.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "tree-04-pine",
+      "title": "04 — Ёлка",
+      "category": "tree",
+      "width": 347,
+      "height": 440,
+      "sourceBox": [
+        223,
+        594,
+        554,
+        1018
+      ],
+      "atlasFrame": {
+        "x": 87,
+        "y": 832,
+        "width": 347,
+        "height": 440
+      },
+      "file": "sprites/tree-04-pine.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "tree-05-sapling",
+      "title": "05 — Молодое дерево",
+      "category": "tree",
+      "width": 140,
+      "height": 185,
+      "sourceBox": [
+        768,
+        825,
+        892,
+        994
+      ],
+      "atlasFrame": {
+        "x": 710,
+        "y": 1087,
+        "width": 140,
+        "height": 185
+      },
+      "file": "sprites/tree-05-sapling.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "tree-06-dead-trunk",
+      "title": "06 — Сухой ствол",
+      "category": "dead-trunk",
+      "width": 167,
+      "height": 217,
+      "sourceBox": [
+        1151,
+        793,
+        1302,
+        994
+      ],
+      "atlasFrame": {
+        "x": 1217,
+        "y": 1055,
+        "width": 167,
+        "height": 217
+      },
+      "file": "sprites/tree-06-dead-trunk.png",
+      "atlas": "trees-atlas.png"
+    },
+    {
+      "id": "rock-01",
+      "title": "Камень 01",
+      "category": "rock",
+      "width": 235,
+      "height": 206,
+      "sourceBox": [
+        25,
+        122,
+        244,
+        312
+      ],
+      "atlasFrame": {
+        "x": 13,
+        "y": 66,
+        "width": 235,
+        "height": 206
+      },
+      "file": "sprites/rock-01.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-02",
+      "title": "Камень 02",
+      "category": "rock",
+      "width": 216,
+      "height": 251,
+      "sourceBox": [
+        274,
+        78,
+        474,
+        313
+      ],
+      "atlasFrame": {
+        "x": 282,
+        "y": 21,
+        "width": 216,
+        "height": 251
+      },
+      "file": "sprites/rock-02.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-03",
+      "title": "Камень 03",
+      "category": "rock",
+      "width": 200,
+      "height": 181,
+      "sourceBox": [
+        501,
+        159,
+        685,
+        324
+      ],
+      "atlasFrame": {
+        "x": 550,
+        "y": 91,
+        "width": 200,
+        "height": 181
+      },
+      "file": "sprites/rock-03.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-04",
+      "title": "Камень 04",
+      "category": "rock",
+      "width": 183,
+      "height": 131,
+      "sourceBox": [
+        720,
+        216,
+        887,
+        331
+      ],
+      "atlasFrame": {
+        "x": 819,
+        "y": 141,
+        "width": 183,
+        "height": 131
+      },
+      "file": "sprites/rock-04.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-05",
+      "title": "Камень 05",
+      "category": "rock",
+      "width": 214,
+      "height": 119,
+      "sourceBox": [
+        934,
+        216,
+        1132,
+        319
+      ],
+      "atlasFrame": {
+        "x": 1063,
+        "y": 153,
+        "width": 214,
+        "height": 119
+      },
+      "file": "sprites/rock-05.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-06",
+      "title": "Камень 06",
+      "category": "rock",
+      "width": 199,
+      "height": 125,
+      "sourceBox": [
+        1176,
+        210,
+        1359,
+        319
+      ],
+      "atlasFrame": {
+        "x": 1331,
+        "y": 147,
+        "width": 199,
+        "height": 125
+      },
+      "file": "sprites/rock-06.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-07",
+      "title": "Камень 07",
+      "category": "rock",
+      "width": 157,
+      "height": 132,
+      "sourceBox": [
+        73,
+        402,
+        214,
+        518
+      ],
+      "atlasFrame": {
+        "x": 52,
+        "y": 460,
+        "width": 157,
+        "height": 132
+      },
+      "file": "sprites/rock-07.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-08",
+      "title": "Камень 08",
+      "category": "rock",
+      "width": 166,
+      "height": 123,
+      "sourceBox": [
+        301,
+        411,
+        451,
+        518
+      ],
+      "atlasFrame": {
+        "x": 307,
+        "y": 469,
+        "width": 166,
+        "height": 123
+      },
+      "file": "sprites/rock-08.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-09",
+      "title": "Камень 09",
+      "category": "rock",
+      "width": 148,
+      "height": 124,
+      "sourceBox": [
+        533,
+        411,
+        665,
+        519
+      ],
+      "atlasFrame": {
+        "x": 576,
+        "y": 468,
+        "width": 148,
+        "height": 124
+      },
+      "file": "sprites/rock-09.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-10",
+      "title": "Камень 10",
+      "category": "rock",
+      "width": 175,
+      "height": 124,
+      "sourceBox": [
+        727,
+        411,
+        886,
+        519
+      ],
+      "atlasFrame": {
+        "x": 823,
+        "y": 468,
+        "width": 175,
+        "height": 124
+      },
+      "file": "sprites/rock-10.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-11",
+      "title": "Камень 11",
+      "category": "rock",
+      "width": 202,
+      "height": 134,
+      "sourceBox": [
+        945,
+        402,
+        1131,
+        520
+      ],
+      "atlasFrame": {
+        "x": 1069,
+        "y": 458,
+        "width": 202,
+        "height": 134
+      },
+      "file": "sprites/rock-11.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-12",
+      "title": "Камень 12",
+      "category": "rock",
+      "width": 164,
+      "height": 130,
+      "sourceBox": [
+        1189,
+        406,
+        1337,
+        520
+      ],
+      "atlasFrame": {
+        "x": 1348,
+        "y": 462,
+        "width": 164,
+        "height": 130
+      },
+      "file": "sprites/rock-12.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-13",
+      "title": "Камень 13",
+      "category": "rock",
+      "width": 142,
+      "height": 121,
+      "sourceBox": [
+        79,
+        608,
+        205,
+        713
+      ],
+      "atlasFrame": {
+        "x": 59,
+        "y": 791,
+        "width": 142,
+        "height": 121
+      },
+      "file": "sprites/rock-13.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-14",
+      "title": "Камень 14",
+      "category": "rock",
+      "width": 118,
+      "height": 104,
+      "sourceBox": [
+        327,
+        618,
+        429,
+        706
+      ],
+      "atlasFrame": {
+        "x": 331,
+        "y": 808,
+        "width": 118,
+        "height": 104
+      },
+      "file": "sprites/rock-14.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-15",
+      "title": "Камень 15",
+      "category": "rock",
+      "width": 103,
+      "height": 101,
+      "sourceBox": [
+        551,
+        621,
+        638,
+        706
+      ],
+      "atlasFrame": {
+        "x": 599,
+        "y": 811,
+        "width": 103,
+        "height": 101
+      },
+      "file": "sprites/rock-15.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-16",
+      "title": "Камень 16",
+      "category": "rock",
+      "width": 151,
+      "height": 75,
+      "sourceBox": [
+        742,
+        638,
+        877,
+        697
+      ],
+      "atlasFrame": {
+        "x": 835,
+        "y": 837,
+        "width": 151,
+        "height": 75
+      },
+      "file": "sprites/rock-16.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-17",
+      "title": "Камень 17",
+      "category": "rock",
+      "width": 159,
+      "height": 74,
+      "sourceBox": [
+        961,
+        636,
+        1104,
+        694
+      ],
+      "atlasFrame": {
+        "x": 1091,
+        "y": 838,
+        "width": 159,
+        "height": 74
+      },
+      "file": "sprites/rock-17.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-18",
+      "title": "Камень 18",
+      "category": "rock",
+      "width": 120,
+      "height": 97,
+      "sourceBox": [
+        1203,
+        627,
+        1307,
+        708
+      ],
+      "atlasFrame": {
+        "x": 1370,
+        "y": 815,
+        "width": 120,
+        "height": 97
+      },
+      "file": "sprites/rock-18.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-19",
+      "title": "Камень 19",
+      "category": "rock",
+      "width": 98,
+      "height": 79,
+      "sourceBox": [
+        97,
+        829,
+        179,
+        892
+      ],
+      "atlasFrame": {
+        "x": 81,
+        "y": 1153,
+        "width": 98,
+        "height": 79
+      },
+      "file": "sprites/rock-19.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-20",
+      "title": "Камень 20",
+      "category": "rock",
+      "width": 95,
+      "height": 85,
+      "sourceBox": [
+        337,
+        824,
+        416,
+        893
+      ],
+      "atlasFrame": {
+        "x": 343,
+        "y": 1147,
+        "width": 95,
+        "height": 85
+      },
+      "file": "sprites/rock-20.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-21",
+      "title": "Камень 21",
+      "category": "rock",
+      "width": 80,
+      "height": 80,
+      "sourceBox": [
+        564,
+        828,
+        628,
+        892
+      ],
+      "atlasFrame": {
+        "x": 610,
+        "y": 1152,
+        "width": 80,
+        "height": 80
+      },
+      "file": "sprites/rock-21.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-22",
+      "title": "Камень 22",
+      "category": "rock",
+      "width": 111,
+      "height": 76,
+      "sourceBox": [
+        759,
+        828,
+        854,
+        888
+      ],
+      "atlasFrame": {
+        "x": 855,
+        "y": 1156,
+        "width": 111,
+        "height": 76
+      },
+      "file": "sprites/rock-22.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-23",
+      "title": "Камень 23",
+      "category": "rock",
+      "width": 121,
+      "height": 94,
+      "sourceBox": [
+        966,
+        816,
+        1071,
+        894
+      ],
+      "atlasFrame": {
+        "x": 1110,
+        "y": 1138,
+        "width": 121,
+        "height": 94
+      },
+      "file": "sprites/rock-23.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-24",
+      "title": "Камень 24",
+      "category": "rock",
+      "width": 150,
+      "height": 88,
+      "sourceBox": [
+        1190,
+        812,
+        1324,
+        884
+      ],
+      "atlasFrame": {
+        "x": 1355,
+        "y": 1144,
+        "width": 150,
+        "height": 88
+      },
+      "file": "sprites/rock-24.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-25",
+      "title": "Камень 25",
+      "category": "rock",
+      "width": 91,
+      "height": 87,
+      "sourceBox": [
+        97,
+        995,
+        172,
+        1066
+      ],
+      "atlasFrame": {
+        "x": 85,
+        "y": 1465,
+        "width": 91,
+        "height": 87
+      },
+      "file": "sprites/rock-25.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-26",
+      "title": "Камень 26",
+      "category": "rock",
+      "width": 89,
+      "height": 81,
+      "sourceBox": [
+        343,
+        1000,
+        416,
+        1065
+      ],
+      "atlasFrame": {
+        "x": 346,
+        "y": 1471,
+        "width": 89,
+        "height": 81
+      },
+      "file": "sprites/rock-26.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-27",
+      "title": "Камень 27",
+      "category": "rock",
+      "width": 64,
+      "height": 60,
+      "sourceBox": [
+        570,
+        1006,
+        618,
+        1050
+      ],
+      "atlasFrame": {
+        "x": 618,
+        "y": 1492,
+        "width": 64,
+        "height": 60
+      },
+      "file": "sprites/rock-27.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-28",
+      "title": "Камень 28",
+      "category": "rock",
+      "width": 125,
+      "height": 96,
+      "sourceBox": [
+        758,
+        988,
+        867,
+        1068
+      ],
+      "atlasFrame": {
+        "x": 848,
+        "y": 1456,
+        "width": 125,
+        "height": 96
+      },
+      "file": "sprites/rock-28.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-29",
+      "title": "Камень 29",
+      "category": "rock",
+      "width": 175,
+      "height": 115,
+      "sourceBox": [
+        955,
+        983,
+        1114,
+        1082
+      ],
+      "atlasFrame": {
+        "x": 1083,
+        "y": 1437,
+        "width": 175,
+        "height": 115
+      },
+      "file": "sprites/rock-29.png",
+      "atlas": "rocks-atlas.png"
+    },
+    {
+      "id": "rock-30",
+      "title": "Камень 30",
+      "category": "rock",
+      "width": 138,
+      "height": 87,
+      "sourceBox": [
+        1204,
+        1001,
+        1326,
+        1072
+      ],
+      "atlasFrame": {
+        "x": 1361,
+        "y": 1465,
+        "width": 138,
+        "height": 87
+      },
+      "file": "sprites/rock-30.png",
+      "atlas": "rocks-atlas.png"
+    }
+  ]
+}

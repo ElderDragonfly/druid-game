@@ -12,7 +12,7 @@ export const MEADOW_PIXEL_SCALE = 2.5;
 export const MEADOW_WORLD = {
   width: 3840, height: 2160,
   viewHeight: 720,
-  cameraRadius: 108,
+  cameraRadiusX: 192, cameraRadiusY: 108,
   cameraResponseMs: 140,
 } as const;
 

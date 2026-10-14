@@ -332,9 +332,9 @@ try {
   ok(generation.repeatable && generation.different, 'Одинаковый seed воспроизводит поляну, другой меняет окружение');
 
   const followMath = await page.evaluate(async () => {
-    const { CircularFollowCamera } = await import('/src/camera/CircularFollowCamera.ts');
-    const make = () => { const f = new CircularFollowCamera(3840, 2160, 108, 140); f.resize(1280, 720); return f; };
-    const inside = make(); inside.update(2000, 1140, 16);
+    const { EllipticalFollowCamera } = await import('/src/camera/EllipticalFollowCamera.ts');
+    const make = () => { const f = new EllipticalFollowCamera(3840, 2160, 192, 108, 140); f.resize(1280, 720); return f; };
+    const inside = make(); inside.update(2080, 1130, 16);
     const diagonal = make(); diagonal.update(2020, 1180, 16);
     const a = make(), b = make();
     for (let i = 0; i < 60; i++) a.update(2200, 1080, 1000 / 60);
@@ -343,17 +343,17 @@ try {
     const before = { ...atEdge.center }; for (let i = 0; i < 120; i++) atEdge.update(2200, 1080, 1000 / 60);
     return {
       inside: inside.center.x === 1920 && inside.center.y === 1080,
-      circle: diagonal.center.x > 1920 && diagonal.center.y > 1080 &&
+      ellipse: diagonal.center.x > 1920 && diagonal.center.y > 1080 &&
         Math.abs((diagonal.center.x - 1920) - (diagonal.center.y - 1080)) < 0.001,
-      smooth: a.center.x < 2200 - 108 && a.center.x > 1920,
+      smooth: a.center.x < 2200 - 192 && a.center.x > 1920,
       frameIndependent: Math.abs(a.center.x - b.center.x) < 0.01,
-      settled: Math.abs(Math.hypot(2200 - atEdge.center.x, 1080 - atEdge.center.y) - 108) < 0.01 &&
+      settled: Math.abs(Math.hypot(2200 - atEdge.center.x, 1080 - atEdge.center.y) - 192) < 0.01 &&
         before.x === atEdge.center.x && before.y === atEdge.center.y,
     };
   });
-  ok(followMath.inside && followMath.circle, 'Зона действительно круглая: внутри радиуса 108 камера стоит, диагональ за кругом запускает следование');
+  ok(followMath.inside && followMath.ellipse, 'Зона — овал 16:9 с полуосями 192×108: внутри камера стоит, за овальной границей следует');
   ok(followMath.smooth && followMath.frameIndependent, 'Сглаживание догоняет постепенно и не зависит от частоты кадров');
-  ok(followMath.settled, 'После остановки камера завершает догоняющее движение у края круга и не центрирует героя');
+  ok(followMath.settled, 'После остановки камера завершает догоняющее движение у края овала и не центрирует героя');
   ok(await page.locator('canvas').count() === 1, 'Одна игровая сцена отрисована');
   const initial = await state();
   ok(initial.health === 3 && initial.healthLabel === 'HP 3/3', 'Друид сохраняет 3 HP и счётчик');
@@ -446,24 +446,24 @@ try {
   const insideCamera = await state();
   ok(insideCamera.x > beforeCamera.x + 40 && insideCamera.x < beforeCamera.x + 80 &&
     Math.abs(insideCamera.view.x - beforeCamera.view.x) < 0.01 && Math.abs(insideCamera.view.y - beforeCamera.view.y) < 0.01,
-    'Друид свободно движется внутри круга, камера остаётся на месте');
+    'Друид свободно движется внутри овала, камера остаётся на месте');
   await page.keyboard.down('d'); await delay(1000);
   const followingCamera = await state();
   const followDistance = Math.hypot(followingCamera.x - followingCamera.cameraCenter.x,
     followingCamera.y - followingCamera.cameraCenter.y);
-  ok(followingCamera.view.x > beforeCamera.view.x + 100 && followDistance > 108 && followDistance < 180,
-    'За кругом камера плавно движется за героем с небольшим отставанием');
+  ok(followingCamera.view.x > beforeCamera.view.x + 40 && followDistance > 192 && followDistance < 250,
+    'За овалом камера плавно движется за героем с небольшим отставанием');
   await page.keyboard.up('d');
   const stoppedCamera = await waitState(current => Math.abs(Math.hypot(current.x - current.cameraCenter.x,
-    current.y - current.cameraCenter.y) - 108) < 0.02);
+    current.y - current.cameraCenter.y) - 192) < 0.02);
   await delay(300); const settledCamera = await state();
   ok(Math.abs(settledCamera.cameraCenter.x - stoppedCamera.cameraCenter.x) < 0.03 &&
     Math.hypot(settledCamera.x - settledCamera.cameraCenter.x,
-      settledCamera.y - settledCamera.cameraCenter.y) > 107,
-    'После догоняющего движения камера стоит у границы круга, не возвращает героя в центр');
+      settledCamera.y - settledCamera.cameraCenter.y) > 191,
+    'После догоняющего движения камера стоит у границы овала, не возвращает героя в центр');
   await hold('a', 250); const returnedInside = await state();
   ok(Math.abs(returnedInside.cameraCenter.x - settledCamera.cameraCenter.x) < 0.01,
-    'Обратное движение внутрь круга снова оставляет камеру неподвижной');
+    'Обратное движение внутрь овала снова оставляет камеру неподвижной');
   ok(returnedInside.healthLabel === 'HP 3/3' && returnedInside.hudView.x === 0 && returnedInside.hudView.y === 0,
     'HP остаются на экране во время движения камеры');
 

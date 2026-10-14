@@ -5,7 +5,7 @@ import { SCENES } from './keys';
 import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
-import { CircularFollowCamera } from '../camera/CircularFollowCamera';
+import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
 import { createMeadowTextures } from '../rendering/meadowTextures';
 import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
@@ -27,7 +27,7 @@ export class RoomScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Container;
   private hudCamera!: Phaser.Cameras.Scene2D.Camera;
   private hint!: Phaser.GameObjects.Text;
-  private cameraFollow!: CircularFollowCamera;
+  private cameraFollow!: EllipticalFollowCamera;
 
   constructor() { super(SCENES.room); }
 
@@ -107,10 +107,10 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = generateMeadow(this.seed);
-    const { width, height, cameraRadius, cameraResponseMs } = MEADOW_WORLD;
+    const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;
     this.physics.world.setBounds(0, 0, width, height);
     this.cameras.main.setBounds(0, 0, width, height);
-    this.cameraFollow = new CircularFollowCamera(width, height, cameraRadius, cameraResponseMs);
+    this.cameraFollow = new EllipticalFollowCamera(width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs);
     this.world = new MeadowWorld(this, this.layout);
     this.world.bindPlayer(this.player);
     const position = this.layout.spawn;
