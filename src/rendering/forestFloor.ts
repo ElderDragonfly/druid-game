@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FOREST_FLOOR, generateForestFloor, type FloorRaster } from '../world/forestFloor';
 import type { MeadowLayout } from '../world/meadowLayout';
+import { grassHeights } from '../world/grassCoverage';
 
 const samples = new WeakMap<object, FloorRaster>();
 
@@ -18,7 +19,8 @@ export function forestFloorSample(image: CanvasImageSource): FloorRaster {
   context.imageSmoothingEnabled = false;
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const sample = { width: canvas.width, height: canvas.height,
-    pixels: context.getImageData(0, 0, canvas.width, canvas.height).data };
+    pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
+    grassHeights: grassHeights(canvas.width, canvas.height) };
   samples.set(image, sample);
   return sample;
 }
@@ -39,5 +41,5 @@ export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
   floor.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
   stamp.destroy();
   scene.textures.remove(key);
-  return floor;
+  return { floor, raster };
 }

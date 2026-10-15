@@ -4,14 +4,18 @@ import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
 import { drawForestFloor } from '../rendering/forestFloor';
 import { FOREST_FLOOR } from './forestFloor';
 import type { MeadowLayout } from './meadowLayout';
+import { GrassForeground } from '../rendering/GrassForeground';
 
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
+  private grass: GrassForeground;
 
   constructor(private scene: Phaser.Scene, readonly layout: MeadowLayout) {
-    this.floor = this.drawFloor();
+    const surface = this.drawFloor();
+    this.floor = surface.floor;
+    this.grass = new GrassForeground(scene, surface.raster);
     this.obstacles = scene.physics.add.staticGroup();
     layout.obstacles.forEach((object, index) => {
       const art = environmentVariant(object.kind, object.variant);
@@ -29,16 +33,21 @@ export class MeadowWorld {
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
   }
 
+  updateGrass(footX: number, footY: number, depth: number) {
+    this.grass.update(footX, footY, depth);
+  }
+
   destroy() {
     this.collider?.destroy();
     this.obstacles.clear(true, true);
     this.obstacles.destroy();
     this.floor.destroy();
+    this.grass.destroy();
   }
 
   private drawFloor() {
     const scale = FOREST_FLOOR.pixelScale;
-    const floor = drawForestFloor(this.scene, this.layout);
+    const surface = drawForestFloor(this.scene, this.layout);
     const g = this.scene.add.graphics();
     const p = new PixelArt(g);
     for (const object of this.layout.obstacles) {
@@ -46,8 +55,8 @@ export class MeadowWorld {
       p.ellipse(MEADOW_PALETTE.forestShadow, Math.round(object.x / scale + 4), Math.round(object.y / scale - 2),
         size.bodyWidth / scale * 0.7, size.bodyHeight / scale * 0.45);
     }
-    floor.draw(g);
+    surface.floor.draw(g);
     g.destroy();
-    return floor;
+    return surface;
   }
 }

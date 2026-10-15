@@ -1,6 +1,9 @@
 import { seededRandom } from './meadowLayout';
 
-export interface FloorRaster { width: number; height: number; pixels: Uint8ClampedArray; id?: string; weight?: number }
+export interface FloorRaster {
+  width: number; height: number; pixels: Uint8ClampedArray; id?: string; weight?: number;
+  grassHeights?: Uint8Array;
+}
 export const FOREST_FLOOR = {
   pixelScale: 1.25,
   sampleSize: 256,
@@ -50,10 +53,12 @@ export function generateForestFloor(input: FloorRaster | readonly FloorRaster[],
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
     throw new Error('Forest floor dimensions must be positive integers');
   }
-  const banks = sources.map(sample => ({ id: sample.id ?? 'grass', weight: sample.weight ?? 1, pixels: sample.pixels }));
+  const banks = sources.map(sample => ({ id: sample.id ?? 'grass', weight: sample.weight ?? 1,
+    pixels: sample.pixels, grassHeights: sample.grassHeights }));
   const totalWeight = banks.reduce((sum, bank) => sum + bank.weight, 0);
   const sourceCounts: Record<string, number> = {};
   const pixels = new Uint8ClampedArray(width * height * 4);
+  const grassHeights = new Uint8Array(width * height);
   const random = seededRandom(seed ^ 0x51f15e), step = patchSize - overlap;
   const columns = Math.max(1, Math.ceil((width - patchSize) / step) + 1);
   const rows = Math.max(1, Math.ceil((height - patchSize) / step) + 1);
@@ -97,8 +102,9 @@ export function generateForestFloor(input: FloorRaster | readonly FloorRaster[],
       if ((vertical && px < vertical[py]) || (horizontal && py < horizontal[px])) continue;
       const from = ((oy + py) * source.width + ox + px) * 4, to = ((y + py) * width + x + px) * 4;
       copyPixel(chosen, from, pixels, to);
+      grassHeights[to / 4] = bank.grassHeights?.[from / 4] ?? 0;
     }
     patchCount++;
   }
-  return { width, height, pixels, patchCount, sourceCounts };
+  return { width, height, pixels, grassHeights, patchCount, sourceCounts };
 }
