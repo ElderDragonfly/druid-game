@@ -1,0 +1,10 @@
+{
+  "status": "preview-only",
+  "sprite": "pine-dark-green.png",
+  "previousSprite": "pine.png",
+  "source": "../1a01c02e21e6853499f9df607190c50f.jpg",
+  "width": 935,
+  "height": 1683,
+  "sourceSha256": "c067ef79ca75fc4ed3a7267fe0143e0b55ebb535e59eb25279208adb4a6e50c0",
+  "notes": "Foliage palette adjusted toward the muted dark greens of the original reference. Previous cutout retained as a separate file; not integrated into gameplay."
+}
