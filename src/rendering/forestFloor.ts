@@ -1,16 +1,16 @@
 import Phaser from 'phaser';
 import { FOREST_FLOOR, generateForestFloor, type FloorRaster } from '../world/forestFloor';
 import type { MeadowLayout } from '../world/meadowLayout';
-import { grassHeights } from '../world/grassCoverage';
 
 const samples = new WeakMap<object, FloorRaster>();
 
 export function forestFloorSamples(scene: Phaser.Scene): FloorRaster[] {
-  return [{ ...forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource),
+  return [{ ...forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource,
+    scene.textures.get('forest-grass-coverage').getSourceImage() as CanvasImageSource),
     id: 'grass', weight: 1 }];
 }
 
-export function forestFloorSample(image: CanvasImageSource): FloorRaster {
+export function forestFloorSample(image: CanvasImageSource, coverage: CanvasImageSource): FloorRaster {
   const cached = samples.get(image);
   if (cached) return cached;
   const canvas = document.createElement('canvas');
@@ -18,9 +18,13 @@ export function forestFloorSample(image: CanvasImageSource): FloorRaster {
   const context = canvas.getContext('2d')!;
   context.imageSmoothingEnabled = false;
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const sample = { width: canvas.width, height: canvas.height,
-    pixels: context.getImageData(0, 0, canvas.width, canvas.height).data,
-    grassHeights: grassHeights(canvas.width, canvas.height) };
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(coverage, 0, 0, canvas.width, canvas.height);
+  const mask = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const grassHeights = new Uint8Array(canvas.width * canvas.height);
+  for (let i = 0; i < grassHeights.length; i++) grassHeights[i] = mask[i * 4];
+  const sample = { width: canvas.width, height: canvas.height, pixels, grassHeights };
   samples.set(image, sample);
   return sample;
 }

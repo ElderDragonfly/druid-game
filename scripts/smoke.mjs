@@ -332,6 +332,13 @@ try {
   const grassCoverage = await page.evaluate(async () => {
     const { generateForestFloor } = await import('/src/world/forestFloor.ts');
     const { sampleGrassForeground } = await import('/src/world/grassCoverage.ts');
+    const { forestFloorSamples } = await import('/src/rendering/forestFloor.ts');
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const source = forestFloorSamples(scene)[0], onePixel = new Uint8ClampedArray(4);
+    const clearPoints = [[50, 40], [55, 40], [155, 118], [166, 142], [100, 160]];
+    const gapsClear = clearPoints.every(([x, y]) => sampleGrassForeground(source, x + .5, y, onePixel, 1, 1).covered === 0);
+    const bladesKept = [[40, 40], [45, 50], [119, 35], [70, 130]].every(([x, y]) =>
+      sampleGrassForeground(source, x + .5, y, onePixel, 1, 1).covered === 1 && onePixel[3] === 255);
     const pixels = new Uint8ClampedArray(128 * 128 * 4), heights = new Uint8Array(128 * 128);
     for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
       pixels.set([x, y, 43, 255], (y * 128 + x) * 4);
@@ -352,11 +359,13 @@ try {
       sampleGrassForeground(fixture, x, y, target, 8, 7);
       edgesSafe &&= target.every(value => value === 0);
     }
-    return { matched, behindVisible, inFrontClear, edgesSafe };
+    return { matched, behindVisible, inFrontClear, edgesSafe, gapsClear, bladesKept };
   });
   ok(grassCoverage.matched, 'Маска травы следует тем же вырезкам и неровным стыкам, что цвета подстилки');
   ok(grassCoverage.behindVisible && grassCoverage.inFrontClear && grassCoverage.edgesSafe,
     'Трава перекрывает ноги за своим основанием, пропускает их перед ним и безопасна у границ мира');
+  ok(grassCoverage.gapsClear && grassCoverage.bladesKept,
+    'Маска выбранного PNG сохраняет отдельные травинки, а просветы между ними и ровный покров не перекрывают обувь');
 
   const grassRendering = await page.evaluate(async () => {
     const game = window.__smokeGame, scene = game.scene.getScene('Room');
@@ -367,12 +376,26 @@ try {
     const read = () => game.canvas.getContext('2d').getImageData(0, 0, game.canvas.width, game.canvas.height).data;
     const old = { x: scene.player.x, y: scene.player.y, depth: scene.player.depth };
     scene.scene.pause();
-    let found = false, changedAllDirections = true, bootsOnly = true, sameFloorPixels = true;
-    for (let y = old.y - 80; y <= old.y + 80 && !found; y += 5) for (let x = old.x - 80; x <= old.x + 80; x += 5) {
+    let best = { count: 0, x: old.x, y: old.y }, clear;
+    let changedAllDirections = true, bootsOnly = true, sameFloorPixels = true;
+    for (let y = old.y - 100; y <= old.y + 100; y += 5) for (let x = old.x - 100; x <= old.x + 100; x += 5) {
       scene.world.updateGrass(x, y + 22.5, y + 25);
-      if (overlay.getData('coveredPixels') > 150) { scene.player.setPosition(x, y).setDepth(y + 25); found = true; break; }
+      const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let count = 0;
+      for (let py = 0; py < canvas.height; py++) for (let px = 12; px < canvas.width - 12; px++) {
+        if (data[(py * canvas.width + px) * 4 + 3]) count++;
+      }
+      if (count > best.count) best = { count, x, y };
+      if (!overlay.visible) clear = { x, y };
     }
-    if (!found) throw new Error('Не найден густой пучок возле старта для проверки перекрытия');
+    if (!best.count || !clear) throw new Error('Не найдены пучок и ровный покров возле старта для проверки перекрытия');
+    scene.player.setPosition(clear.x, clear.y).setDepth(clear.y + 25);
+    scene.world.updateGrass(clear.x, clear.y + 22.5, clear.y + 25);
+    await frames(); const clearBefore = read();
+    overlay.setVisible(true); await frames(); const clearAfter = read();
+    const flatUnchanged = clearAfter.every((value, i) => value === clearBefore[i]);
+    scene.player.setPosition(best.x, best.y).setDepth(best.y + 25);
+    scene.world.updateGrass(best.x, best.y + 22.5, best.y + 25);
     const floor = scene.children.getByName('forest-floor').texture.getSourceImage();
     const mask = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
     const colors = floor.getContext('2d').getImageData(overlay.x / 1.25, overlay.y / 1.25, canvas.width, canvas.height).data;
@@ -397,7 +420,7 @@ try {
     const frozen = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
     await frames();
     const staticPixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data.every((value, i) => value === frozen[i]);
-    const result = { changedAllDirections, bootsOnly, sameFloorPixels, staticPixels,
+    const result = { changedAllDirections, bootsOnly, sameFloorPixels, staticPixels, flatUnchanged,
       small: canvas.width * canvas.height < 512, nearest: texture.source[0].scaleMode === 1,
       depth: overlay.depth > scene.player.depth, noBody: !overlay.body };
     scene.player.setPosition(old.x, old.y).setDepth(old.depth).setTexture('druid-game', 'down');
@@ -406,6 +429,7 @@ try {
   });
   ok(grassRendering.changedAllDirections && grassRendering.bootsOnly,
     'Во всех четырёх ракурсах трава действительно перекрывает только низ обуви на игровом холсте');
+  ok(grassRendering.flatUnchanged, 'На ровном покрове передний слой полностью прозрачен и не меняет изображение друида');
   ok(grassRendering.sameFloorPixels && grassRendering.staticPixels && grassRendering.nearest,
     'Передние травинки сохраняют цвета и позиции подстилки, остаются неподвижными и без сглаживания');
   ok(grassRendering.small && grassRendering.depth && grassRendering.noBody,
