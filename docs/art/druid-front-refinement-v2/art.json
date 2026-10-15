@@ -7,7 +7,26 @@
   "previewScale": 1,
   "baselineY": 300,
   "idleSource": "../druid-sprites-v1/druid-04-basic.png",
-  "idleRedrawn": false,
+  "idleRedrawn": true,
+  "localEdits": {
+    "walkSource": "walk-local-edit-source.png",
+    "idleSource": "idle-knot-source.png",
+    "walk": [
+      "forward-facing face",
+      "compact rope knot and tails"
+    ],
+    "idle": [
+      "compact rope knot and tails"
+    ],
+    "originalAlphaPreserved": true,
+    "walkKnotRigidMaster": true,
+    "walkKnotOffsetY": [
+      0,
+      0,
+      4,
+      3
+    ]
+  },
   "walkSource": "walk-source.png",
   "bodySource": "walk-body-source.png",
   "registration": "mean of face and torso, independent of feet",
@@ -47,11 +66,13 @@
     "rigidMaster": true,
     "liftPixels": [
       0,
+      6,
       12,
-      0,
-      12
+      6
     ],
-    "plantedOffsetY": 7
+    "plantedOffsetY": 7,
+    "plantsPerCycle": 1,
+    "stepsPerCycle": 2
   },
   "layers": [
     "walk-body-256x320.png",

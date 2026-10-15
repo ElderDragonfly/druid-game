@@ -1,8 +1,8 @@
 """Detailed Basic 04 proposal, separate from runtime art.
 
-Idle is mechanically reduced from the approved Basic 04 itself. The four new
-body poses were drawn by the image tool. One forearm/staff cutout moves rigidly
-over solid cloth, so lifting cannot shorten the staff. Pillow, NumPy, SciPy.
+Idle is reduced from the approved Basic 04, with a local rope-knot correction.
+The four drawn body poses receive local face and knot edits. One forearm/staff
+cutout moves rigidly over solid cloth. Pillow, NumPy, SciPy.
 """
 import json
 from pathlib import Path
@@ -21,7 +21,14 @@ VISIBLE_HEIGHT = 280
 FRAME_MS = 240
 BACKGROUND = (38, 54, 40, 255)
 SPINES = (400, 875, 400, 875)
-LIFT = (0, 12, 0, 12)
+# One staff plant per two alternating steps, with a raised passing phase.
+LIFT = (0, 6, 12, 6)
+# Coordinates relative to the waist crop (88,124)-(168,204). Covers the old
+# knot/tails as well as their replacements, leaving the belt and cloth intact
+# everywhere outside this small polygon.
+TIE_POLYGON = [(28, 17), (37, 17), (43, 23), (42, 30), (42, 51),
+               (34, 51), (33, 36), (30, 45), (24, 47), (21, 43),
+               (25, 32), (29, 26), (27, 22)]
 
 
 def save(image, name):
@@ -138,6 +145,46 @@ def strip(frames):
     return result
 
 
+def local_edits(frame, index=None):
+    """Composite only approved small redraws; never re-register the body.
+
+    index=None is idle: its head stays byte-for-byte unchanged. The native
+    source crops are already at output pixel density; no sprite rescaling.
+    Original alpha is retained even inside the edits.
+    """
+    data = np.array(frame)
+    if index is not None:
+        source = Image.open(OUT / 'walk-local-edit-source.png').convert('RGBA')
+        face = source.crop((80 * index, 0, 80 * (index + 1), 80))
+        patch = Image.new('RGBA', SIZE)
+        patch.paste(face, (88, 32))
+        hsv = np.array(frame.convert('RGB').convert('HSV'))
+        yy, xx = np.indices((SIZE[1], SIZE[0]))
+        # Preserve the actual hood edge, clasp and cloak. Only non-green
+        # face/hair/beard pixels inside its opening receive the redraw.
+        hood = (hsv[:, :, 0] >= 29) & (hsv[:, :, 0] <= 110) & (hsv[:, :, 1] > 40)
+        face_mask = (xx >= 99) & (xx < 151) & (yy >= 48) & (yy < 110)
+        face_mask &= ~hood & (data[:, :, 3] > 0)
+        data[face_mask, :3] = np.array(patch)[face_mask, :3]
+        # Reuse a single drawn knot/tails so the rope cannot change its
+        # interlacing from frame to frame; follow only the waist's small bob.
+        tie = source.crop((0, 80, 80, 160))
+        dx, dy = 0, (0, 0, 4, 3)[index]
+    else:
+        # Align the newly drawn idle knot to the existing belt, not the face.
+        source = Image.open(OUT / 'idle-knot-source.png').convert('RGBA')
+        tie = Image.new('RGBA', (80, 80))
+        tie.paste(source, (-2, -2))
+        dx, dy = 3, -1
+    mask = Image.new('L', SIZE)
+    ImageDraw.Draw(mask).polygon([(88 + x + dx, 124 + y + dy) for x, y in TIE_POLYGON], fill=255)
+    patch = Image.new('RGBA', SIZE)
+    patch.paste(tie, (88, 124 + (dy if index is not None else 0)))
+    tie_mask = (np.array(mask) > 0) & (data[:, :, 3] > 0)
+    data[tie_mask, :3] = np.array(patch)[tie_mask, :3]
+    return Image.fromarray(data)
+
+
 def preview(frame):
     background = Image.new('RGBA', frame.size, BACKGROUND)
     background.alpha_composite(frame)
@@ -147,10 +194,11 @@ def preview(frame):
 def main():
     idle_pose = parts(Image.open(REFERENCE).convert('RGBA'), 1)[0]
     idle_scale = VISIBLE_HEIGHT / (idle_pose['ground'] - idle_pose['top'])
-    idle = render(idle_pose['image'], idle_pose['anchorX'], idle_pose['ground'], idle_scale)
+    idle = local_edits(render(idle_pose['image'], idle_pose['anchorX'], idle_pose['ground'], idle_scale))
     bodies = parts(Image.open(OUT / 'walk-body-source.png').convert('RGBA'), 4)
     scale = VISIBLE_HEIGHT / max(p['ground'] - p['top'] for p in bodies)
-    body_frames = [opaque_body(match_cloth(render(p['image'], p['anchorX'], p['ground'], scale))) for p in bodies]
+    body_frames = [local_edits(opaque_body(match_cloth(render(p['image'], p['anchorX'], p['ground'], scale))), i)
+                   for i, p in enumerate(bodies)]
     source = Image.open(OUT / 'walk-source.png').convert('RGBA')
     master = render(staff_cutout(source), bodies[0]['anchorX'], bodies[0]['ground'], scale)
     tip = master.getbbox()[3]
@@ -186,15 +234,20 @@ def main():
                        duration=FRAME_MS, loop=0, disposal=2, optimize=False)
     metadata = {'integrated': False, 'frameWidth': SIZE[0], 'frameHeight': SIZE[1],
         'frameCount': 4, 'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
-        'idleSource': '../druid-sprites-v1/druid-04-basic.png', 'idleRedrawn': False,
+        'idleSource': '../druid-sprites-v1/druid-04-basic.png', 'idleRedrawn': True,
+        'localEdits': {'walkSource': 'walk-local-edit-source.png', 'idleSource': 'idle-knot-source.png',
+                       'walk': ['forward-facing face', 'compact rope knot and tails'],
+                       'idle': ['compact rope knot and tails'], 'originalAlphaPreserved': True,
+                       'walkKnotRigidMaster': True, 'walkKnotOffsetY': [0, 0, 4, 3]},
         'walkSource': 'walk-source.png', 'bodySource': 'walk-body-source.png',
         'registration': 'mean of face and torso, independent of feet',
         'walkScale': scale, 'idleScale': idle_scale,
         'anchors': [{k: v for k, v in p.items() if k != 'image'} for p in bodies],
-        'staff': {'rigidMaster': True, 'liftPixels': list(LIFT), 'plantedOffsetY': planted_offset},
+        'staff': {'rigidMaster': True, 'liftPixels': list(LIFT), 'plantedOffsetY': planted_offset,
+                  'plantsPerCycle': 1, 'stepsPerCycle': 2},
         'layers': ['walk-body-256x320.png', 'walk-arm-staff-256x320.png', 'walk-cloak-foreground-256x320.png']}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    print('Basic 04: native 256x320, four 240ms frames, rigid staff lift 0/12/0/12, no runtime changes.')
+    print('Basic 04: native 256x320, four 240ms frames, one staff plant per two steps, no runtime changes.')
 
 
 if __name__ == '__main__':
