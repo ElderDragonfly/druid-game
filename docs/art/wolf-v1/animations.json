@@ -1,0 +1,347 @@
+{
+  "source": "docs/art/2146238c373cba499284aaad3f0af0f5.jpg",
+  "sourceSha256": "1d73dd95c1f161f66b967776b9ef50aa34a9292f3a536d60e9904bff35e36d4a",
+  "credit": "ripped by Maxim (visible on uploaded reference)",
+  "frameWidth": 128,
+  "frameHeight": 112,
+  "origin": [
+    64,
+    100
+  ],
+  "previewBackground": [
+    49,
+    67,
+    52
+  ],
+  "integrated": false,
+  "animations": {
+    "run": {
+      "frames": [
+        {
+          "sourceRect": [
+            42,
+            88,
+            142,
+            152
+          ],
+          "drawOffset": [
+            15,
+            40
+          ],
+          "atlasFrame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            145,
+            88,
+            254,
+            152
+          ],
+          "drawOffset": [
+            10,
+            40
+          ],
+          "atlasFrame": {
+            "x": 128,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            259,
+            88,
+            373,
+            152
+          ],
+          "drawOffset": [
+            8,
+            40
+          ],
+          "atlasFrame": {
+            "x": 256,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            375,
+            88,
+            494,
+            152
+          ],
+          "drawOffset": [
+            2,
+            40
+          ],
+          "atlasFrame": {
+            "x": 384,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            496,
+            88,
+            610,
+            152
+          ],
+          "drawOffset": [
+            11,
+            40
+          ],
+          "atlasFrame": {
+            "x": 512,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        }
+      ],
+      "durations": [
+        90,
+        90,
+        90,
+        90,
+        90
+      ],
+      "previewScale": 3,
+      "gameRepeat": -1
+    },
+    "attack": {
+      "frames": [
+        {
+          "sourceRect": [
+            42,
+            312,
+            141,
+            403
+          ],
+          "drawOffset": [
+            15,
+            34
+          ],
+          "atlasFrame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            145,
+            312,
+            248,
+            403
+          ],
+          "drawOffset": [
+            15,
+            34
+          ],
+          "atlasFrame": {
+            "x": 128,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            252,
+            307,
+            331,
+            403
+          ],
+          "drawOffset": [
+            24,
+            8
+          ],
+          "atlasFrame": {
+            "x": 256,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            332,
+            312,
+            430,
+            403
+          ],
+          "drawOffset": [
+            15,
+            19
+          ],
+          "atlasFrame": {
+            "x": 384,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        }
+      ],
+      "durations": [
+        250,
+        120,
+        100,
+        220
+      ],
+      "previewScale": 3,
+      "gameRepeat": 0
+    },
+    "death": {
+      "frames": [
+        {
+          "sourceRect": [
+            42,
+            474,
+            115,
+            560
+          ],
+          "drawOffset": [
+            31,
+            17
+          ],
+          "atlasFrame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            119,
+            470,
+            179,
+            560
+          ],
+          "drawOffset": [
+            41,
+            13
+          ],
+          "atlasFrame": {
+            "x": 128,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            184,
+            472,
+            238,
+            560
+          ],
+          "drawOffset": [
+            40,
+            15
+          ],
+          "atlasFrame": {
+            "x": 256,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            239,
+            494,
+            334,
+            560
+          ],
+          "drawOffset": [
+            18,
+            37
+          ],
+          "atlasFrame": {
+            "x": 384,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            335,
+            501,
+            435,
+            560
+          ],
+          "drawOffset": [
+            17,
+            44
+          ],
+          "atlasFrame": {
+            "x": 512,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            438,
+            524,
+            535,
+            560
+          ],
+          "drawOffset": [
+            20,
+            67
+          ],
+          "atlasFrame": {
+            "x": 640,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        },
+        {
+          "sourceRect": [
+            537,
+            524,
+            636,
+            560
+          ],
+          "drawOffset": [
+            17,
+            67
+          ],
+          "atlasFrame": {
+            "x": 768,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          }
+        }
+      ],
+      "durations": [
+        100,
+        100,
+        120,
+        100,
+        100,
+        100,
+        1200
+      ],
+      "previewScale": 3,
+      "gameRepeat": 0
+    }
+  }
+}

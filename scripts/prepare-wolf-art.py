@@ -1,0 +1,140 @@
+"""Crop wolf animation references without redrawing them. Python 3 + Pillow.
+
+The uploaded JPEG has a baked-in checkerboard. Outside-connected background
+and detached neutral flecks are masked; retained foreground RGB is unchanged.
+GIFs are previews on a forest-colored backdrop, PNG sheets retain transparency.
+"""
+import hashlib
+import json
+from collections import deque
+from pathlib import Path
+
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "docs/art/2146238c373cba499284aaad3f0af0f5.jpg"
+OUT = ROOT / "docs/art/wolf-v1"
+WIDTH, HEIGHT = 128, 112
+BACKGROUND = (49, 67, 52)
+ANIMATIONS = {
+    "run": {
+        "rects": [(42, 88, 142, 152), (145, 88, 254, 152), (259, 88, 373, 152),
+                  (375, 88, 494, 152), (496, 88, 610, 152)],
+        "durations": [90] * 5,
+    },
+    "attack": {
+        "rects": [(42, 312, 141, 403), (145, 312, 248, 403),
+                  (252, 307, 331, 403), (332, 312, 430, 403)],
+        "durations": [250, 120, 100, 220],
+    },
+    "death": {
+        "rects": [(42, 474, 115, 560), (119, 470, 179, 560), (184, 472, 238, 560),
+                  (239, 494, 334, 560), (335, 501, 435, 560), (438, 524, 535, 560),
+                  (537, 524, 636, 560)],
+        "durations": [100, 100, 120, 100, 100, 100, 1200],
+    },
+}
+
+
+def cutout(source, rect):
+    image = source.crop(rect)
+    width, height = image.size
+    pixels = image.load()
+    background, queue = set(), deque()
+
+    def background_like(x, y):
+        r, g, b, _ = pixels[x, y]
+        return max(r, g, b) - min(r, g, b) < 32 and (r + g + b) / 3 >= 150
+
+    for y in range(height):
+        for x in range(width):
+            if (x in (0, width - 1) or y in (0, height - 1)) and background_like(x, y):
+                background.add((x, y))
+                queue.append((x, y))
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if (0 <= nx < width and 0 <= ny < height and (nx, ny) not in background
+                    and background_like(nx, ny)):
+                background.add((nx, ny))
+                queue.append((nx, ny))
+    for x, y in background:
+        pixels[x, y] = (0, 0, 0, 0)
+
+    remaining = {(x, y) for y in range(height) for x in range(width) if pixels[x, y][3]}
+    components = []
+    while remaining:
+        component = {remaining.pop()}
+        stack = list(component)
+        while stack:
+            x, y = stack.pop()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    point = (x + dx, y + dy)
+                    if point in remaining:
+                        remaining.remove(point)
+                        component.add(point)
+                        stack.append(point)
+        components.append(component)
+    main = max(components, key=len)
+    for component in components:
+        if component is main or any(pixels[x, y][0] - pixels[x, y][1] > 25 for x, y in component):
+            continue
+        for x, y in component:
+            pixels[x, y] = (0, 0, 0, 0)
+
+    # Foreground is copied, not recolored, regenerated, sharpened or interpolated.
+    for y in range(height):
+        for x in range(width):
+            if pixels[x, y][3]:
+                assert pixels[x, y] == source.getpixel((rect[0] + x, rect[1] + y))
+    return image
+
+
+def save_animation(source, name, settings):
+    frames, metadata = [], []
+    for index, rect in enumerate(settings["rects"]):
+        cropped = cutout(source, rect)
+        bounds = cropped.getbbox()
+        offset_x = 64 - (bounds[0] + bounds[2]) // 2
+        # Keep airborne running phases above their shared ground line.
+        offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
+        frame = Image.new("RGBA", (WIDTH, HEIGHT))
+        assert 0 <= bounds[0] + offset_x < bounds[2] + offset_x <= WIDTH
+        assert 0 <= bounds[1] + offset_y < bounds[3] + offset_y <= HEIGHT
+        frame.paste(cropped, (offset_x, offset_y))
+        frames.append(frame)
+        metadata.append({"sourceRect": list(rect), "drawOffset": [offset_x, offset_y],
+                         "atlasFrame": {"x": index * WIDTH, "y": 0, "width": WIDTH, "height": HEIGHT}})
+
+    atlas = Image.new("RGBA", (WIDTH * len(frames), HEIGHT))
+    previews = []
+    for index, frame in enumerate(frames):
+        atlas.paste(frame, (index * WIDTH, 0))
+        preview = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
+        preview.paste(frame, mask=frame.getchannel("A"))
+        previews.append(preview.resize((WIDTH * 3, HEIGHT * 3), Image.Resampling.NEAREST))
+    atlas.save(OUT / f"wolf-{name}.png")
+    palette_source = Image.new("RGB", (WIDTH * len(frames), HEIGHT), BACKGROUND)
+    for index, frame in enumerate(frames):
+        palette_source.paste(frame, (index * WIDTH, 0), frame.getchannel("A"))
+    palette = palette_source.quantize(colors=256, dither=Image.Dither.NONE)
+    previews = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in previews]
+    previews[0].save(OUT / f"wolf-{name}.gif", save_all=True, append_images=previews[1:],
+                     duration=settings["durations"], loop=0, disposal=2, optimize=False)
+    return {"frames": metadata, "durations": settings["durations"], "previewScale": 3,
+            "gameRepeat": -1 if name == "run" else 0}
+
+
+if __name__ == "__main__":
+    OUT.mkdir(parents=True, exist_ok=True)
+    original = Image.open(SOURCE).convert("RGBA")
+    metadata = {"source": str(SOURCE.relative_to(ROOT)),
+                "sourceSha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
+                "credit": "ripped by Maxim (visible on uploaded reference)",
+                "frameWidth": WIDTH, "frameHeight": HEIGHT, "origin": [64, 100],
+                "previewBackground": list(BACKGROUND), "integrated": False, "animations": {}}
+    for name, settings in ANIMATIONS.items():
+        metadata["animations"][name] = save_animation(original, name, settings)
+        print(f"{name}: {len(settings['rects'])} frames, {sum(settings['durations'])} ms")
+    (OUT / "animations.json").write_text(json.dumps(metadata, indent=2) + "\n")
