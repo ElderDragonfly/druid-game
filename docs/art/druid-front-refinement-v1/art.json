@@ -1,0 +1,29 @@
+{
+  "integrated": false,
+  "frameWidth": 64,
+  "frameHeight": 80,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "previewScale": 4,
+  "reference": "../druid-sprites-v1/druid-04-basic.png",
+  "idleSource": "front-source.png",
+  "walkSource": "walk-down-source.png",
+  "idle": "idle-down-64x80.png",
+  "walk": "walk-down-64x80.png",
+  "baselineY": 75,
+  "preparation": {
+    "idleScale": 0.06222222222222222,
+    "sharedWalkScale": 0.1308411214953271,
+    "wholeDrawnPoses": true,
+    "resampling": "BICUBIC",
+    "alphaThreshold": 128,
+    "clothPalette": "../druid-sprites-v1/druid-04-basic.png",
+    "enclosedLowerClothPixelsRepaired": [
+      0,
+      0,
+      0,
+      0,
+      3
+    ]
+  }
+}
