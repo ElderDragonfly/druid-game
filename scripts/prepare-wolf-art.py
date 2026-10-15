@@ -36,11 +36,6 @@ ANIMATIONS = {
         # One enclosed background pocket between the crossed legs.
         "background_seeds": {2: [(300, 199)]},
     },
-    "attack": {
-        "rects": [(42, 312, 141, 403), (145, 312, 248, 403),
-                  (252, 307, 331, 403), (332, 312, 430, 403)],
-        "durations": [250, 120, 100, 220],
-    },
     "attack-up": {
         "rects": [(42, 312, 141, 403), (42, 222, 134, 312),
                   (137, 222, 218, 312), (219, 222, 316, 312)],
@@ -74,10 +69,17 @@ ANIMATIONS = {
         "state": "idle", "source_row": 6, "initial_source_row": 6, "game_repeat": -1,
     },
     "death": {
-        "rects": [(42, 474, 115, 560), (119, 470, 179, 560), (184, 472, 238, 560),
+        # The third pose extends to x=177; the old x=184 crop cut off its rump.
+        "rects": [(42, 474, 115, 562), (119, 470, 174, 562), (174, 472, 239, 562),
                   (239, 494, 334, 560), (335, 501, 435, 560), (438, 524, 535, 560),
                   (537, 524, 636, 560)],
         "durations": [100, 100, 120, 100, 100, 100, 1200],
+        "shadow_rects": [(42, 533, 115, 562), (119, 533, 174, 562), (174, 533, 239, 562),
+                         (239, 541, 334, 560), (335, 546, 435, 560), (438, 548, 535, 560),
+                         (537, 548, 636, 560)],
+        "background_columns": (660, 690),
+        "ground_y": 557,
+        "state": "death", "source_row": 7, "initial_source_row": 7,
     },
 }
 
@@ -217,6 +219,8 @@ def save_animation(source, name, settings):
         offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
         if name == "walk":
             offset_y = 100 - (219 - rect[1])
+        if "ground_y" in settings:
+            offset_y = 100 - (settings["ground_y"] - rect[1])
         if "source_anchors" in settings:
             anchor_x, anchor_y = settings["source_anchors"][index]
             offset_x, offset_y = 64 - (anchor_x - rect[0]), 100 - (anchor_y - rect[1])
@@ -301,6 +305,8 @@ if __name__ == "__main__":
                 "previewBackground": list(BACKGROUND), "integrated": False, "animations": {}}
     if args.only and (OUT / "animations.json").exists():
         metadata = json.loads((OUT / "animations.json").read_text())
+        metadata["animations"] = {name: entry for name, entry in metadata["animations"].items()
+                                  if name in ANIMATIONS}
     for name, settings in ANIMATIONS.items():
         if args.only and name != args.only:
             continue

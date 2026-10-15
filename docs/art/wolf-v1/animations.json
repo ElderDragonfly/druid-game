@@ -187,90 +187,6 @@
       "shadowAtlas": "wolf-run-shadow.png",
       "mirrorForLeft": true
     },
-    "attack": {
-      "frames": [
-        {
-          "sourceRect": [
-            42,
-            312,
-            141,
-            403
-          ],
-          "drawOffset": [
-            15,
-            34
-          ],
-          "atlasFrame": {
-            "x": 0,
-            "y": 0,
-            "width": 128,
-            "height": 112
-          }
-        },
-        {
-          "sourceRect": [
-            145,
-            312,
-            248,
-            403
-          ],
-          "drawOffset": [
-            15,
-            34
-          ],
-          "atlasFrame": {
-            "x": 128,
-            "y": 0,
-            "width": 128,
-            "height": 112
-          }
-        },
-        {
-          "sourceRect": [
-            252,
-            307,
-            331,
-            403
-          ],
-          "drawOffset": [
-            24,
-            8
-          ],
-          "atlasFrame": {
-            "x": 256,
-            "y": 0,
-            "width": 128,
-            "height": 112
-          }
-        },
-        {
-          "sourceRect": [
-            332,
-            312,
-            430,
-            403
-          ],
-          "drawOffset": [
-            15,
-            19
-          ],
-          "atlasFrame": {
-            "x": 384,
-            "y": 0,
-            "width": 128,
-            "height": 112
-          }
-        }
-      ],
-      "durations": [
-        250,
-        120,
-        100,
-        220
-      ],
-      "previewScale": 3,
-      "gameRepeat": 0
-    },
     "death": {
       "frames": [
         {
@@ -278,7 +194,7 @@
             42,
             474,
             115,
-            560
+            562
           ],
           "drawOffset": [
             31,
@@ -289,14 +205,23 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            42,
+            533,
+            115,
+            562
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
             119,
             470,
-            179,
-            560
+            174,
+            562
           ],
           "drawOffset": [
             41,
@@ -307,17 +232,26 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            119,
+            533,
+            174,
+            562
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
-            184,
+            174,
             472,
-            238,
-            560
+            239,
+            562
           ],
           "drawOffset": [
-            40,
+            35,
             15
           ],
           "atlasFrame": {
@@ -325,7 +259,16 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            174,
+            533,
+            239,
+            562
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
@@ -343,7 +286,16 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            239,
+            541,
+            334,
+            560
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
@@ -361,7 +313,16 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            335,
+            546,
+            435,
+            560
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
@@ -379,7 +340,16 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            438,
+            548,
+            535,
+            560
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         },
         {
           "sourceRect": [
@@ -397,7 +367,16 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "shadowSourceRect": [
+            537,
+            548,
+            636,
+            560
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 7
         }
       ],
       "durations": [
@@ -410,7 +389,12 @@
         1200
       ],
       "previewScale": 3,
-      "gameRepeat": 0
+      "gameRepeat": 0,
+      "state": "death",
+      "sourceRow": 7,
+      "initialSourceRow": 7,
+      "shadowAtlas": "wolf-death-shadow.png",
+      "mirrorForLeft": true
     },
     "walk": {
       "frames": [
