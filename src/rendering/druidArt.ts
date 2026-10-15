@@ -10,6 +10,7 @@ import walkUpSource from '../../docs/art/druid-walk-other-directions-v1/walk-up-
 import walkLeftSource from '../../docs/art/druid-walk-left-v3/walk-left-64x80.png';
 import walkRightSource from '../../docs/art/druid-walk-right-v1/walk-right-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
+import { matchSideBootColors } from './druidBootColors';
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail',
@@ -118,11 +119,22 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     atlas.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
   for (const walk of DRUID_WALKS) {
-    const texture = scene.textures.get(walk.sourceKey);
+    const side = walk.direction === 'left' || walk.direction === 'right';
+    const key = side ? `${walk.sourceKey}-boots` : walk.sourceKey;
+    if (side && !scene.textures.exists(key)) {
+      const source = scene.textures.get(walk.sourceKey).getSourceImage() as HTMLImageElement;
+      const working = scene.textures.createCanvas(key, source.width, source.height)!;
+      working.context.drawImage(source, 0, 0);
+      const pixels = working.context.getImageData(0, 0, source.width, source.height);
+      matchSideBootColors(pixels.data, source.width, walk.direction as 'left' | 'right');
+      working.context.putImageData(pixels, 0, 0);
+      working.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
+    const texture = scene.textures.get(key);
     const frames = Array.from({ length: walk.frameCount }, (_, index) => {
       const frame = `walk-${walk.direction}-${index}`;
       if (!texture.has(frame)) texture.add(frame, 0, index * GAME_DRUID.width, 0, GAME_DRUID.width, GAME_DRUID.height);
-      return { key: walk.sourceKey, frame };
+      return { key, frame };
     });
     if (!scene.anims.exists(walk.animationKey)) {
       scene.anims.create({ key: walk.animationKey, frames, frameRate: 1000 / walk.frameDurationMs, repeat: -1 });

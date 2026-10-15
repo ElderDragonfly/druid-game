@@ -823,7 +823,38 @@ try {
       const expected = read(image); const actual = read(texture.getSourceImage());
       return actual.every((value, index) => value === expected[index]);
     }, { direction, folder });
-    ok(walkPixels, `${direction}: игра использует каждый пиксель PNG, подготовленного из принятой GIF`);
+    ok(walkPixels, `${direction}: исходный PNG принятой GIF сохранён без изменения пикселей`);
+    const bootColors = await page.evaluate(direction => {
+      const scene = window.__smokeGame.scene.getScene('Room');
+      const animation = scene.anims.get(`druid-walk-${direction}`);
+      const texture = scene.textures.get(animation.frames[0].textureKey);
+      const read = source => {
+        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+        const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
+        return context.getImageData(0, 0, 256, 80).data;
+      };
+      const before = read(scene.textures.get(`druid-walk-${direction}-source`).getSourceImage());
+      const after = read(texture.getSourceImage());
+      let alpha = true, bootsOnly = true, darkLeather = true;
+      const changed = [0, 0, 0, 0];
+      for (let i = 0; i < after.length; i += 4) {
+        alpha &&= after[i + 3] === before[i + 3];
+        if (after[i] === before[i] && after[i + 1] === before[i + 1] && after[i + 2] === before[i + 2]) continue;
+        const x = (i / 4) % 256, y = Math.floor(i / 4 / 256), localX = x % 64;
+        changed[Math.floor(x / 64)]++;
+        bootsOnly &&= y >= 55 && y < 75 && localX >= 12 && localX <= 50 &&
+          !(direction === 'left' && localX < 22 && y < 68) && !(direction === 'right' && localX > 43 && y < 70);
+        darkLeather &&= after[i] <= 135 && after[i + 1] <= 87 && after[i + 2] <= 51 &&
+          after[i] > after[i + 1] && after[i + 1] > after[i + 2];
+      }
+      return { alpha, bootsOnly, darkLeather, changed, nearest: texture.source[0].scaleMode === 1,
+        working: texture.key === `druid-walk-${direction}-source-boots`,
+        dimensions: texture.getSourceImage().width === 256 && texture.getSourceImage().height === 80 };
+    }, direction);
+    ok(bootColors.working && bootColors.dimensions && bootColors.nearest && bootColors.alpha && bootColors.bootsOnly,
+      `${direction}: анимация использует исправленные сапоги; силуэт, прозрачность, плащ, руки и посох сохранены`);
+    ok(bootColors.darkLeather && bootColors.changed.every(count => count > 20),
+      `${direction}: все четыре фазы шага используют тёмно-коричневую кожу вместо светлого оттенка сапог`);
     const corridorFound = await page.evaluate(sign => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
