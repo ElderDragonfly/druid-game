@@ -3,12 +3,11 @@ import { seededRandom } from './meadowLayout';
 export interface FloorRaster { width: number; height: number; pixels: Uint8ClampedArray; id?: string; weight?: number }
 export const FOREST_FLOOR = {
   pixelScale: 1.25,
-  sampleSize: 128,
+  sampleSize: 256,
   patchSize: 96,
   overlap: 24,
   candidates: 12,
   matchStride: 4,
-  flowerWeight: 3,
 } as const;
 
 function copyPixel(source: Uint8ClampedArray, from: number, target: Uint8ClampedArray, to: number) {
@@ -16,20 +15,6 @@ function copyPixel(source: Uint8ClampedArray, from: number, target: Uint8Clamped
   target[to + 1] = source[from + 1];
   target[to + 2] = source[from + 2];
   target[to + 3] = source[from + 3];
-}
-
-function orientations(source: FloorRaster) {
-  const size = source.width;
-  return Array.from({ length: 8 }, (_, variant) => {
-    const pixels = new Uint8ClampedArray(source.pixels.length);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      let sx = variant >= 4 ? size - 1 - x : x, sy = y;
-      for (let turn = 0; turn < variant % 4; turn++) [sx, sy] = [sy, size - 1 - sx];
-      const from = (sy * size + sx) * 4, to = (y * size + x) * 4;
-      copyPixel(source.pixels, from, pixels, to);
-    }
-    return pixels;
-  });
 }
 
 // A connected path across an overlap; each next pixel can move one cell sideways.
@@ -53,7 +38,7 @@ function minimumCut(cost: Float64Array, width: number, height: number) {
   return path;
 }
 
-/** Seeded image quilting: copy original colors along irregular, matched seams. */
+/** Seeded image quilting: preserve colors and upright blades; translate crops only. */
 export function generateForestFloor(input: FloorRaster | readonly FloorRaster[], width: number, height: number, seed: number) {
   const { patchSize, overlap, candidates, matchStride } = FOREST_FLOOR;
   const sources: readonly FloorRaster[] = Array.isArray(input) ? input : [input as FloorRaster];
@@ -65,7 +50,7 @@ export function generateForestFloor(input: FloorRaster | readonly FloorRaster[],
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
     throw new Error('Forest floor dimensions must be positive integers');
   }
-  const banks = sources.map(sample => ({ id: sample.id ?? 'grass', weight: sample.weight ?? 1, variants: orientations(sample) }));
+  const banks = sources.map(sample => ({ id: sample.id ?? 'grass', weight: sample.weight ?? 1, pixels: sample.pixels }));
   const totalWeight = banks.reduce((sum, bank) => sum + bank.weight, 0);
   const sourceCounts: Record<string, number> = {};
   const pixels = new Uint8ClampedArray(width * height * 4);
@@ -81,8 +66,8 @@ export function generateForestFloor(input: FloorRaster | readonly FloorRaster[],
     let ticket = random() * totalWeight;
     const bank = banks.find(item => { ticket -= item.weight; return ticket < 0; }) ?? banks[banks.length - 1];
     sourceCounts[bank.id] = (sourceCounts[bank.id] ?? 0) + 1;
-    const variants = bank.variants;
-    let chosen = variants[0], ox = 0, oy = 0, bestScore = Infinity;
+    const chosen = bank.pixels;
+    let ox = 0, oy = 0, bestScore = Infinity;
     const error = (data: Uint8ClampedArray, sx: number, sy: number, px: number, py: number) => {
       const a = ((y + py) * width + x + px) * 4;
       const b = ((sy + py) * source.width + sx + px) * 4;
@@ -90,13 +75,12 @@ export function generateForestFloor(input: FloorRaster | readonly FloorRaster[],
       return r * r + g * g + blue * blue;
     };
     for (let attempt = 0; attempt < (left || top ? candidates : 1); attempt++) {
-      const data = variants[Math.floor(random() * variants.length)];
       const sx = Math.floor(random() * (source.width - patchSize + 1));
       const sy = Math.floor(random() * (source.height - patchSize + 1));
       let score = 0;
-      for (let py = 0; py < top; py += matchStride) for (let px = 0; px < w; px += matchStride) score += error(data, sx, sy, px, py);
-      for (let py = top; py < h; py += matchStride) for (let px = 0; px < left; px += matchStride) score += error(data, sx, sy, px, py);
-      if (score < bestScore) { bestScore = score; chosen = data; ox = sx; oy = sy; }
+      for (let py = 0; py < top; py += matchStride) for (let px = 0; px < w; px += matchStride) score += error(chosen, sx, sy, px, py);
+      for (let py = top; py < h; py += matchStride) for (let px = 0; px < left; px += matchStride) score += error(chosen, sx, sy, px, py);
+      if (score < bestScore) { bestScore = score; ox = sx; oy = sy; }
     }
     let vertical: Int16Array | undefined, horizontal: Int16Array | undefined;
     if (left) {

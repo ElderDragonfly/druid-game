@@ -253,6 +253,19 @@ try {
     const { forestFloorSamples } = await import('/src/rendering/forestFloor.ts');
     const game = window.__smokeGame, scene = game.scene.getScene('Room');
     const sample = forestFloorSamples(scene);
+    const sourceImage = new Image();
+    sourceImage.src = '/docs/art/upright-grass-preview-v1/grass-previous-reference.png';
+    await sourceImage.decode();
+    const loadedImage = game.textures.get('forest-floor-source').getSourceImage();
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = sourceImage.width; sourceCanvas.height = sourceImage.height;
+    const sourceContext = sourceCanvas.getContext('2d');
+    sourceContext.drawImage(sourceImage, 0, 0);
+    const expectedSource = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+    sourceContext.drawImage(loadedImage, 0, 0);
+    const actualSource = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+    const approvedSource = loadedImage.width === sourceImage.width && loadedImage.height === sourceImage.height &&
+      actualSource.every((value, i) => value === expectedSource[i]);
     const fingerprint = pixels => {
       let hash = 2166136261;
       for (const value of pixels) hash = Math.imul(hash ^ value, 16777619);
@@ -273,24 +286,33 @@ try {
     for (let i = 0; i < uniform.length; i += 4) uniform.set([37, 59, 41, 255], i);
     const solid = generateForestFloor({ width: 128, height: 128, pixels: uniform }, 257, 193, 55);
     const uniformCovered = solid.pixels.every((value, i) => value === [37, 59, 41, 255][i % 4]);
+    // Asymmetric coordinate ramp detects rotations and mirrors, independently of the art.
+    const ramp = new Uint8ClampedArray(128 * 128 * 4);
+    for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) ramp.set([x, y, 0, 255], (y * 128 + x) * 4);
+    let upright = true;
+    for (let seed = 0; seed < 16; seed++) {
+      const crop = generateForestFloor({ width: 128, height: 128, pixels: ramp }, 96, 96, seed).pixels;
+      for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) {
+        const i = (y * 96 + x) * 4;
+        upright &&= crop[i] === crop[0] + x && crop[i + 1] === crop[1] + y;
+      }
+    }
     const hashes = new Set();
     for (let seed = 0; seed < 8; seed++) hashes.add(fingerprint(generateForestFloor(sample, 241, 193, seed).pixels));
     const floor = scene.children.getByName('forest-floor');
     const canvas = floor.texture.getSourceImage();
     const actual = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-    let covered = true, whitePixels = 0;
+    let covered = true;
     for (let i = 0; i < actual.length; i += 4) {
       if (actual[i + 3] !== 255) covered = false;
-      if (actual[i] > 230 && actual[i + 1] > 230 && actual[i + 2] > 190) whitePixels++;
     }
     return { repeatable: a.pixels.every((value, i) => value === b.pixels[i]),
       different: fingerprint(a.pixels) !== fingerprint(c.pixels) && hashes.size === 8,
-      originalColors, opaque, uniformCovered, covered,
+      originalColors, opaque, uniformCovered, covered, approvedSource, upright,
       source: floor.getData('sourceTexture'), seed: floor.getData('seed'), layoutSeed: scene.layout.seed,
       width: canvas.width, height: canvas.height, displayWidth: floor.displayWidth, displayHeight: floor.displayHeight,
       patches: floor.getData('patchCount'), nearest: floor.texture.source[0].scaleMode === 1,
       sourceCounts: floor.getData('sourceCounts'), weights: sample.map(item => item.weight),
-      whitePixels, pixelCount: actual.length / 4,
       noStamp: !game.textures.exists('_forest-floor-stamp') };
   });
   ok(floorGeneration.repeatable && floorGeneration.different,
@@ -302,11 +324,10 @@ try {
     floorGeneration.displayHeight === 2160 && floorGeneration.patches === 1032 && floorGeneration.nearest && floorGeneration.covered,
     'Подстилка покрывает весь мир: пиксель 1,25 единицы, 1032 фрагмента, NEAREST, без прозрачных швов');
   ok(floorGeneration.noStamp, 'Временная текстура подстилки удалена после отрисовки');
-  ok(floorGeneration.weights.join() === '97,3' && floorGeneration.sourceCounts.flowers > 0 &&
-    floorGeneration.sourceCounts.flowers < floorGeneration.patches * 0.1 &&
-    floorGeneration.sourceCounts.grass + floorGeneration.sourceCounts.flowers === floorGeneration.patches &&
-    floorGeneration.whitePixels > 0 && floorGeneration.whitePixels < floorGeneration.pixelCount * 0.01,
-    'Нижние квадраты смешиваются с весами 97:3; белые лепестки сохраняются после сшивания и занимают менее 1% поля');
+  ok(floorGeneration.approvedSource && floorGeneration.weights.join() === '1' &&
+    floorGeneration.sourceCounts.grass === floorGeneration.patches && !floorGeneration.sourceCounts.flowers,
+    'Подключён второй утверждённый PNG без изменения пикселей и смешивания с прежней травой');
+  ok(floorGeneration.upright, '16 seed сохраняют направление рисунка: без поворотов и отражений травинок');
 
   const state = () => page.evaluate(async () => {
     const { obstacleRect, obstacleVisualRect } = await import('/src/world/meadowLayout.ts');

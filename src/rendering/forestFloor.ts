@@ -5,11 +5,8 @@ import type { MeadowLayout } from '../world/meadowLayout';
 const samples = new WeakMap<object, FloorRaster>();
 
 export function forestFloorSamples(scene: Phaser.Scene): FloorRaster[] {
-  return [
-    { key: 'forest-floor-source', id: 'grass', weight: 100 - FOREST_FLOOR.flowerWeight },
-    { key: 'forest-floor-flowers-source', id: 'flowers', weight: FOREST_FLOOR.flowerWeight },
-  ].map(item => ({ ...forestFloorSample(scene.textures.get(item.key).getSourceImage() as CanvasImageSource),
-    id: item.id, weight: item.weight }));
+  return [{ ...forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource),
+    id: 'grass', weight: 1 }];
 }
 
 export function forestFloorSample(image: CanvasImageSource): FloorRaster {
