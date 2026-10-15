@@ -16,7 +16,7 @@ export interface CharacterDefinition {
 export const CHARACTERS: readonly CharacterDefinition[] = [
   {
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
-    portrait: { texture: DRUID_TEXTURES.standing, frame: 'figure' },
+    portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID,
       frames: { up: 'up', down: 'down', left: 'left', right: 'right' }, walkAnimations: DRUID_WALK_ANIMATIONS },

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
+import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
 import gameSource from '../../docs/art/druid-front-resolution-v1/druid-front-64x80.png';
 import leftSource from '../assets/characters/druid-left-64x80.png';
@@ -14,6 +15,7 @@ import { matchSideBootColors } from './druidBootColors';
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail',
+  basic: 'druid-basic-detail',
   campSource: 'druid-camp-source', camp: 'druid-camp',
   gameSource: 'druid-game-source', game: 'druid-game',
   leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
@@ -25,6 +27,7 @@ export const DRUID_TEXTURES = {
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
+  { key: DRUID_TEXTURES.basic, url: basic, frame: { x: 270, y: 80, width: 725, height: 1105 } },
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
   { key: DRUID_TEXTURES.gameSource, url: gameSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.leftSource, url: leftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },

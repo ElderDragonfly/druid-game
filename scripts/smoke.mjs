@@ -64,7 +64,7 @@ try {
   ok(initialScenes.join() === 'MainMenu', `При запуске открывается только главное меню: ${initialScenes.join()}`);
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
-    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-camp-source', 'druid-game-source',
+    return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-basic-detail', 'druid-camp-source', 'druid-game-source',
       'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source', 'druid-walk-right-source']
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
@@ -154,7 +154,27 @@ try {
   });
   ok(campPixels.width === 696 && campPixels.height === 864 && campPixels.identical,
     `Каждый пиксель лагеря совпадает с явно указанным PNG: без генерации, упрощения и изменения цветов (${JSON.stringify(campPixels)})`);
-  ok(slots.portrait === 'druid-standing-detail', 'Ячейка доступного персонажа использует подробный рабочий образ');
+  ok(slots.portrait === 'druid-basic-detail', 'Ячейка доступного персонажа использует утверждённый Basic 04');
+  const basicPortrait = await page.evaluate(async () => {
+    const scene = window.__smokeGame.scene.getScene('CharacterSelect');
+    const portrait = scene.children.getByName('character-druid').getByName('portrait-druid');
+    const texture = portrait.texture, frame = portrait.frame;
+    const original = new Image(); original.src = '/docs/art/druid-sprites-v1/druid-04-basic.png';
+    await original.decode();
+    const canvas = document.createElement('canvas'); canvas.width = frame.cutWidth; canvas.height = frame.cutHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(original, frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
+      0, 0, frame.cutWidth, frame.cutHeight);
+    const expected = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(texture.getSourceImage(), frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
+      0, 0, frame.cutWidth, frame.cutHeight);
+    const actual = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    return { identical: expected.every((value, index) => value === actual[index]),
+      height: portrait.displayHeight, filter: texture.source[0].scaleMode };
+  });
+  ok(basicPortrait.identical && basicPortrait.height === 94 && basicPortrait.filter === 1,
+    'Портрет Basic 04 копирует утверждённые пиксели и помещается в карточку без перекраски');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   for (const id of ['character-locked-1', 'character-locked-2']) {
     await clickNamed('CharacterSelect', id);
