@@ -13,6 +13,14 @@ SIZE = (256, 320)
 BASELINE = 300
 LIFT = (0, 6, 12, 6)
 FRAME_MS = 240
+BOOT_CENTERS = (115, 147)
+LEG_SPLITS = (134, 130, 130, 130)
+ARM_REGION = (168, 112, 215, 191)
+# Lower contour of the accepted first cloak, including its black outline.
+# This removes the old legs without removing fabric or its pointed hem.
+LEG_OPENING = [(94, 207), (100, 209), (110, 214), (120, 219), (130, 228),
+               (136, 239), (139, 239), (145, 234), (150, 231), (155, 226),
+               (160, 221), (165, 219), (168, 217), (170, 320), (90, 320), (90, 227)]
 # Reuse the accepted front proposal's sizing, palette and solid-cloth helpers.
 front = runpy.run_path(str(ROOT / 'scripts/prepare-druid-front-detailed.py'))
 
@@ -71,13 +79,107 @@ def staff_cutout(source):
     return Image.fromarray(data)
 
 
+def corrected_bodies(original_body):
+    """Fixed accepted torso plus drawn arm/legs, registered independently.
+
+    Never align the torso to a swinging boot. Each complete visible leg is
+    translated horizontally once to its fixed walking lane, without stretching
+    or changing the drawn hip/knee motion. The cloak occludes its upper root.
+    """
+    source = Image.open(OUT / 'walk-gait-source.png').convert('RGBA')
+    arm_source = Image.open(OUT / 'walk-free-arm-source.png').convert('RGBA')
+    if source.size != (512, 640):
+        raise ValueError('Gait source must contain four native 256x320 cells, 2x2.')
+    if arm_source.size != (188, 79):
+        raise ValueError('Arm source must contain four native 47x79 regions.')
+    opening = Image.new('L', SIZE)
+    ImageDraw.Draw(opening).polygon(LEG_OPENING, fill=255)
+    data = np.array(original_body)
+    data[np.array(opening) > 0] = 0
+    left, top, right, bottom = ARM_REGION
+    data[top:bottom, left:right] = 0
+    cloak = Image.fromarray(data)
+    frames, leg_frames, arm_frames, registrations = [], [], [], []
+    yy, _ = np.indices((SIZE[1], SIZE[0]))
+    for i in range(4):
+        x, y = (i % 2) * SIZE[0], (i // 2) * SIZE[1]
+        data = np.array(source.crop((x, y, x + SIZE[0], y + SIZE[1])))
+        data[:, :, 3] = np.where(data[:, :, 3] >= 128, 255, 0)
+        drawn = front['match_cloth'](Image.fromarray(data))
+        data = np.array(drawn)
+        legs = Image.new('RGBA', SIZE)
+        registration = []
+        split = LEG_SPLITS[i]
+        for (x0, x1), target in zip([(90, split), (split, 170)], BOOT_CENTERS):
+            leg = np.zeros_like(data)
+            leg[200:, x0:x1] = data[200:, x0:x1]
+            alpha = leg[:, :, 3] > 0
+            last = int(np.where(alpha)[0].max())
+            # Bottom eight rows measure the boot sole, not the swinging thigh.
+            sole_x = np.where(alpha & (yy >= last - 7))[1]
+            center = int(np.rint(np.median(sole_x)))
+            dx = target - center
+            shifted = Image.new('RGBA', SIZE)
+            shifted.paste(Image.fromarray(leg), (dx, 0))
+            legs.alpha_composite(shifted)
+            registration.append({'soleX': target, 'sourceSoleX': center, 'offsetX': dx,
+                                 'lowestPixelY': last})
+        # The arm region also restores the small piece of cloak behind the
+        # changing elbow. It is a drawn patch, not an isolated floating hand.
+        arm = Image.new('RGBA', SIZE)
+        # Both neutral phases use one drawing. Foreshorten the leather
+        # forearm by five pixels while keeping shoulder, cuff and fist size.
+        # This puts the neutral hand between the forward/back endpoints.
+        arm_index = 0 if i == 2 else i
+        patch = arm_source.crop((47 * arm_index, 0, 47 * (arm_index + 1), 79))
+        pixels = np.array(patch)
+        pixels[:, :, 3] = np.where(pixels[:, :, 3] >= 128, 255, 0)
+        patch = Image.fromarray(pixels)
+        if i in (0, 2):
+            projected = Image.new('RGBA', patch.size)
+            projected.paste(patch.crop((0, 0, 47, 35)), (0, 0))
+            projected.paste(patch.crop((0, 35, 47, 45)).resize((47, 5), Image.Resampling.NEAREST), (0, 35))
+            projected.paste(patch.crop((0, 45, 47, 79)), (0, 40))
+            py, px = np.indices((79, 47))
+            for im, erase in [(patch, True), (projected, False)]:
+                hsv = np.array(im.convert('RGB').convert('HSV'))
+                values = np.array(im)
+                green = (hsv[:, :, 0] >= 32) & (hsv[:, :, 0] <= 110) & (hsv[:, :, 1] > 55)
+                limb = (values[:, :, 3] > 0) & ~green & (px >= 14) & (py >= 35)
+                pixels[limb] = 0 if erase else values[limb]
+            patch = Image.fromarray(pixels)
+        # Discard tiny detached outline remnants from the shorter projected
+        # forearm. Never erase pixels inside the connected limb or cloak.
+        pixels = np.array(patch)
+        components, _ = label(pixels[:, :, 3] > 0, np.ones((3, 3)))
+        counts = np.bincount(components.ravel())
+        tiny = np.flatnonzero((counts > 0) & (counts <= 3))
+        tiny = tiny[tiny != 0]
+        pixels[np.isin(components, tiny)] = 0
+        patch = Image.fromarray(pixels)
+        arm.paste(front['match_cloth'](patch), (left, top))
+        body = legs.copy()
+        body.alpha_composite(cloak)
+        body.alpha_composite(arm)
+        frames.append(body)
+        leg_frames.append(legs)
+        arm_frames.append(arm)
+        registrations.append(registration)
+    save(cloak, 'walk-fixed-cloak-256x320.png')
+    save(front['strip'](leg_frames), 'walk-legs-256x320.png')
+    save(front['strip'](arm_frames), 'walk-right-arm-region-256x320.png')
+    return frames, registrations
+
+
 def main():
     source = Image.open(OUT / 'walk-source.png').convert('RGBA')
     bodies = poses(Image.open(OUT / 'walk-body-source.png').convert('RGBA'))
     original = poses(source)[0]
     scale = 280 / max(p['ground'] - p['top'] for p in bodies)
-    body_frames = [front['opaque_body'](front['match_cloth'](
-        front['render'](p['image'], p['anchorX'], p['ground'], scale))) for p in bodies]
+    first = bodies[0]
+    fixed_body = front['opaque_body'](front['match_cloth'](
+        front['render'](first['image'], first['anchorX'], first['ground'], scale)))
+    body_frames, leg_registration = corrected_bodies(fixed_body)
     master = front['render'](staff_cutout(source), original['anchorX'], original['ground'], scale)
     planted_offset = BASELINE - master.getbbox()[3]
     frames, staff_frames = [], []
@@ -99,12 +201,18 @@ def main():
                        duration=FRAME_MS, loop=0, disposal=2, optimize=False)
     metadata = {'integrated': False, 'direction': 'up', 'frameWidth': 256, 'frameHeight': 320,
         'frameCount': 4, 'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
-        'scale': scale, 'registration': 'hood center, independent of feet and staff',
+        'scale': scale, 'registration': 'fixed first torso; drawn legs in fixed vertical lanes',
+        'gait': {'source': 'walk-gait-source.png', 'torsoFixed': True, 'torsoOffsetY': [0, 0, 0, 0],
+                 'bootSoleCentersX': list(BOOT_CENTERS), 'legRegistration': leg_registration,
+                 'rightArmRegion': list(ARM_REGION), 'armSource': 'walk-free-arm-source.png',
+                 'neutralArmForearmForeshorteningPx': 5},
         'anchors': [{k: v for k, v in p.items() if k != 'image'} for p in bodies],
         'staff': {'anatomicalHand': 'left', 'screenSide': 'left', 'rigidMaster': True,
                   'liftPixels': list(LIFT), 'plantedOffsetY': planted_offset,
                   'plantsPerCycle': 1, 'stepsPerCycle': 2},
-        'sources': ['walk-source.png', 'walk-body-source.png'],
+        'sources': ['walk-source.png', 'walk-body-source.png', 'walk-gait-source.png', 'walk-free-arm-source.png'],
+        'bodyLayersBackToFront': ['walk-legs-256x320.png', 'walk-fixed-cloak-256x320.png',
+                                  'walk-right-arm-region-256x320.png'],
         'layersBackToFront': ['walk-arm-staff-256x320.png', 'walk-body-256x320.png']}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')
     print('Rear Basic 04 proposal: 4 × 256x320, 240 ms, one staff plant per two steps; not integrated.')

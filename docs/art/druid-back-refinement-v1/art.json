@@ -8,7 +8,87 @@
   "previewScale": 1,
   "baselineY": 300,
   "scale": 0.611353711790393,
-  "registration": "hood center, independent of feet and staff",
+  "registration": "fixed first torso; drawn legs in fixed vertical lanes",
+  "gait": {
+    "source": "walk-gait-source.png",
+    "torsoFixed": true,
+    "torsoOffsetY": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "bootSoleCentersX": [
+      115,
+      147
+    ],
+    "legRegistration": [
+      [
+        {
+          "soleX": 115,
+          "sourceSoleX": 114,
+          "offsetX": 1,
+          "lowestPixelY": 299
+        },
+        {
+          "soleX": 147,
+          "sourceSoleX": 146,
+          "offsetX": 1,
+          "lowestPixelY": 267
+        }
+      ],
+      [
+        {
+          "soleX": 115,
+          "sourceSoleX": 113,
+          "offsetX": 2,
+          "lowestPixelY": 287
+        },
+        {
+          "soleX": 147,
+          "sourceSoleX": 144,
+          "offsetX": 3,
+          "lowestPixelY": 274
+        }
+      ],
+      [
+        {
+          "soleX": 115,
+          "sourceSoleX": 116,
+          "offsetX": -1,
+          "lowestPixelY": 264
+        },
+        {
+          "soleX": 147,
+          "sourceSoleX": 147,
+          "offsetX": 0,
+          "lowestPixelY": 298
+        }
+      ],
+      [
+        {
+          "soleX": 115,
+          "sourceSoleX": 115,
+          "offsetX": 0,
+          "lowestPixelY": 271
+        },
+        {
+          "soleX": 147,
+          "sourceSoleX": 146,
+          "offsetX": 1,
+          "lowestPixelY": 282
+        }
+      ]
+    ],
+    "rightArmRegion": [
+      168,
+      112,
+      215,
+      191
+    ],
+    "armSource": "walk-free-arm-source.png",
+    "neutralArmForearmForeshorteningPx": 5
+  },
   "anchors": [
     {
       "top": 26,
@@ -47,7 +127,14 @@
   },
   "sources": [
     "walk-source.png",
-    "walk-body-source.png"
+    "walk-body-source.png",
+    "walk-gait-source.png",
+    "walk-free-arm-source.png"
+  ],
+  "bodyLayersBackToFront": [
+    "walk-legs-256x320.png",
+    "walk-fixed-cloak-256x320.png",
+    "walk-right-arm-region-256x320.png"
   ],
   "layersBackToFront": [
     "walk-arm-staff-256x320.png",
