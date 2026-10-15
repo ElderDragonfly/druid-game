@@ -1,13 +1,14 @@
 import { seededRandom } from './meadowLayout';
 
-export interface FloorRaster { width: number; height: number; pixels: Uint8ClampedArray }
+export interface FloorRaster { width: number; height: number; pixels: Uint8ClampedArray; id?: string; weight?: number }
 export const FOREST_FLOOR = {
   pixelScale: 1.25,
-  sampleSize: 256,
+  sampleSize: 128,
   patchSize: 96,
   overlap: 24,
   candidates: 12,
   matchStride: 4,
+  flowerWeight: 3,
 } as const;
 
 function copyPixel(source: Uint8ClampedArray, from: number, target: Uint8ClampedArray, to: number) {
@@ -53,15 +54,20 @@ function minimumCut(cost: Float64Array, width: number, height: number) {
 }
 
 /** Seeded image quilting: copy original colors along irregular, matched seams. */
-export function generateForestFloor(source: FloorRaster, width: number, height: number, seed: number) {
+export function generateForestFloor(input: FloorRaster | readonly FloorRaster[], width: number, height: number, seed: number) {
   const { patchSize, overlap, candidates, matchStride } = FOREST_FLOOR;
-  if (source.width !== source.height || source.width < patchSize || source.pixels.length !== source.width * source.height * 4) {
+  const sources: readonly FloorRaster[] = Array.isArray(input) ? input : [input as FloorRaster];
+  const source = sources[0];
+  if (!source || sources.some(sample => sample.width !== source.width || sample.width !== sample.height ||
+    sample.width < patchSize || sample.pixels.length !== sample.width * sample.height * 4 || (sample.weight ?? 1) <= 0)) {
     throw new Error('Forest floor requires a square RGBA sample larger than its patches');
   }
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
     throw new Error('Forest floor dimensions must be positive integers');
   }
-  const variants = orientations(source);
+  const banks = sources.map(sample => ({ id: sample.id ?? 'grass', weight: sample.weight ?? 1, variants: orientations(sample) }));
+  const totalWeight = banks.reduce((sum, bank) => sum + bank.weight, 0);
+  const sourceCounts: Record<string, number> = {};
   const pixels = new Uint8ClampedArray(width * height * 4);
   const random = seededRandom(seed ^ 0x51f15e), step = patchSize - overlap;
   const columns = Math.max(1, Math.ceil((width - patchSize) / step) + 1);
@@ -72,6 +78,10 @@ export function generateForestFloor(source: FloorRaster, width: number, height: 
     const w = Math.min(patchSize, width - x), h = Math.min(patchSize, height - y);
     const left = x > 0 ? Math.min(overlap, w) : 0;
     const top = y > 0 ? Math.min(overlap, h) : 0;
+    let ticket = random() * totalWeight;
+    const bank = banks.find(item => { ticket -= item.weight; return ticket < 0; }) ?? banks[banks.length - 1];
+    sourceCounts[bank.id] = (sourceCounts[bank.id] ?? 0) + 1;
+    const variants = bank.variants;
     let chosen = variants[0], ox = 0, oy = 0, bestScore = Infinity;
     const error = (data: Uint8ClampedArray, sx: number, sy: number, px: number, py: number) => {
       const a = ((y + py) * width + x + px) * 4;
@@ -106,5 +116,5 @@ export function generateForestFloor(source: FloorRaster, width: number, height: 
     }
     patchCount++;
   }
-  return { width, height, pixels, patchCount };
+  return { width, height, pixels, patchCount, sourceCounts };
 }

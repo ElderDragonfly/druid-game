@@ -1,4 +1,5 @@
 import conifers from '../../docs/art/conifer-trees-v1/sprites.json';
+import pine from '../assets/environment/pine.json';
 
 export type EnvironmentKind = 'tree';
 export interface EnvironmentVariant {
@@ -13,16 +14,16 @@ export interface EnvironmentVariant {
 
 // Archived sprites remain available independently of the active spawn pool.
 export const ENVIRONMENT_VARIANTS: Record<EnvironmentKind, readonly EnvironmentVariant[]> = {
-  tree: conifers.sprites.map(sprite => ({
+  tree: [...conifers.sprites.map(sprite => ({
     id: sprite.id, texture: 'forest-trees', frame: sprite.id, width: sprite.width, height: sprite.height,
     scale: conifers.scale, anchorX: sprite.anchorX, anchorY: sprite.anchorY,
     bodyWidth: Math.round(sprite.baseWidth * conifers.scale), bodyHeight: Math.round(sprite.baseHeight * conifers.scale),
-  })),
+  })), pine],
 
 };
 
-// Empty while the new pine sprite is being reviewed. Use catalog IDs to re-enable trees.
-export const TREE_SPAWN_POOL: readonly string[] = [];
+// Previous variants remain archived; only the approved dark-green pine is active.
+export const TREE_SPAWN_POOL: readonly string[] = [pine.id];
 
 export function environmentVariant(kind: EnvironmentKind, variant: number) {
   const result = ENVIRONMENT_VARIANTS[kind][variant];

@@ -74,7 +74,9 @@ try {
     const game = window.__smokeGame;
     const variants = ENVIRONMENT_VARIANTS.tree;
     const preserved = await Promise.all(variants.map(async art => {
-      const image = new Image(); image.src = `/docs/art/conifer-trees-v1/sprites/${art.id}.png`; await image.decode();
+      const image = new Image(); image.src = art.id === 'pine-dark-green'
+        ? '/docs/art/pine-preview-v1/pine-dark-green.png'
+        : `/docs/art/conifer-trees-v1/sprites/${art.id}.png`; await image.decode();
       const texture = game.textures.get(art.texture), frame = texture.get(art.frame);
       const canvas = document.createElement('canvas'); canvas.width = art.width; canvas.height = art.height;
       const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
@@ -89,7 +91,7 @@ try {
     return { count: preserved.length, preserved: preserved.every(Boolean),
       oldTreesAbsent: !['meadow-tree-0','meadow-tree-1','meadow-tree-2','meadow-stump','meadow-bush-0','meadow-bush-1','meadow-bush-2','forest-rocks'].some(key => game.textures.exists(key)) };
   });
-  ok(forestArt.count === 4 && forestArt.preserved, 'Кадры деревьев совпадают с текущими рабочими PNG; фильтр NEAREST');
+  ok(forestArt.count === 5 && forestArt.preserved, 'Одобренная сосна и четыре архивных дерева совпадают с PNG; фильтр NEAREST');
   ok(forestArt.oldTreesAbsent, 'Камни, старые деревья, кусты и пень не загружаются');
   const mainBackground = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('MainMenu');
@@ -248,9 +250,9 @@ try {
 
   const floorGeneration = await page.evaluate(async () => {
     const { generateForestFloor } = await import('/src/world/forestFloor.ts');
-    const { forestFloorSample } = await import('/src/rendering/forestFloor.ts');
+    const { forestFloorSamples } = await import('/src/rendering/forestFloor.ts');
     const game = window.__smokeGame, scene = game.scene.getScene('Room');
-    const sample = forestFloorSample(game.textures.get('forest-floor-source').getSourceImage());
+    const sample = forestFloorSamples(scene);
     const fingerprint = pixels => {
       let hash = 2166136261;
       for (const value of pixels) hash = Math.imul(hash ^ value, 16777619);
@@ -261,7 +263,7 @@ try {
     const c = generateForestFloor(sample, 320, 241, 124);
     const palette = new Set();
     const color = (pixels, index) => pixels[index] | pixels[index + 1] << 8 | pixels[index + 2] << 16;
-    for (let i = 0; i < sample.pixels.length; i += 4) palette.add(color(sample.pixels, i));
+    for (const item of sample) for (let i = 0; i < item.pixels.length; i += 4) palette.add(color(item.pixels, i));
     let originalColors = true, opaque = true;
     for (let i = 0; i < a.pixels.length; i += 4) {
       originalColors &&= palette.has(color(a.pixels, i));
@@ -276,14 +278,19 @@ try {
     const floor = scene.children.getByName('forest-floor');
     const canvas = floor.texture.getSourceImage();
     const actual = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-    let covered = true;
-    for (let i = 3; i < actual.length; i += 4) if (actual[i] !== 255) covered = false;
+    let covered = true, whitePixels = 0;
+    for (let i = 0; i < actual.length; i += 4) {
+      if (actual[i + 3] !== 255) covered = false;
+      if (actual[i] > 230 && actual[i + 1] > 230 && actual[i + 2] > 190) whitePixels++;
+    }
     return { repeatable: a.pixels.every((value, i) => value === b.pixels[i]),
       different: fingerprint(a.pixels) !== fingerprint(c.pixels) && hashes.size === 8,
       originalColors, opaque, uniformCovered, covered,
       source: floor.getData('sourceTexture'), seed: floor.getData('seed'), layoutSeed: scene.layout.seed,
       width: canvas.width, height: canvas.height, displayWidth: floor.displayWidth, displayHeight: floor.displayHeight,
       patches: floor.getData('patchCount'), nearest: floor.texture.source[0].scaleMode === 1,
+      sourceCounts: floor.getData('sourceCounts'), weights: sample.map(item => item.weight),
+      whitePixels, pixelCount: actual.length / 4,
       noStamp: !game.textures.exists('_forest-floor-stamp') };
   });
   ok(floorGeneration.repeatable && floorGeneration.different,
@@ -295,9 +302,15 @@ try {
     floorGeneration.displayHeight === 2160 && floorGeneration.patches === 1032 && floorGeneration.nearest && floorGeneration.covered,
     'Подстилка покрывает весь мир: пиксель 1,25 единицы, 1032 фрагмента, NEAREST, без прозрачных швов');
   ok(floorGeneration.noStamp, 'Временная текстура подстилки удалена после отрисовки');
+  ok(floorGeneration.weights.join() === '97,3' && floorGeneration.sourceCounts.flowers > 0 &&
+    floorGeneration.sourceCounts.flowers < floorGeneration.patches * 0.1 &&
+    floorGeneration.sourceCounts.grass + floorGeneration.sourceCounts.flowers === floorGeneration.patches &&
+    floorGeneration.whitePixels > 0 && floorGeneration.whitePixels < floorGeneration.pixelCount * 0.01,
+    'Нижние квадраты смешиваются с весами 97:3; белые лепестки сохраняются после сшивания и занимают менее 1% поля');
 
   const state = () => page.evaluate(async () => {
     const { obstacleRect, obstacleVisualRect } = await import('/src/world/meadowLayout.ts');
+    const { environmentVariant } = await import('/src/data/environment.ts');
     const game = window.__smokeGame;
     const scene = game.scene.getScene('Room');
     const p = scene.player;
@@ -312,6 +325,7 @@ try {
       layout: scene.layout,
       expectedBodies: scene.layout.obstacles.map(obstacleRect),
       expectedImages: scene.layout.obstacles.map(obstacleVisualRect),
+      expectedTextures: scene.layout.obstacles.map(object => environmentVariant(object.kind, object.variant).texture),
       obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body),
         texture: object.texture.key, frame: object.frame.name, imageBounds: { x: object.getBounds().x, y: object.getBounds().y,
           width: object.displayWidth, height: object.displayHeight } })),
@@ -370,7 +384,7 @@ try {
         Math.abs(body.x - expected.x) < 0.1 && Math.abs(body.y - expected.y) < 0.1 &&
         Math.abs(body.imageBounds.x - image.x) < 0.1 && Math.abs(body.imageBounds.y - image.y) < 0.1 &&
         body.imageBounds.width === image.width && body.imageBounds.height === image.height &&
-        body.texture === `forest-${object.kind === 'tree' ? 'trees' : 'rocks'}`;
+        body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
     ok(current.colliders === 1, `Столкновения подключены один раз: ${current.colliders}`);
@@ -379,9 +393,11 @@ try {
   const generation = await page.evaluate(async () => {
     const { generateMeadow, obstacleRect, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
     const { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL } = await import('/src/data/environment.ts');
-    const archivedPool = ENVIRONMENT_VARIANTS.tree.map(art => art.id);
-    const inactiveEmpty = TREE_SPAWN_POOL.length === 0 && Array.from({ length: 20 }, (_, seed) => generateMeadow(seed))
-      .every(layout => layout.obstacles.length === 0 && layout.counts.trees === 0);
+    const archivedPool = ENVIRONMENT_VARIANTS.tree.filter(art => !TREE_SPAWN_POOL.includes(art.id)).map(art => art.id);
+    const activePinesOnly = TREE_SPAWN_POOL.join() === 'pine-dark-green' && Array.from({ length: 200 }, (_, seed) => generateMeadow(seed))
+      .every(layout => layout.counts.trees >= 45 && layout.counts.trees <= 63 && layout.obstacles.length === layout.counts.trees &&
+        layout.obstacles.every(object => ENVIRONMENT_VARIANTS.tree[object.variant].id === 'pine-dark-green'));
+    const emptyPoolSupported = generateMeadow(123, []).obstacles.length === 0;
     const failures = []; const treeCounts = new Set();
     const treeVariants = new Set();
     let interiorTrees = 0; let totalTrees = 0;
@@ -402,14 +418,14 @@ try {
             layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
         })) failures.push(seed);
     }
-    return { failures, inactiveEmpty, treeVariants: [...treeVariants].sort((a,b) => a-b),
+    return { failures, activePinesOnly, emptyPoolSupported, treeVariants: [...treeVariants].sort((a,b) => a-b),
       treeCounts: [...treeCounts].sort((a, b) => a - b),
       interiorFraction: interiorTrees / totalTrees,
       repeatable: JSON.stringify(generateMeadow(123, archivedPool)) === JSON.stringify(generateMeadow(123, archivedPool)),
       different: JSON.stringify(generateMeadow(123, archivedPool).obstacles) !== JSON.stringify(generateMeadow(124, archivedPool).obstacles),
     };
   });
-  ok(generation.inactiveEmpty, 'Текущий пул пуст: архивные деревья не появляются на поляне');
+  ok(generation.activePinesOnly && generation.emptyPoolSupported, '200 живых планировок: только одобренная сосна, 45–63 дерева; пустой пул также поддерживается');
   ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 45–63 дерева, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
   ok(generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
     'Генерация использует все допустимые количества деревьев, включая границы диапазонов');
@@ -758,22 +774,23 @@ try {
   await page.keyboard.up('s');
   await page.keyboard.up('d');
 
-  // Меняем только стартовую позицию. Настоящие клавиши и коллайдеры остаются включёнными.
-  for (const kind of ['tree']) {
+  // Проверяем активную сосну и сохранённый архив через настоящие клавиши и коллайдеры.
+  const installArchivedWorld = async () => page.evaluate(async () => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const { MeadowWorld } = await import('/src/world/MeadowWorld.ts');
+    const { generateMeadow } = await import('/src/world/meadowLayout.ts');
+    const { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL } = await import('/src/data/environment.ts');
+    const previousChildren = new Set(scene.children.list);
+    scene.world.destroy();
+    scene.layout = generateMeadow(scene.layout.seed, ENVIRONMENT_VARIANTS.tree.filter(art => !TREE_SPAWN_POOL.includes(art.id)).map(art => art.id));
+    scene.world = new MeadowWorld(scene, scene.layout);
+    scene.world.bindPlayer(scene.player);
+    scene.cameras.getCamera('hud').ignore(scene.children.list.filter(object => !previousChildren.has(object)));
+  });
+  for (const archived of [false, true]) {
+    const kind = 'tree';
     await restart();
-    // Exercise the real world/collider with archived art without enabling its live spawn pool.
-    await page.evaluate(async () => {
-      const scene = window.__smokeGame.scene.getScene('Room');
-      const { MeadowWorld } = await import('/src/world/MeadowWorld.ts');
-      const { generateMeadow } = await import('/src/world/meadowLayout.ts');
-      const { ENVIRONMENT_VARIANTS } = await import('/src/data/environment.ts');
-      const previousChildren = new Set(scene.children.list);
-      scene.world.destroy();
-      scene.layout = generateMeadow(scene.layout.seed, ENVIRONMENT_VARIANTS.tree.map(art => art.id));
-      scene.world = new MeadowWorld(scene, scene.layout);
-      scene.world.bindPlayer(scene.player);
-      scene.cameras.getCamera('hud').ignore(scene.children.list.filter(object => !previousChildren.has(object)));
-    });
+    if (archived) await installArchivedWorld();
     assertMeadow(await state());
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
@@ -867,8 +884,9 @@ try {
   await restart();
   const regenerated = await state();
   ok(regenerated.layout.seed !== oldSeed && await floorSignature() !== oldFloor &&
-    regenerated.layout.obstacles.length === 0 && regenerated.layout.counts.trees === 0,
-    'R меняет случайную подстилку; архивные деревья остаются выключены');
+    regenerated.layout.counts.trees >= 45 && regenerated.layout.counts.trees <= 63 &&
+    regenerated.obstacles.every(object => object.texture === 'forest-pine'),
+    'R меняет случайную подстилку и размещение сосен; архивные деревья остаются выключены');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
   const beforeResize = await state();

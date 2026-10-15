@@ -1,0 +1,24 @@
+{
+  "source": "../0301174761c1ee7f4b2a2bee8c421ad6.jpg",
+  "sha256": "4cd087213110aa8a9e92176fab0014c9bd18b0f087131b461e6bb98a7a8dcd88",
+  "crops": [
+    {
+      "file": "grass.png",
+      "box": [
+        139,
+        708,
+        571,
+        1140
+      ]
+    },
+    {
+      "file": "grass-flowers.png",
+      "box": [
+        630,
+        708,
+        1062,
+        1140
+      ]
+    }
+  ]
+}

@@ -4,6 +4,14 @@ import type { MeadowLayout } from '../world/meadowLayout';
 
 const samples = new WeakMap<object, FloorRaster>();
 
+export function forestFloorSamples(scene: Phaser.Scene): FloorRaster[] {
+  return [
+    { key: 'forest-floor-source', id: 'grass', weight: 100 - FOREST_FLOOR.flowerWeight },
+    { key: 'forest-floor-flowers-source', id: 'flowers', weight: FOREST_FLOOR.flowerWeight },
+  ].map(item => ({ ...forestFloorSample(scene.textures.get(item.key).getSourceImage() as CanvasImageSource),
+    id: item.id, weight: item.weight }));
+}
+
 export function forestFloorSample(image: CanvasImageSource): FloorRaster {
   const cached = samples.get(image);
   if (cached) return cached;
@@ -19,7 +27,7 @@ export function forestFloorSample(image: CanvasImageSource): FloorRaster {
 }
 
 export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
-  const sample = forestFloorSample(scene.textures.get('forest-floor-source').getSourceImage() as CanvasImageSource);
+  const sample = forestFloorSamples(scene);
   const w = Math.ceil(layout.width / FOREST_FLOOR.pixelScale), h = Math.ceil(layout.height / FOREST_FLOOR.pixelScale);
   const raster = generateForestFloor(sample, w, h, layout.seed);
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
@@ -30,7 +38,7 @@ export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
   const stamp = scene.make.image({ key, add: false }).setOrigin(0);
   const floor = scene.add.renderTexture(layout.width / 2, layout.height / 2, w, h)
     .draw(stamp).setDisplaySize(layout.width, layout.height).setDepth(-1000).setName('forest-floor')
-    .setData({ seed: layout.seed, sourceTexture: 'forest-floor-source', patchCount: raster.patchCount });
+    .setData({ seed: layout.seed, sourceTexture: 'forest-floor-source', patchCount: raster.patchCount, sourceCounts: raster.sourceCounts });
   floor.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
   stamp.destroy();
   scene.textures.remove(key);

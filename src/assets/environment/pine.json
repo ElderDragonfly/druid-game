@@ -1,0 +1,11 @@
+{
+  "id": "pine-dark-green",
+  "texture": "forest-pine",
+  "width": 935,
+  "height": 1683,
+  "scale": 0.15625,
+  "anchorX": 464,
+  "anchorY": 1536,
+  "bodyWidth": 32,
+  "bodyHeight": 18
+}
