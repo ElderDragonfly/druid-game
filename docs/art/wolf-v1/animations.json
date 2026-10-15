@@ -584,6 +584,284 @@
       "sourceRow": 3,
       "shadowAtlas": "wolf-walk-shadow.png",
       "mirrorForLeft": true
+    },
+    "attack-up": {
+      "frames": [
+        {
+          "sourceRect": [
+            42,
+            312,
+            141,
+            403
+          ],
+          "drawOffset": [
+            15,
+            34
+          ],
+          "atlasFrame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            42,
+            356,
+            141,
+            377
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 5
+        },
+        {
+          "sourceRect": [
+            42,
+            222,
+            134,
+            312
+          ],
+          "drawOffset": [
+            21,
+            15
+          ],
+          "atlasFrame": {
+            "x": 128,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            42,
+            285,
+            134,
+            309
+          ],
+          "restoredDroolPixels": 12,
+          "droolSourceRects": [
+            [
+              118,
+              236,
+              131,
+              259
+            ]
+          ],
+          "sourceRow": 4
+        },
+        {
+          "sourceRect": [
+            137,
+            222,
+            218,
+            312
+          ],
+          "drawOffset": [
+            24,
+            14
+          ],
+          "atlasFrame": {
+            "x": 256,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            137,
+            285,
+            218,
+            309
+          ],
+          "restoredDroolPixels": 22,
+          "droolSourceRects": [
+            [
+              170,
+              226,
+              214,
+              260
+            ]
+          ],
+          "sourceRow": 4
+        },
+        {
+          "sourceRect": [
+            219,
+            222,
+            316,
+            312
+          ],
+          "drawOffset": [
+            20,
+            14
+          ],
+          "atlasFrame": {
+            "x": 384,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            219,
+            285,
+            316,
+            309
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 4
+        }
+      ],
+      "durations": [
+        240,
+        100,
+        100,
+        220
+      ],
+      "previewScale": 3,
+      "gameRepeat": 0,
+      "state": "attack-up",
+      "sourceRow": 4,
+      "initialSourceRow": 5,
+      "shadowAtlas": "wolf-attack-up-shadow.png",
+      "mirrorForLeft": true
+    },
+    "attack-down": {
+      "frames": [
+        {
+          "sourceRect": [
+            42,
+            312,
+            141,
+            403
+          ],
+          "drawOffset": [
+            15,
+            34
+          ],
+          "atlasFrame": {
+            "x": 0,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            42,
+            356,
+            141,
+            377
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 5
+        },
+        {
+          "sourceRect": [
+            145,
+            312,
+            248,
+            403
+          ],
+          "drawOffset": [
+            15,
+            34
+          ],
+          "atlasFrame": {
+            "x": 128,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            145,
+            350,
+            248,
+            377
+          ],
+          "restoredDroolPixels": 3,
+          "droolSourceRects": [
+            [
+              218,
+              367,
+              243,
+              379
+            ]
+          ],
+          "sourceRow": 5
+        },
+        {
+          "sourceRect": [
+            252,
+            307,
+            331,
+            403
+          ],
+          "drawOffset": [
+            24,
+            8
+          ],
+          "atlasFrame": {
+            "x": 256,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            252,
+            345,
+            331,
+            378
+          ],
+          "restoredDroolPixels": 10,
+          "droolSourceRects": [
+            [
+              282,
+              381,
+              310,
+              401
+            ]
+          ],
+          "sourceRow": 5
+        },
+        {
+          "sourceRect": [
+            332,
+            312,
+            430,
+            403
+          ],
+          "drawOffset": [
+            15,
+            19
+          ],
+          "atlasFrame": {
+            "x": 384,
+            "y": 0,
+            "width": 128,
+            "height": 112
+          },
+          "shadowSourceRect": [
+            332,
+            355,
+            430,
+            393
+          ],
+          "restoredDroolPixels": 0,
+          "droolSourceRects": [],
+          "sourceRow": 5
+        }
+      ],
+      "durations": [
+        240,
+        100,
+        100,
+        220
+      ],
+      "previewScale": 3,
+      "gameRepeat": 0,
+      "state": "attack-down",
+      "sourceRow": 5,
+      "initialSourceRow": 5,
+      "shadowAtlas": "wolf-attack-down-shadow.png",
+      "mirrorForLeft": true
     }
   }
 }

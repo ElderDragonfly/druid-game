@@ -41,6 +41,26 @@ ANIMATIONS = {
                   (252, 307, 331, 403), (332, 312, 430, 403)],
         "durations": [250, 120, 100, 220],
     },
+    "attack-up": {
+        "rects": [(42, 312, 141, 403), (42, 222, 134, 312),
+                  (137, 222, 218, 312), (219, 222, 316, 312)],
+        "durations": [240, 100, 100, 220],
+        "shadow_rects": [(42, 356, 141, 377), (42, 285, 134, 309),
+                         (137, 285, 218, 309), (219, 285, 316, 309)],
+        "detail_regions": {1: [(118, 236, 131, 259)], 2: [(170, 226, 214, 260)]},
+        "background_columns": (450, 480, 510),
+        "state": "attack-up", "source_row": 4, "initial_source_row": 5,
+    },
+    "attack-down": {
+        "rects": [(42, 312, 141, 403), (145, 312, 248, 403),
+                  (252, 307, 331, 403), (332, 312, 430, 403)],
+        "durations": [240, 100, 100, 220],
+        "shadow_rects": [(42, 356, 141, 377), (145, 350, 248, 377),
+                         (252, 345, 331, 378), (332, 355, 430, 393)],
+        "detail_regions": {1: [(218, 367, 243, 379)], 2: [(282, 381, 310, 401)]},
+        "background_columns": (450, 480, 510),
+        "state": "attack-down", "source_row": 5, "initial_source_row": 5,
+    },
     "death": {
         "rects": [(42, 474, 115, 560), (119, 470, 179, 560), (184, 472, 238, 560),
                   (239, 494, 334, 560), (335, 501, 435, 560), (438, 524, 535, 560),
@@ -50,7 +70,7 @@ ANIMATIONS = {
 }
 
 
-def cutout(source, rect, background_seeds=()):
+def cutout(source, rect, background_seeds=(), shadow_region=None):
     image = source.crop(rect)
     width, height = image.size
     pixels = image.load()
@@ -58,7 +78,13 @@ def cutout(source, rect, background_seeds=()):
 
     def background_like(x, y):
         r, g, b, _ = pixels[x, y]
-        return max(r, g, b) - min(r, g, b) < 32 and (r + g + b) / 3 >= 150
+        threshold = 150
+        if (shadow_region and shadow_region[0] <= rect[0] + x < shadow_region[2]
+                and shadow_region[1] <= rect[1] + y < shadow_region[3]):
+            # In the attack rows, baked shadows darken the checker to ~130.
+            # Flood only from background; the wolf's dark outline bounds fur.
+            threshold = 110
+        return max(r, g, b) - min(r, g, b) < 32 and (r + g + b) / 3 >= threshold
 
     for y in range(height):
         for x in range(width):
@@ -168,9 +194,12 @@ def shadow_cutout(source, rect, region, wolf, background_columns=(630, 660, 690)
 def save_animation(source, name, settings):
     frames, metadata, shadows = [], [], []
     for index, rect in enumerate(settings["rects"]):
-        cropped = cutout(source, rect, settings.get("background_seeds", {}).get(index, ()))
+        shadow_region = settings["shadow_rects"][index] if "shadow_rects" in settings else None
+        cropped = cutout(source, rect, settings.get("background_seeds", {}).get(index, ()), shadow_region)
         bounds = cropped.getbbox()
         restored = restore_drool(source, cropped, rect, RUN_DROOL[index]) if name == "run" else 0
+        for region in settings.get("detail_regions", {}).get(index, ()):
+            restored += restore_drool(source, cropped, rect, region)
         offset_x = 64 - (bounds[0] + bounds[2]) // 2
         # Keep airborne running phases above their shared ground line.
         offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
@@ -187,6 +216,9 @@ def save_animation(source, name, settings):
             # The sixth wolf occupies columns 630–689 in this row.
             shadow.paste(shadow_cutout(source, rect, WALK_SHADOW[index], cropped,
                                        background_columns=(0, 690)), (offset_x, offset_y))
+        elif "shadow_rects" in settings:
+            shadow.paste(shadow_cutout(source, rect, settings["shadow_rects"][index], cropped,
+                                       settings["background_columns"]), (offset_x, offset_y))
         shadows.append(shadow)
         frames.append(frame)
         metadata.append({"sourceRect": list(rect), "drawOffset": [offset_x, offset_y],
@@ -197,6 +229,12 @@ def save_animation(source, name, settings):
         elif name == "walk":
             metadata[-1]["shadowSourceRect"] = list(WALK_SHADOW[index])
             metadata[-1]["backgroundSeeds"] = settings.get("background_seeds", {}).get(index, [])
+        elif "shadow_rects" in settings:
+            metadata[-1].update({"shadowSourceRect": list(settings["shadow_rects"][index]),
+                                 "restoredDroolPixels": restored,
+                                 "droolSourceRects": settings.get("detail_regions", {}).get(index, []),
+                                 "sourceRow": settings["initial_source_row"] if index == 0
+                                 else settings["source_row"]})
 
     atlas = Image.new("RGBA", (WIDTH * len(frames), HEIGHT))
     shadow_atlas = Image.new("RGBA", atlas.size)
@@ -209,7 +247,7 @@ def save_animation(source, name, settings):
         preview.alpha_composite(frame)
         previews.append(preview.convert("RGB").resize((WIDTH * 3, HEIGHT * 3), Image.Resampling.NEAREST))
     atlas.save(OUT / f"wolf-{name}.png")
-    if name in ("run", "walk"):
+    if name in ("run", "walk") or "shadow_rects" in settings:
         shadow_atlas.save(OUT / f"wolf-{name}-shadow.png")
     palette_source = Image.new("RGB", (WIDTH * len(frames), HEIGHT), BACKGROUND)
     for index, preview in enumerate(previews):
@@ -226,6 +264,10 @@ def save_animation(source, name, settings):
     elif name == "walk":
         result.update({"state": "wander-walk", "sourceRow": 3, "shadowAtlas": "wolf-walk-shadow.png",
                        "mirrorForLeft": True})
+    elif "source_row" in settings:
+        result.update({"state": settings["state"], "sourceRow": settings["source_row"],
+                       "initialSourceRow": settings["initial_source_row"],
+                       "shadowAtlas": f"wolf-{name}-shadow.png", "mirrorForLeft": True})
     return result
 
 
