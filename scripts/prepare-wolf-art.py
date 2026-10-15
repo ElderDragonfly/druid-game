@@ -21,11 +21,20 @@ RUN_DROOL = [(119, 113, 136, 130), (231, 122, 248, 137), (345, 109, 368, 132),
              (464, 105, 488, 128), (579, 112, 602, 132)]
 RUN_SHADOW = [(44, 133, 139, 147), (148, 133, 252, 147), (262, 134, 372, 148),
               (378, 135, 493, 149), (497, 133, 608, 148)]
+WALK_SHADOW = [(40, 207, 143, 220), (145, 207, 251, 220), (254, 207, 361, 220),
+               (362, 207, 475, 220), (480, 207, 580, 220), (583, 207, 686, 220)]
 ANIMATIONS = {
     "run": {
         "rects": [(42, 88, 142, 152), (145, 88, 254, 152), (259, 88, 373, 152),
                   (375, 88, 494, 152), (496, 88, 610, 152)],
         "durations": [90] * 5,
+    },
+    "walk": {
+        "rects": [(40, 158, 143, 223), (145, 158, 251, 223), (254, 158, 361, 223),
+                  (362, 158, 475, 223), (480, 158, 580, 223), (583, 158, 686, 223)],
+        "durations": [150] * 6,
+        # One enclosed background pocket between the crossed legs.
+        "background_seeds": {2: [(300, 199)]},
     },
     "attack": {
         "rects": [(42, 312, 141, 403), (145, 312, 248, 403),
@@ -41,7 +50,7 @@ ANIMATIONS = {
 }
 
 
-def cutout(source, rect):
+def cutout(source, rect, background_seeds=()):
     image = source.crop(rect)
     width, height = image.size
     pixels = image.load()
@@ -56,6 +65,11 @@ def cutout(source, rect):
             if (x in (0, width - 1) or y in (0, height - 1)) and background_like(x, y):
                 background.add((x, y))
                 queue.append((x, y))
+    for source_x, source_y in background_seeds:
+        point = (source_x - rect[0], source_y - rect[1])
+        assert background_like(*point)
+        background.add(point)
+        queue.append(point)
     while queue:
         x, y = queue.popleft()
         for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
@@ -109,10 +123,10 @@ def restore_drool(source, image, rect, region):
     return restored
 
 
-def shadow_cutout(source, rect, region, wolf):
+def shadow_cutout(source, rect, region, wolf, background_columns=(630, 660, 690)):
     """Recover the original dark shadow's opacity against the baked checkerboard.
 
-    Empty columns on the right provide the same checker phase as each source
+    Empty reference columns provide the same checker phase as each source
     pixel. This removes the checker pattern from the shadow instead of copying
     gray rectangles onto a new background. No ellipse is invented or redrawn.
     """
@@ -126,7 +140,7 @@ def shadow_cutout(source, rect, region, wolf):
             if max(rgb) - min(rgb) >= 32:
                 continue
             expected = sum(sum(source.getpixel((column + x % 30, y))[:3]) / 3
-                           for column in (630, 660, 690)) / 3
+                           for column in background_columns) / len(background_columns)
             difference = expected - sum(rgb) / 3
             if difference >= 16:
                 result.putpixel(local, (0, 0, 0, min(140, round(255 * difference / expected))))
@@ -154,12 +168,14 @@ def shadow_cutout(source, rect, region, wolf):
 def save_animation(source, name, settings):
     frames, metadata, shadows = [], [], []
     for index, rect in enumerate(settings["rects"]):
-        cropped = cutout(source, rect)
+        cropped = cutout(source, rect, settings.get("background_seeds", {}).get(index, ()))
         bounds = cropped.getbbox()
         restored = restore_drool(source, cropped, rect, RUN_DROOL[index]) if name == "run" else 0
         offset_x = 64 - (bounds[0] + bounds[2]) // 2
         # Keep airborne running phases above their shared ground line.
         offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
+        if name == "walk":
+            offset_y = 100 - (219 - rect[1])
         frame = Image.new("RGBA", (WIDTH, HEIGHT))
         assert 0 <= bounds[0] + offset_x < bounds[2] + offset_x <= WIDTH
         assert 0 <= bounds[1] + offset_y < bounds[3] + offset_y <= HEIGHT
@@ -167,6 +183,10 @@ def save_animation(source, name, settings):
         shadow = Image.new("RGBA", (WIDTH, HEIGHT))
         if name == "run":
             shadow.paste(shadow_cutout(source, rect, RUN_SHADOW[index], cropped), (offset_x, offset_y))
+        elif name == "walk":
+            # The sixth wolf occupies columns 630–689 in this row.
+            shadow.paste(shadow_cutout(source, rect, WALK_SHADOW[index], cropped,
+                                       background_columns=(0, 690)), (offset_x, offset_y))
         shadows.append(shadow)
         frames.append(frame)
         metadata.append({"sourceRect": list(rect), "drawOffset": [offset_x, offset_y],
@@ -174,6 +194,9 @@ def save_animation(source, name, settings):
         if name == "run":
             metadata[-1].update({"restoredDroolPixels": restored, "droolSourceRect": list(RUN_DROOL[index]),
                                  "shadowSourceRect": list(RUN_SHADOW[index])})
+        elif name == "walk":
+            metadata[-1]["shadowSourceRect"] = list(WALK_SHADOW[index])
+            metadata[-1]["backgroundSeeds"] = settings.get("background_seeds", {}).get(index, [])
 
     atlas = Image.new("RGBA", (WIDTH * len(frames), HEIGHT))
     shadow_atlas = Image.new("RGBA", atlas.size)
@@ -186,8 +209,8 @@ def save_animation(source, name, settings):
         preview.alpha_composite(frame)
         previews.append(preview.convert("RGB").resize((WIDTH * 3, HEIGHT * 3), Image.Resampling.NEAREST))
     atlas.save(OUT / f"wolf-{name}.png")
-    if name == "run":
-        shadow_atlas.save(OUT / "wolf-run-shadow.png")
+    if name in ("run", "walk"):
+        shadow_atlas.save(OUT / f"wolf-{name}-shadow.png")
     palette_source = Image.new("RGB", (WIDTH * len(frames), HEIGHT), BACKGROUND)
     for index, preview in enumerate(previews):
         palette_source.paste(preview.resize((WIDTH, HEIGHT), Image.Resampling.NEAREST), (index * WIDTH, 0))
@@ -196,9 +219,12 @@ def save_animation(source, name, settings):
     previews[0].save(OUT / f"wolf-{name}.gif", save_all=True, append_images=previews[1:],
                      duration=settings["durations"], loop=0, disposal=2, optimize=False)
     result = {"frames": metadata, "durations": settings["durations"], "previewScale": 3,
-              "gameRepeat": -1 if name == "run" else 0}
+              "gameRepeat": -1 if name in ("run", "walk") else 0}
     if name == "run":
         result.update({"state": "aggro-run", "sourceRow": 2, "shadowAtlas": "wolf-run-shadow.png",
+                       "mirrorForLeft": True})
+    elif name == "walk":
+        result.update({"state": "wander-walk", "sourceRow": 3, "shadowAtlas": "wolf-walk-shadow.png",
                        "mirrorForLeft": True})
     return result
 
