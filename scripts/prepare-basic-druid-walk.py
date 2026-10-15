@@ -1,4 +1,4 @@
-"""Build separate Basic walk previews; does not replace the game's walk art.
+"""Build reproducible Basic walk strips, idle atlas, layers and GIF previews.
 
 Python 3 + Pillow, NumPy, SciPy. Front/back retain the approved movement outside
 explicit accessory patches. Side drawings use new short-step poses and staff
@@ -170,6 +170,48 @@ def clarify_side_legs(sheet, direction):
     return Image.fromarray(data)
 
 
+def refine_right_body(sheet):
+    """One complete bent free arm; shorter stride, without touching the staff."""
+    frames = [sheet.crop((i * 64, 0, (i + 1) * 64, 80)) for i in range(4)]
+    master = frames[0]
+    mask = Image.new("L", FRAME)
+    ImageDraw.Draw(mask).polygon([(26, 31), (30, 32), (30, 37), (28, 42),
+                                  (27, 47), (24, 50), (21, 48), (22, 43), (24, 37)], fill=255)
+    arm = np.array(master)
+    arm[:, :, 3] = np.minimum(arm[:, :, 3], np.array(mask))
+    arm = Image.fromarray(arm)
+    body_sheet, arm_sheet = Image.new("RGBA", (256, 80)), Image.new("RGBA", (256, 80))
+    for index, frame in enumerate(frames):
+        data = np.array(frame)
+        original = data.copy()
+        garment = np.array(master)
+        # Garment under the old arm: borrow actual cloth from the same row.
+        # This also clears the duplicated fist in contact pose 2.
+        for y in range(31, 51):
+            for x in range(21, 35):
+                data[y, x] = original[y, x - 6] if x < 29 else garment[y, 33 + x % 3]
+        data[38, 52] = 0  # Detached cuff pixel left by the old far-side hand.
+        body = Image.fromarray(data)
+        # Ease from the unchanged hip into 25% less horizontal foot excursion.
+        shortened = np.array(body)
+        for y in range(52, 75):
+            scale = 1 - .25 * min(1, (y - 52) / 12)
+            shortened[y] = 0
+            for x in range(64):
+                source_x = round(38 + (x - 38) / scale)
+                if 0 <= source_x < 64:
+                    shortened[y, x] = data[y, source_x]
+        moved = arm.rotate((-12, 24, 62, 24)[index], Image.Resampling.NEAREST, center=(28, 32))
+        layer = Image.new("RGBA", FRAME)
+        layer.paste(moved, (0, (0, -1, 0, -1)[index]))
+        body = Image.fromarray(shortened)
+        body.alpha_composite(layer)
+        body_sheet.paste(body, (index * 64, 0))
+        arm_sheet.paste(layer, (index * 64, 0))
+    save_rgba(arm_sheet, OUT / "walk-right-free-arm-64x80.png")
+    return body_sheet
+
+
 def stable_side_staff(sheet, direction):
     """One rigid arm/staff drawing per direction, not four changing staffs."""
     frames = [sheet.crop((i * 64, 0, (i + 1) * 64, 80)) for i in range(4)]
@@ -213,7 +255,7 @@ def stable_side_staff(sheet, direction):
                     pixel = np.array([0, 0, 0, 255], dtype=np.uint8)
                 layer[y, x] = pixel
     master_layer = Image.fromarray(layer)
-    body_sheet, staff_sheet, cloak_sheet, result = (Image.new("RGBA", (256, 80)) for _ in range(4))
+    body_sheet, staff_sheet, cloak_sheet, hand_sheet, result = (Image.new("RGBA", (256, 80)) for _ in range(5))
     for index, original in enumerate(frames):
         body = np.array(original)
         if direction == "left":
@@ -239,10 +281,22 @@ def stable_side_staff(sheet, direction):
         body_sheet.paste(body_frame, (index * 64, 0))
         staff_sheet.paste(moved, (index * 64, 0))
     body_sheet = clarify_side_legs(body_sheet, direction)
+    if direction == "right":
+        body_sheet = refine_right_body(body_sheet)
     for index in range(4):
         rect = (index * 64, 0, (index + 1) * 64, 80)
         body_frame, moved = body_sheet.crop(rect), staff_sheet.crop(rect)
         composite = Image.new("RGBA", FRAME)
+        if direction == "left" and index in (0, 1, 3):
+            # Only the bent far hand peeks past the tunic; the arm stays hidden.
+            peek = Image.new("RGBA", FRAME)
+            draw = ImageDraw.Draw(peek)
+            x = 20 if index == 0 else 21
+            draw.rectangle((x, 46, x + 3, 46), fill=(66, 42, 24, 255))
+            draw.rectangle((x, 47, x + 3, 49), fill=(163, 104, 64, 255))
+            draw.rectangle((x + 1, 47, x + 2, 48), fill=(203, 144, 91, 255))
+            composite.alpha_composite(peek)
+            hand_sheet.paste(peek, (index * 64, 0))
         for part in ((body_frame, moved) if direction == "left" else (moved, body_frame)):
             composite.alpha_composite(part)
         if direction == "left":
@@ -265,6 +319,12 @@ def stable_side_staff(sheet, direction):
     if direction == "left":
         save_rgba(cloak_sheet, OUT / "walk-left-cloak-foreground-64x80.png")
         layers["cloakForeground"] = "walk-left-cloak-foreground-64x80.png"
+        save_rgba(hand_sheet, OUT / "walk-left-far-hand-64x80.png")
+        layers["farHand"] = "walk-left-far-hand-64x80.png"
+    else:
+        layers["freeArm"] = "walk-right-free-arm-64x80.png"
+        layers["freeArmAngles"] = [-12, 24, 62, 24]
+        layers["strideHorizontalScale"] = .75
     return result, layers
 
 
@@ -292,11 +352,15 @@ if __name__ == "__main__":
         for index in range(4):
             rect = (index * 64, row * 80, (index + 1) * 64, (row + 1) * 80)
             edits.paste(crisp(edits.crop(rect)), rect[:2])
-    meta = {"reference": str(APPROVED.relative_to(ROOT)), "integrated": False,
+    meta = {"reference": str(APPROVED.relative_to(ROOT)), "integrated": True,
             "frameWidth": 64, "frameHeight": 80, "frameCount": 4,
             "frameDurationMs": FRAME_MS, "previewScale": PREVIEW_SCALE,
+            "idleAtlas": "idle-64x80.png", "idleDirections": ["down", "up", "left", "right"],
+            "referenceSpeed": 220, "referenceFrameDurationMs": 160,
+            "defaultSpeed": 220 * 2 / 3,
             "animations": {}}
-    for direction in ("down", "up", "left", "right"):
+    idle = Image.new("RGBA", (256, 80))
+    for direction_index, direction in enumerate(("down", "up", "left", "right")):
         mask = None
         layers = None
         if direction in OLD:
@@ -307,6 +371,7 @@ if __name__ == "__main__":
         if direction in ("left", "right"):
             sheet, layers = stable_side_staff(sheet, direction)
         save_preview(direction, sheet)
+        idle.paste(sheet.crop((64, 0, 128, 80)), (direction_index * 64, 0))
         meta["animations"][direction] = {"sheet": f"walk-{direction}-64x80.png",
                                           "gif": f"walk-{direction}-preview.gif",
                                           "source": str(OLD[direction].relative_to(ROOT)) if direction in OLD else f"{direction}-source.png"}
@@ -316,3 +381,4 @@ if __name__ == "__main__":
             meta["animations"][direction]["layers"] = layers
         print(f"{direction}: 4 frames, {FRAME_MS} ms, separate preview")
     (OUT / "animations.json").write_text(json.dumps(meta, indent=2) + "\n")
+    save_rgba(idle, OUT / "idle-64x80.png")

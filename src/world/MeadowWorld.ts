@@ -6,10 +6,11 @@ import { FOREST_FLOOR } from './forestFloor';
 import type { MeadowLayout } from './meadowLayout';
 import { GrassForeground } from '../rendering/GrassForeground';
 import { Mouse } from '../entities/Mouse';
+import { generateMousePopulation } from './mousePopulation';
 
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
-  readonly mouse: Mouse;
+  readonly mice: readonly Mouse[];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
@@ -29,7 +30,8 @@ export class MeadowWorld {
       body.setSize(art.bodyWidth, art.bodyHeight, false)
         .setOffset(art.anchorX * art.scale - art.bodyWidth / 2, art.anchorY * art.scale - art.bodyHeight);
     });
-    this.mouse = new Mouse(scene, layout, this.obstacles);
+    this.mice = generateMousePopulation(layout).map((start, index) =>
+      new Mouse(scene, layout, this.obstacles, start, index + 1));
   }
 
   bindPlayer(player: Phaser.Physics.Arcade.Image | Phaser.Physics.Arcade.Sprite) {
@@ -40,10 +42,10 @@ export class MeadowWorld {
     this.grass.update(footX, footY, depth);
   }
 
-  update(delta: number) { this.mouse.updateBehavior(delta); }
+  update(delta: number) { this.mice.forEach(mouse => mouse.updateBehavior(delta)); }
 
   destroy() {
-    this.mouse.destroy();
+    this.mice.forEach(mouse => mouse.destroy());
     this.collider?.destroy();
     this.obstacles.clear(true, true);
     this.obstacles.destroy();

@@ -19,7 +19,7 @@ export const MEADOW_WORLD = {
 } as const;
 
 export const MEADOW_GENERATION = {
-  trees: { min: 45, max: 63 },
+  trees: { min: 56, max: 79 },
   obstacleGap: 28,
   spawnClearance: 16,
 } as const;

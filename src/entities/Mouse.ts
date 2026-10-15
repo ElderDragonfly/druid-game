@@ -1,15 +1,16 @@
 import Phaser from 'phaser';
 import { MOUSE } from '../data/mouse';
-import { MouseWander, mouseSpawn } from '../behavior/MouseWander';
+import { MouseWander, type MousePoint } from '../behavior/MouseWander';
 import type { MeadowLayout } from '../world/meadowLayout';
 
 export class Mouse extends Phaser.Physics.Arcade.Sprite {
+  readonly definition = MOUSE;
   readonly behavior: MouseWander;
+  get actorState() { return this.behavior.actorState; }
   private shadow: Phaser.GameObjects.Ellipse;
   private treeCollider: Phaser.Physics.Arcade.Collider;
 
-  constructor(scene: Phaser.Scene, layout: MeadowLayout, trees: Phaser.Physics.Arcade.StaticGroup) {
-    const start = mouseSpawn(layout);
+  constructor(scene: Phaser.Scene, layout: MeadowLayout, trees: Phaser.Physics.Arcade.StaticGroup, start: MousePoint, instanceSeed: number) {
     super(scene, start.x, start.y, 'mouse-run', 'mouse-run-0');
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -17,9 +18,9 @@ export class Mouse extends Phaser.Physics.Arcade.Sprite {
       .setScale(MOUSE.scale).setSize(MOUSE.bodyWidth / MOUSE.scale, MOUSE.bodyHeight / MOUSE.scale)
       .setOffset(MOUSE.feetX - MOUSE.bodyWidth / MOUSE.scale / 2, MOUSE.feetY - MOUSE.bodyHeight / MOUSE.scale)
       .setCollideWorldBounds(true).setDepth(this.y);
-    this.shadow = scene.add.ellipse(this.x, this.y - 1, 24, 8, 0x0c1611, .35).setDepth(this.y - .1);
+    this.shadow = scene.add.ellipse(this.x, this.y - 1, 16, 16 / 3, 0x0c1611, .35).setDepth(this.y - .1);
     this.treeCollider = scene.physics.add.collider(this, trees);
-    this.behavior = new MouseWander(layout, start);
+    this.behavior = new MouseWander(layout, start, instanceSeed);
     this.play('mouse-run');
   }
 

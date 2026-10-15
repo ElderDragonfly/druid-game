@@ -38,7 +38,7 @@ try {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].physics.world.colliders.getActive().length === 2);
+      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1);
   }, key);
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -268,11 +268,23 @@ try {
   });
   ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
 
+  const seededPlayer = await page.evaluateHandle(() => {
+    const scene = window.__smokeGame.scene.getScene('Room'), previous = scene.player;
+    scene.scene.restart({ characterId: 'druid', seed: 0 }); return previous;
+  });
+  await page.waitForFunction(previous => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    return scene.player !== previous && scene.world.mice.length === 5;
+  }, seededPlayer);
+  await seededPlayer.dispose();
+  await waitScene('Room');
+
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
-    const { MouseWander, mouseSpawn, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
+    const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
     const { generateMeadow } = await import('/src/world/meadowLayout.ts');
-    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mouse;
+    const { generateMousePopulation } = await import('/src/world/mousePopulation.ts');
+    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mice[0];
     window.__mouseObservation = { states: [], moving: false, stopped: true, matching: true, clear: true };
     const observe = () => {
       const data = window.__mouseObservation, state = mouse.behavior.state;
@@ -304,8 +316,8 @@ try {
     const durations = look.frames.map(frame => look.msPerFrame + frame.duration);
     let layoutsSafe = true, pathsSafe = true, repeatable = true, seenCycles = true;
     for (let seed = 0; seed < 100; seed++) {
-      const layout = generateMeadow(seed), start = mouseSpawn(layout), again = mouseSpawn(layout);
-      layoutsSafe &&= mouseCanStand(layout, start) && Math.hypot(start.x - layout.spawn.x, start.y - layout.spawn.y) <= 160.01;
+      const layout = generateMeadow(seed), start = generateMousePopulation(layout)[0] ?? layout.spawn, again = generateMousePopulation(layout)[0] ?? layout.spawn;
+      layoutsSafe &&= mouseCanStand(layout, start);
       repeatable &&= start.x === again.x && start.y === again.y;
       if (seed >= 20) continue;
       const brain = new MouseWander(layout, start), twin = new MouseWander(layout, start);
@@ -319,15 +331,65 @@ try {
       seenCycles &&= states.size === 4;
     }
     return { alpha, nearest, unique, durations, layoutsSafe, pathsSafe, repeatable, seenCycles,
-      body: mouse.body.width === 14 && mouse.body.height === 8,
+      body: Math.abs(mouse.body.width - MOUSE.bodyWidth) < .001 && Math.abs(mouse.body.height - MOUSE.bodyHeight) < .001,
       scale: mouse.scale === MOUSE.scale, hudIgnored: !!(mouse.cameraFilter & scene.cameras.getCamera('hud').id) };
   });
   ok(mouseArt.alpha && mouseArt.nearest && mouseArt.unique[1] === 4 && mouseArt.unique[2] === 4,
     'Мышь: прозрачные спрайты без шахматного фона, четыре разные фазы бега и подъёма, NEAREST');
   ok(mouseArt.durations.join() === '1000,100,1000,100,1000,100,1000,100,1000' && mouseArt.body && mouseArt.scale && mouseArt.hudIgnored,
-    'Мышь сохраняет темп исходной GIF (5,4 с), масштаб 1,875 и тело 14×8; рисуется только камерой мира');
+    'Мышь сохраняет темп исходной GIF (5,4 с), масштаб 1,25 и уменьшенное тело; рисуется только камерой мира');
   ok(mouseArt.layoutsSafe && mouseArt.pathsSafe && mouseArt.repeatable && mouseArt.seenCycles,
     '100 seed: свободный старт; 20 симуляций по 20 с: безопасные пути, воспроизводимость и полный мирный цикл');
+
+  const population = await page.evaluate(async () => {
+    const { generateMousePopulation } = await import('/src/world/mousePopulation.ts');
+    const { generateMeadow } = await import('/src/world/meadowLayout.ts');
+    const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
+    const counts = new Set(), regions = new Set();
+    let safe = true, repeatable = true, clustered = false, awayFromStart = false, total = 0;
+    for (let seed = 0; seed < 1000; seed++) {
+      const layout = generateMeadow(seed), points = generateMousePopulation(layout);
+      counts.add(points.length); total += points.length;
+      repeatable &&= JSON.stringify(points) === JSON.stringify(generateMousePopulation(layout));
+      const cells = new Map();
+      for (const point of points) {
+        safe &&= mouseCanStand(layout, point);
+        awayFromStart ||= Math.hypot(point.x - layout.spawn.x, point.y - layout.spawn.y) > 1000;
+        const cell = Math.floor(point.x / (layout.width / 3)) + 3 * Math.floor(point.y / (layout.height / 3));
+        regions.add(cell); cells.set(cell, (cells.get(cell) ?? 0) + 1);
+      }
+      clustered ||= [...cells.values()].some(n => n >= 3);
+    }
+    const layout = generateMeadow(0), start = generateMousePopulation(layout)[0];
+    const a = new MouseWander(layout, start, 1), b = new MouseWander(layout, start, 2);
+    const before = JSON.stringify(b);
+    a.step(100, start);
+    const independent = a.target.x !== b.target.x && JSON.stringify(b) === before;
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const height = (key, x, width, height) => {
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(scene.textures.get(key).getSourceImage(), x, 0, width, height, 0, 0, width, height);
+      const pixels = ctx.getImageData(0, 0, width, height).data; let top = height, bottom = -1;
+      for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) {
+        const y = Math.floor(i / 4 / width); top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+      return bottom - top + 1;
+    };
+    const ratio = height('mouse-look', 0, 32, 32) * scene.world.mice[0].scaleY /
+      (height('druid-game-source', 0, 64, 80) * scene.player.scaleY);
+    return { counts: [...counts].sort((a,b) => a-b), safe, repeatable, clustered, awayFromStart,
+      regions: regions.size, mean: total / 1000, independent, ratio,
+      liveIndependent: new Set(scene.world.mice.map(mouse => mouse.behavior)).size === scene.world.mice.length,
+      hudIgnored: scene.world.mice.every(mouse => mouse.cameraFilter & scene.cameras.getCamera('hud').id) };
+  });
+  ok(population.counts.join() === '0,1,2,3,4,5,6,7,8,9' && population.safe && population.repeatable,
+    '1000 seed: численность 0–9, безопасное размещение по всему миру и воспроизводимость');
+  ok(population.clustered && population.awayFromStart && population.regions === 9 && population.mean > 4 && population.mean < 5,
+    'Нет сетки или квоты: бывают три мыши рядом и пустые участки, покрывается весь мир');
+  ok(population.independent && population.liveIndependent && population.hudIgnored,
+    'У каждой мыши своё поведение, таймер и генератор; HUD не рисует мышей');
+  ok(population.ratio > .23 && population.ratio < .27,
+    `Мышь на задних лапках — около четверти видимой высоты друида (${population.ratio.toFixed(3)})`);
 
   const floorGeneration = await page.evaluate(async () => {
     const { generateForestFloor } = await import('/src/world/forestFloor.ts');
@@ -596,8 +658,8 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === 2 && current.mouseCount === 1,
-      `Одна мышь и два столкновения с деревьями (друид и мышь): ${current.mouseCount}, ${current.colliders}`);
+    ok(current.colliders === current.mouseCount + 1 && current.mouseCount >= 0 && current.mouseCount <= 9,
+      `0–9 мышей; по одному столкновению с деревьями на существо: ${current.mouseCount}, ${current.colliders}`);
   };
 
   const generation = await page.evaluate(async () => {
@@ -605,7 +667,7 @@ try {
     const { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL } = await import('/src/data/environment.ts');
     const archivedPool = ENVIRONMENT_VARIANTS.tree.filter(art => !TREE_SPAWN_POOL.includes(art.id)).map(art => art.id);
     const activePinesOnly = TREE_SPAWN_POOL.join() === 'pine-dark-green' && Array.from({ length: 200 }, (_, seed) => generateMeadow(seed))
-      .every(layout => layout.counts.trees >= 45 && layout.counts.trees <= 63 && layout.obstacles.length === layout.counts.trees &&
+      .every(layout => layout.counts.trees >= 56 && layout.counts.trees <= 79 && layout.obstacles.length === layout.counts.trees &&
         layout.obstacles.every(object => ENVIRONMENT_VARIANTS.tree[object.variant].id === 'pine-dark-green'));
     const emptyPoolSupported = generateMeadow(123, []).obstacles.length === 0;
     const failures = []; const treeCounts = new Set();
@@ -619,7 +681,7 @@ try {
       interiorTrees += trees.filter(o => o.x > width * 0.25 && o.x < width * 0.75 &&
         o.y > height * 0.25 && o.y < height * 0.75).length;
       const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
-      if (width !== 3840 || height !== 2160 || trees.length < 45 || trees.length > 63 ||
+      if (width !== 3840 || height !== 2160 || trees.length < 56 || trees.length > 79 ||
         trees.length !== layout.counts.trees ||
         layout.obstacles.length !== trees.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
         layout.obstacles.some((object, i) => {
@@ -635,9 +697,9 @@ try {
       different: JSON.stringify(generateMeadow(123, archivedPool).obstacles) !== JSON.stringify(generateMeadow(124, archivedPool).obstacles),
     };
   });
-  ok(generation.activePinesOnly && generation.emptyPoolSupported, '200 живых планировок: только одобренная сосна, 45–63 дерева; пустой пул также поддерживается');
-  ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 45–63 дерева, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
-  ok(generation.treeCounts.join() === Array.from({ length: 19 }, (_, i) => i + 45).join(),
+  ok(generation.activePinesOnly && generation.emptyPoolSupported, '200 живых планировок: только одобренная сосна, 56–79 дерева; пустой пул также поддерживается');
+  ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 56–79 дерева, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.treeCounts.join() === Array.from({ length: 24 }, (_, i) => i + 56).join(),
     'Генерация использует все допустимые количества деревьев, включая границы диапазонов');
   ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
     'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
@@ -709,16 +771,11 @@ try {
   const directionalArt = await page.evaluate(async () => {
     const texture = window.__smokeGame.textures.get('druid-game');
     const atlas = texture.getSourceImage().getContext('2d');
-    const sources = {
-      down: '/docs/art/druid-front-resolution-v1/druid-front-64x80.png',
-      left: '/src/assets/characters/druid-left-64x80.png',
-      right: '/src/assets/characters/druid-right-64x80.png',
-      up: '/src/assets/characters/druid-back-64x80.png',
-    };
-    return Promise.all(Object.entries(sources).map(async ([direction, path]) => {
-      const image = new Image(); image.src = path; await image.decode();
+    const sources = { down: 0, up: 64, left: 128, right: 192 };
+    return Promise.all(Object.entries(sources).map(async ([direction, sourceX]) => {
+      const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/idle-64x80.png'; await image.decode();
       const reference = document.createElement('canvas'); reference.width = 64; reference.height = 80;
-      const context = reference.getContext('2d'); context.drawImage(image, 0, 0);
+      const context = reference.getContext('2d'); context.drawImage(image, sourceX, 0, 64, 80, 0, 0, 64, 80);
       const expected = context.getImageData(0, 0, 64, 80).data;
       const frame = texture.get(direction);
       const actual = atlas.getImageData(frame.cutX, frame.cutY, 64, 80).data;
@@ -731,7 +788,7 @@ try {
     }));
   });
   ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 64 && view.height === 80),
-    'Все четыре кадра точно совпадают с соответствующими отдельными PNG 64×80');
+    'Все четыре кадра точно совпадают с соответствующими позами Basic 64×80');
   ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 75),
     'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 75');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
@@ -756,12 +813,12 @@ try {
   assert.ok(cameraCorridor, 'Нет свободного прохода для проверки камеры');
   await delay(60);
   const beforeCamera = await state();
-  await hold('d', 250);
+  await hold('d', 400);
   const insideCamera = await state();
   ok(insideCamera.x > beforeCamera.x + 40 && insideCamera.x < beforeCamera.x + 80 &&
     Math.abs(insideCamera.view.x - beforeCamera.view.x) < 0.01 && Math.abs(insideCamera.view.y - beforeCamera.view.y) < 0.01,
     'Друид свободно движется внутри овала, камера остаётся на месте');
-  await page.keyboard.down('d'); await delay(1000);
+  await page.keyboard.down('d'); await delay(1700);
   const followingCamera = await state();
   const followDistance = Math.hypot(followingCamera.x - followingCamera.cameraCenter.x,
     followingCamera.y - followingCamera.cameraCenter.y);
@@ -782,7 +839,7 @@ try {
     'HP остаются на экране во время движения камеры');
 
   const walkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-walk-down-v2/walk-down-64x80.png'; await image.decode();
+    const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/walk-down-64x80.png'; await image.decode();
     const texture = window.__smokeGame.textures.get('druid-walk-down-source');
     const read = source => {
       const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
@@ -815,7 +872,7 @@ try {
     const scene = window.__smokeGame.scene.getScene('Room'); const p = scene.player;
     const frames = []; const startY = p.y; const startTime = performance.now();
     let geometryPreserved = true;
-    while (performance.now() - startTime < 850) {
+    while (performance.now() - startTime < 1180) {
       if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
       geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
         Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
@@ -835,7 +892,7 @@ try {
   ok(idleAfterWalk.facing === 'down', 'Отпускание S останавливает цикл и возвращает стоящий фронтальный спрайт');
 
   const upWalkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-walk-other-directions-v1/walk-up-64x80.png'; await image.decode();
+    const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/walk-up-64x80.png'; await image.decode();
     const texture = window.__smokeGame.textures.get('druid-walk-up-source');
     const read = source => {
       const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
@@ -866,7 +923,7 @@ try {
     const p = window.__smokeGame.scene.getScene('Room').player;
     const frames = []; const startY = p.y; const startTime = performance.now();
     let geometryPreserved = true;
-    while (performance.now() - startTime < 850) {
+    while (performance.now() - startTime < 1180) {
       if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
       geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
         Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
@@ -892,8 +949,8 @@ try {
   ok(idleAfterUp.facing === 'up', 'Отпускание W возвращает стоящий вид со спины');
 
   for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-walk-left-v3' },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v1' },
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-basic-walk-v1' },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-basic-walk-v1' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
       const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-64x80.png`; await image.decode();
@@ -907,37 +964,14 @@ try {
       return actual.every((value, index) => value === expected[index]);
     }, { direction, folder });
     ok(walkPixels, `${direction}: исходный PNG принятой GIF сохранён без изменения пикселей`);
-    const bootColors = await page.evaluate(direction => {
+    const rawBasic = await page.evaluate(direction => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const animation = scene.anims.get(`druid-walk-${direction}`);
       const texture = scene.textures.get(animation.frames[0].textureKey);
-      const read = source => {
-        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
-        const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-        return context.getImageData(0, 0, 256, 80).data;
-      };
-      const before = read(scene.textures.get(`druid-walk-${direction}-source`).getSourceImage());
-      const after = read(texture.getSourceImage());
-      let alpha = true, bootsOnly = true, darkLeather = true;
-      const changed = [0, 0, 0, 0];
-      for (let i = 0; i < after.length; i += 4) {
-        alpha &&= after[i + 3] === before[i + 3];
-        if (after[i] === before[i] && after[i + 1] === before[i + 1] && after[i + 2] === before[i + 2]) continue;
-        const x = (i / 4) % 256, y = Math.floor(i / 4 / 256), localX = x % 64;
-        changed[Math.floor(x / 64)]++;
-        bootsOnly &&= y >= 55 && y < 75 && localX >= 12 && localX <= 50 &&
-          !(direction === 'left' && localX < 22 && y < 68) && !(direction === 'right' && localX > 43 && y < 70);
-        darkLeather &&= after[i] <= 135 && after[i + 1] <= 87 && after[i + 2] <= 51 &&
-          after[i] > after[i + 1] && after[i + 1] > after[i + 2];
-      }
-      return { alpha, bootsOnly, darkLeather, changed, nearest: texture.source[0].scaleMode === 1,
-        working: texture.key === `druid-walk-${direction}-source-boots`,
-        dimensions: texture.getSourceImage().width === 256 && texture.getSourceImage().height === 80 };
+      return texture.key === `druid-walk-${direction}-source` && texture.source[0].scaleMode === 1 &&
+        animation.frames.length === 4 && animation.msPerFrame === 160;
     }, direction);
-    ok(bootColors.working && bootColors.dimensions && bootColors.nearest && bootColors.alpha && bootColors.bootsOnly,
-      `${direction}: анимация использует исправленные сапоги; силуэт, прозрачность, плащ, руки и посох сохранены`);
-    ok(bootColors.darkLeather && bootColors.changed.every(count => count > 20),
-      `${direction}: все четыре фазы шага используют тёмно-коричневую кожу вместо светлого оттенка сапог`);
+    ok(rawBasic, `${direction}: Basic используется напрямую с NEAREST, без прежней перекраски сапог`);
     const corridorFound = await page.evaluate(sign => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
@@ -959,7 +993,7 @@ try {
       const p = window.__smokeGame.scene.getScene('Room').player;
       const frames = []; const startX = p.x; const startTime = performance.now();
       let geometryPreserved = true;
-      while (performance.now() - startTime < 850) {
+      while (performance.now() - startTime < 1180) {
         if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
         geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
           Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
@@ -974,6 +1008,10 @@ try {
       `Удержание ${key.toUpperCase()} повторяет четыре кадра: ${cycle.frames.join(', ')}`);
     ok(cycle.playing && cycle.distance > 150 && cycle.geometryPreserved,
       `${direction}: сохраняются размер, движение, опора ног и физическое тело`);
+    if (direction === 'right') {
+      await waitState(s => s.frame === 'walk-right-2');
+      await page.screenshot({ path: fileURLToPath(new URL('../test-results/basic-walk-right.png', import.meta.url)) });
+    }
     await page.keyboard.up(key);
     const idle = await waitState(current => !current.animationPlaying && current.frame === direction && current.vx === 0);
     ok(idle.facing === direction, `Отпускание ${key.toUpperCase()} возвращает стоящий спрайт ${direction}`);
@@ -984,7 +1022,7 @@ try {
     observedMouse.stopped && observedMouse.matching && observedMouse.clear,
     `Живая мышь пробегает, поднимается, осматривается и опускается; во время осматривания стоит: ${observedMouse.states.join(' → ')}`);
   const mousePhysics = await page.evaluate(async () => {
-    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mouse;
+    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mice[0];
     const originalStep = mouse.behavior.step;
     const oldMouse = { x: mouse.x, y: mouse.y }, oldPlayer = { x: scene.player.x, y: scene.player.y };
     const tree = scene.world.obstacles.getChildren()[0].body;
@@ -1003,6 +1041,76 @@ try {
   });
   ok(mousePhysics.treeBlocks && mousePhysics.contact && mousePhysics.noDamage,
     'Реальная физика: дерево останавливает мышь; с друидом она пересекается без блокировки и урона');
+
+  await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room'), p = scene.player;
+    const obstacles = scene.world.obstacles.getChildren().map(o => o.body);
+    for (let y = 30; y < scene.layout.height - 30; y += 20) {
+      for (let x = 30; x < scene.layout.width - 630; x += 20) {
+        if (obstacles.some(o => x - 10 < o.right && x + 610 > o.x && y - 3 < o.bottom && y + 23 > o.y)) continue;
+        p.body.reset(x, y);
+        window.__speedProbe = { starts: 0, base: p.definition.stats.speed };
+        p.on('animationstart', () => window.__speedProbe.starts++);
+        return;
+      }
+    }
+    throw new Error('Нет прохода для проверки изменяемой скорости');
+  });
+  await page.keyboard.down('d');
+  await waitState(s => s.animationPlaying && s.animationKey === 'druid-walk-right');
+  const speedChanges = await page.evaluate(async () => {
+    const p = window.__smokeGame.scene.getScene('Room').player, base = window.__speedProbe.base;
+    const samples = [];
+    for (const factor of [.5, 2]) {
+      p.actorState.speed = base * factor;
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const start = p.x, time = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 300));
+      samples.push({ speed: p.body.velocity.length(), scale: p.anims.timeScale,
+        measured: (p.x - start) / ((performance.now() - time) / 1000), expected: base * factor });
+    }
+    const uninterrupted = window.__speedProbe.starts === 1;
+    p.actorState.speed = 0;
+    await new Promise(resolve => setTimeout(resolve, 80));
+    const stopped = !p.anims.isPlaying && p.frame.name === 'right' && p.body.velocity.length() === 0;
+    const baseIntact = p.definition.stats.speed === 220 * 2 / 3 && p.actorState.health === 3;
+    p.actorState.speed = base;
+    return { samples, uninterrupted, stopped, baseIntact };
+  });
+  ok(speedChanges.samples.every(s => Math.abs(s.speed - s.expected) < .01 &&
+    Math.abs(s.scale - s.expected / 220) < .001 && Math.abs(s.measured - s.expected) < s.expected * .18),
+    'Изменение скорости ×0,5 и ×2 меняет реальное перемещение и темп шагов пропорционально');
+  ok(speedChanges.uninterrupted && speedChanges.stopped && speedChanges.baseIntact,
+    'Модификатор не перезапускает шаг и не меняет базовый тип; скорость 0 останавливает анимацию');
+  await page.keyboard.up('d');
+
+  const populationSeeds = await page.evaluate(async () => {
+    const { generateMeadow } = await import('/src/world/meadowLayout.ts');
+    const { generateMousePopulation } = await import('/src/world/mousePopulation.ts');
+    let empty = 0;
+    while (generateMousePopulation(generateMeadow(empty)).length) empty++;
+    return [empty, 3]; // seed 3 has nine mice.
+  });
+  for (const seed of populationSeeds) {
+    const previous = await page.evaluateHandle(seed => {
+      const scene = window.__smokeGame.scene.getScene('Room');
+      window.__oldMice = [...scene.world.mice];
+      const p = scene.player; scene.scene.restart({ characterId: 'druid', seed }); return p;
+    }, seed);
+    await page.waitForFunction(p => window.__smokeGame.scene.getScene('Room').player !== p, previous);
+    await previous.dispose();
+    await waitScene('Room');
+    const lifecycle = await page.evaluate(() => {
+      const scene = window.__smokeGame.scene.getScene('Room');
+      return { count: scene.world.mice.length, cleared: window.__oldMice.every(m => !m.scene),
+        sprites: scene.children.list.filter(o => o.name === 'wandering-mouse').length,
+        colliders: scene.physics.world.colliders.getActive().length,
+        speedReset: scene.player.actorState.speed === scene.player.definition.stats.speed };
+    });
+    ok(lifecycle.count === (seed === populationSeeds[0] ? 0 : 9) && lifecycle.sprites === lifecycle.count &&
+      lifecycle.colliders === lifecycle.count + 1 && lifecycle.cleared && lifecycle.speedReset,
+      `Перезапуск с ${lifecycle.count} мышами: нет старых спрайтов/коллайдеров, характеристики героя восстановлены`);
+  }
 
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
     await restart();
@@ -1023,7 +1131,7 @@ try {
   await page.keyboard.down('d');
   await delay(100);
   const diagonal = await state();
-  ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220) < 0.1, 'Диагональ не увеличивает скорость');
+  ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220 * 2 / 3) < 0.1, 'Диагональ не увеличивает скорость');
   ok(diagonal.facing === 'right' && diagonal.animationPlaying && diagonal.animationKey === 'druid-walk-right', 'При S+D последняя нажатая D включает ходьбу вправо');
   await page.keyboard.up('d');
   const remaining = await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-down' && current.vx === 0);
@@ -1039,6 +1147,22 @@ try {
   ok(stopped.frame === 'up', 'После отпускания клавиш сохраняется вид со спины');
   await page.keyboard.up('s');
   await page.keyboard.up('d');
+
+  await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    scene.player.body.reset(scene.layout.width - 10, 500);
+  });
+  await page.keyboard.down('s'); await page.keyboard.down('d');
+  await delay(100);
+  const sliding = await page.evaluate(async () => {
+    const p = window.__smokeGame.scene.getScene('Room').player, x = p.x, y = p.y;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return { scale: p.anims.timeScale, dx: p.x - x, dy: p.y - y, blocked: p.body.blocked.right };
+  });
+  ok(sliding.blocked && Math.abs(sliding.dx) < .01 && sliding.dy > 10 &&
+    Math.abs(sliding.scale - Math.SQRT1_2 * 2 / 3) < .001,
+    'При диагональном скольжении вдоль границы темп учитывает оставшуюся скорость движения');
+  await page.keyboard.up('s'); await page.keyboard.up('d');
 
   // Проверяем активную сосну и сохранённый архив через настоящие клавиши и коллайдеры.
   const installArchivedWorld = async () => page.evaluate(async () => {
@@ -1150,7 +1274,7 @@ try {
   await restart();
   const regenerated = await state();
   ok(regenerated.layout.seed !== oldSeed && await floorSignature() !== oldFloor &&
-    regenerated.layout.counts.trees >= 45 && regenerated.layout.counts.trees <= 63 &&
+    regenerated.layout.counts.trees >= 56 && regenerated.layout.counts.trees <= 79 &&
     regenerated.obstacles.every(object => object.texture === 'forest-pine'),
     'R меняет случайную подстилку и размещение сосен; архивные деревья остаются выключены');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SETTINGS } from '../settings';
+import { Druid } from '../entities/Druid';
 import { CHARACTERS } from '../data/characters';
 import { SCENES } from './keys';
 import { bindSceneKey } from '../ui/sceneHelpers';
@@ -9,19 +9,15 @@ import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
 import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
 
 export class RoomScene extends Phaser.Scene {
-  player!: Phaser.Physics.Arcade.Sprite;
-  playerHealth: number = SETTINGS.playerHealth;
+  player!: Druid;
+  get playerHealth() { return this.player.actorState.health; }
   characterId = CHARACTERS[0].id;
   layout!: MeadowLayout;
   world!: MeadowWorld;
   private seed = 0;
   private movement!: MovementKeys;
   private facingInput!: FourWayFacing;
-  private facingFrames?: Record<Facing, string>;
-  private idleTexture!: string;
-  private walkAnimations?: Partial<Record<Facing, string>>;
   facing: Facing = 'down';
-  private direction = new Phaser.Math.Vector2();
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
   private hudCamera!: Phaser.Cameras.Scene2D.Camera;
@@ -37,24 +33,13 @@ export class RoomScene extends Phaser.Scene {
   }
 
   create() {
-    this.playerHealth = SETTINGS.playerHealth;
     this.physics.resume();
     const character = CHARACTERS.find(item => item.id === this.characterId)!;
     const appearance = character.game ?? CHARACTERS[0].game!;
     const art = appearance.metrics;
     this.facing = 'down';
-    this.facingFrames = appearance.frames;
-    this.idleTexture = appearance.texture;
-    this.walkAnimations = appearance.walkAnimations;
-    const feetOffset = art.bodyCenterY + art.bodyHeight / 2;
-    this.feetOffset = feetOffset;
-    const originY = art.feetY - feetOffset / art.scale;
-    this.player = this.physics.add.sprite(0, 0, appearance.texture, this.facingFrames?.down)
-      .setOrigin(0.5, originY / art.height).setScale(art.scale)
-      .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
-      .setOffset((art.width - art.bodyWidth / art.scale) / 2,
-        originY + (art.bodyCenterY - art.bodyHeight / 2) / art.scale)
-      .setCollideWorldBounds(true);
+    this.feetOffset = art.bodyCenterY + art.bodyHeight / 2;
+    this.player = new Druid(this, character);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
 
@@ -72,7 +57,7 @@ export class RoomScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
-    const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); this.updateAppearance(false); };
+    const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); this.player.updateAppearance(true); };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
     const resize = () => this.resizeCameras();
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
@@ -87,29 +72,12 @@ export class RoomScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     const keys = this.movement;
     this.facing = this.facingInput.read();
-    this.direction.set(Number(keys.right.isDown) - Number(keys.left.isDown), Number(keys.down.isDown) - Number(keys.up.isDown))
-      .normalize().scale(SETTINGS.playerSpeed);
-    this.player.setVelocity(this.direction.x, this.direction.y).setDepth(this.player.y + 25);
-    const blocked = (this.player.body as Phaser.Physics.Arcade.Body).blocked;
-    const moving = (this.direction.x < 0 && !blocked.left) || (this.direction.x > 0 && !blocked.right) ||
-      (this.direction.y < 0 && !blocked.up) || (this.direction.y > 0 && !blocked.down);
-    this.updateAppearance(moving);
+    this.player.move(Number(keys.right.isDown) - Number(keys.left.isDown),
+      Number(keys.down.isDown) - Number(keys.up.isDown), this.facing);
+    this.player.setDepth(this.player.y + 25);
     this.shadow.setPosition(this.player.x, this.player.y + 22).setDepth(this.player.y + 24);
     const center = this.cameraFollow.update(this.player.x, this.player.y, delta);
     this.cameras.main.centerOn(center.x, center.y);
-  }
-
-  private updateAppearance(moving: boolean) {
-    const animation = moving ? this.walkAnimations?.[this.facing] : undefined;
-    if (animation) {
-      // ignoreIfPlaying сохраняет текущий шаг, а не запускает цикл заново каждый кадр.
-      this.player.play(animation, true);
-      return;
-    }
-    this.player.anims.stop();
-    const frame = this.facingFrames?.[this.facing];
-    if (this.player.texture.key !== this.idleTexture) this.player.setTexture(this.idleTexture, frame);
-    else if (frame && this.player.frame.name !== frame) this.player.setFrame(frame, false, false);
   }
 
   private buildWorld() {
@@ -144,7 +112,7 @@ export class RoomScene extends Phaser.Scene {
   private drawHud() {
     this.hud = this.add.container(0, 0).setDepth(100000);
     const panel = this.add.rectangle(16, 16, 176, 44, 0x132419, 0.85).setOrigin(0);
-    const label = this.add.text(28, 30, `HP ${this.playerHealth}/${SETTINGS.playerHealth}`, {
+    const label = this.add.text(28, 30, `HP ${this.playerHealth}/${this.player.actorState.maxHealth}`, {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#dfdfbd',
     }).setName('health-label');
     const hearts = this.add.graphics();
