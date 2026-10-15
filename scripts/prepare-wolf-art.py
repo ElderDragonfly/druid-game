@@ -6,6 +6,7 @@ GIFs are previews on a forest-colored backdrop, PNG sheets retain transparency.
 """
 import hashlib
 import json
+import argparse
 from collections import deque
 from pathlib import Path
 
@@ -16,6 +17,10 @@ SOURCE = ROOT / "docs/art/2146238c373cba499284aaad3f0af0f5.jpg"
 OUT = ROOT / "docs/art/wolf-v1"
 WIDTH, HEIGHT = 128, 112
 BACKGROUND = (49, 67, 52)
+RUN_DROOL = [(119, 113, 136, 130), (231, 122, 248, 137), (345, 109, 368, 132),
+             (464, 105, 488, 128), (579, 112, 602, 132)]
+RUN_SHADOW = [(44, 133, 139, 147), (148, 133, 252, 147), (262, 134, 372, 148),
+              (378, 135, 493, 149), (497, 133, 608, 148)]
 ANIMATIONS = {
     "run": {
         "rects": [(42, 88, 142, 152), (145, 88, 254, 152), (259, 88, 373, 152),
@@ -91,11 +96,67 @@ def cutout(source, rect):
     return image
 
 
+def restore_drool(source, image, rect, region):
+    restored = 0
+    for y in range(region[1], region[3]):
+        for x in range(region[0], region[2]):
+            pixel = source.getpixel((x, y))
+            if max(pixel[:3]) < 130:
+                at = (x - rect[0], y - rect[1])
+                if not image.getpixel(at)[3]:
+                    restored += 1
+                image.putpixel(at, pixel)
+    return restored
+
+
+def shadow_cutout(source, rect, region, wolf):
+    """Recover the original dark shadow's opacity against the baked checkerboard.
+
+    Empty columns on the right provide the same checker phase as each source
+    pixel. This removes the checker pattern from the shadow instead of copying
+    gray rectangles onto a new background. No ellipse is invented or redrawn.
+    """
+    result = Image.new("RGBA", wolf.size)
+    for y in range(region[1], region[3]):
+        for x in range(max(rect[0], region[0]), min(rect[2], region[2])):
+            local = (x - rect[0], y - rect[1])
+            if wolf.getpixel(local)[3]:
+                continue
+            rgb = source.getpixel((x, y))[:3]
+            if max(rgb) - min(rgb) >= 32:
+                continue
+            expected = sum(sum(source.getpixel((column + x % 30, y))[:3]) / 3
+                           for column in (630, 660, 690)) / 3
+            difference = expected - sum(rgb) / 3
+            if difference >= 16:
+                result.putpixel(local, (0, 0, 0, min(140, round(255 * difference / expected))))
+    # JPEG noise is often a single isolated pixel; retain connected shadow patches.
+    remaining = {(x, y) for y in range(result.height) for x in range(result.width)
+                 if result.getpixel((x, y))[3]}
+    while remaining:
+        component = {remaining.pop()}
+        stack = list(component)
+        while stack:
+            x, y = stack.pop()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    point = (x + dx, y + dy)
+                    if point in remaining:
+                        remaining.remove(point)
+                        component.add(point)
+                        stack.append(point)
+        if len(component) < 4:
+            for point in component:
+                result.putpixel(point, (0, 0, 0, 0))
+    return result
+
+
 def save_animation(source, name, settings):
-    frames, metadata = [], []
+    frames, metadata, shadows = [], [], []
     for index, rect in enumerate(settings["rects"]):
         cropped = cutout(source, rect)
         bounds = cropped.getbbox()
+        restored = restore_drool(source, cropped, rect, RUN_DROOL[index]) if name == "run" else 0
         offset_x = 64 - (bounds[0] + bounds[2]) // 2
         # Keep airborne running phases above their shared ground line.
         offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
@@ -103,30 +164,49 @@ def save_animation(source, name, settings):
         assert 0 <= bounds[0] + offset_x < bounds[2] + offset_x <= WIDTH
         assert 0 <= bounds[1] + offset_y < bounds[3] + offset_y <= HEIGHT
         frame.paste(cropped, (offset_x, offset_y))
+        shadow = Image.new("RGBA", (WIDTH, HEIGHT))
+        if name == "run":
+            shadow.paste(shadow_cutout(source, rect, RUN_SHADOW[index], cropped), (offset_x, offset_y))
+        shadows.append(shadow)
         frames.append(frame)
         metadata.append({"sourceRect": list(rect), "drawOffset": [offset_x, offset_y],
                          "atlasFrame": {"x": index * WIDTH, "y": 0, "width": WIDTH, "height": HEIGHT}})
+        if name == "run":
+            metadata[-1].update({"restoredDroolPixels": restored, "droolSourceRect": list(RUN_DROOL[index]),
+                                 "shadowSourceRect": list(RUN_SHADOW[index])})
 
     atlas = Image.new("RGBA", (WIDTH * len(frames), HEIGHT))
+    shadow_atlas = Image.new("RGBA", atlas.size)
     previews = []
     for index, frame in enumerate(frames):
         atlas.paste(frame, (index * WIDTH, 0))
-        preview = Image.new("RGB", (WIDTH, HEIGHT), BACKGROUND)
-        preview.paste(frame, mask=frame.getchannel("A"))
-        previews.append(preview.resize((WIDTH * 3, HEIGHT * 3), Image.Resampling.NEAREST))
+        shadow_atlas.paste(shadows[index], (index * WIDTH, 0))
+        preview = Image.new("RGBA", (WIDTH, HEIGHT), (*BACKGROUND, 255))
+        preview.alpha_composite(shadows[index])
+        preview.alpha_composite(frame)
+        previews.append(preview.convert("RGB").resize((WIDTH * 3, HEIGHT * 3), Image.Resampling.NEAREST))
     atlas.save(OUT / f"wolf-{name}.png")
+    if name == "run":
+        shadow_atlas.save(OUT / "wolf-run-shadow.png")
     palette_source = Image.new("RGB", (WIDTH * len(frames), HEIGHT), BACKGROUND)
-    for index, frame in enumerate(frames):
-        palette_source.paste(frame, (index * WIDTH, 0), frame.getchannel("A"))
+    for index, preview in enumerate(previews):
+        palette_source.paste(preview.resize((WIDTH, HEIGHT), Image.Resampling.NEAREST), (index * WIDTH, 0))
     palette = palette_source.quantize(colors=256, dither=Image.Dither.NONE)
     previews = [image.quantize(palette=palette, dither=Image.Dither.NONE) for image in previews]
     previews[0].save(OUT / f"wolf-{name}.gif", save_all=True, append_images=previews[1:],
                      duration=settings["durations"], loop=0, disposal=2, optimize=False)
-    return {"frames": metadata, "durations": settings["durations"], "previewScale": 3,
-            "gameRepeat": -1 if name == "run" else 0}
+    result = {"frames": metadata, "durations": settings["durations"], "previewScale": 3,
+              "gameRepeat": -1 if name == "run" else 0}
+    if name == "run":
+        result.update({"state": "aggro-run", "sourceRow": 2, "shadowAtlas": "wolf-run-shadow.png",
+                       "mirrorForLeft": True})
+    return result
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", choices=ANIMATIONS, help="Update one animation, keeping the others unchanged")
+    args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     original = Image.open(SOURCE).convert("RGBA")
     metadata = {"source": str(SOURCE.relative_to(ROOT)),
@@ -134,7 +214,11 @@ if __name__ == "__main__":
                 "credit": "ripped by Maxim (visible on uploaded reference)",
                 "frameWidth": WIDTH, "frameHeight": HEIGHT, "origin": [64, 100],
                 "previewBackground": list(BACKGROUND), "integrated": False, "animations": {}}
+    if args.only and (OUT / "animations.json").exists():
+        metadata = json.loads((OUT / "animations.json").read_text())
     for name, settings in ANIMATIONS.items():
+        if args.only and name != args.only:
+            continue
         metadata["animations"][name] = save_animation(original, name, settings)
         print(f"{name}: {len(settings['rects'])} frames, {sum(settings['durations'])} ms")
     (OUT / "animations.json").write_text(json.dumps(metadata, indent=2) + "\n")

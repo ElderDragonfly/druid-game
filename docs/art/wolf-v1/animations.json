@@ -33,7 +33,20 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "restoredDroolPixels": 3,
+          "droolSourceRect": [
+            119,
+            113,
+            136,
+            130
+          ],
+          "shadowSourceRect": [
+            44,
+            133,
+            139,
+            147
+          ]
         },
         {
           "sourceRect": [
@@ -51,7 +64,20 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "restoredDroolPixels": 3,
+          "droolSourceRect": [
+            231,
+            122,
+            248,
+            137
+          ],
+          "shadowSourceRect": [
+            148,
+            133,
+            252,
+            147
+          ]
         },
         {
           "sourceRect": [
@@ -69,7 +95,20 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "restoredDroolPixels": 19,
+          "droolSourceRect": [
+            345,
+            109,
+            368,
+            132
+          ],
+          "shadowSourceRect": [
+            262,
+            134,
+            372,
+            148
+          ]
         },
         {
           "sourceRect": [
@@ -87,7 +126,20 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "restoredDroolPixels": 8,
+          "droolSourceRect": [
+            464,
+            105,
+            488,
+            128
+          ],
+          "shadowSourceRect": [
+            378,
+            135,
+            493,
+            149
+          ]
         },
         {
           "sourceRect": [
@@ -105,7 +157,20 @@
             "y": 0,
             "width": 128,
             "height": 112
-          }
+          },
+          "restoredDroolPixels": 6,
+          "droolSourceRect": [
+            579,
+            112,
+            602,
+            132
+          ],
+          "shadowSourceRect": [
+            497,
+            133,
+            608,
+            148
+          ]
         }
       ],
       "durations": [
@@ -116,7 +181,11 @@
         90
       ],
       "previewScale": 3,
-      "gameRepeat": -1
+      "gameRepeat": -1,
+      "state": "aggro-run",
+      "sourceRow": 2,
+      "shadowAtlas": "wolf-run-shadow.png",
+      "mirrorForLeft": true
     },
     "attack": {
       "frames": [
