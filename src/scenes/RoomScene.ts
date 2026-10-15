@@ -65,7 +65,10 @@ export class RoomScene extends Phaser.Scene {
     }) as typeof this.movement;
     this.facingInput = new FourWayFacing(this.movement);
     // Arcade syncs sprite coordinates in post-update; sample grass after that sync.
-    const updateGrass = () => this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
+    const updateGrass = (_time: number, delta: number) => {
+      this.world.update(delta);
+      this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
+    };
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));

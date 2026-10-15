@@ -1,0 +1,42 @@
+{
+  "source": "docs/art/91f9b8a17e977a2a9d71e0fbc551f757.gif",
+  "authorCredit": "LANCEKIM0806 (visible in uploaded GIF)",
+  "crop": [
+    104,
+    128,
+    360,
+    384
+  ],
+  "sourcePixelScale": 8,
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 9,
+  "durations": [
+    1000,
+    100,
+    1000,
+    100,
+    1000,
+    100,
+    1000,
+    100,
+    1000
+  ],
+  "anchorX": 16,
+  "anchorY": 25,
+  "backgroundColors": [
+    [
+      50,
+      65,
+      70
+    ],
+    [
+      100,
+      115,
+      120
+    ]
+  ],
+  "newMotionArt": "mouse-motion-source.png",
+  "runFrames": 4,
+  "riseFrames": 4
+}

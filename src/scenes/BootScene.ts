@@ -5,6 +5,7 @@ import { DRUID_ART, prepareDruidTextures } from '../rendering/druidArt';
 import { FOREST_ART, prepareForestTextures } from '../rendering/forestArt';
 import { SCENES } from './keys';
 import { fitMenuCamera } from '../ui/sceneHelpers';
+import { MOUSE_ART, prepareMouseTextures } from '../rendering/mouseArt';
 
 export class BootScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
@@ -28,6 +29,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('selection-camp', selectionCamp);
     DRUID_ART.forEach(art => this.load.image(art.key, art.url));
     FOREST_ART.forEach(art => this.load.image(art.key, art.url));
+    MOUSE_ART.forEach(art => this.load.image(art.key, art.url));
   }
 
   create() {
@@ -38,6 +40,7 @@ export class BootScene extends Phaser.Scene {
     this.textures.get('selection-camp').setFilter(Phaser.Textures.FilterMode.NEAREST);
     prepareDruidTextures(this);
     prepareForestTextures(this);
+    prepareMouseTextures(this);
     this.scene.start(SCENES.mainMenu);
   }
 }

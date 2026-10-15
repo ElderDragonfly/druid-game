@@ -38,7 +38,7 @@ try {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].physics.world.colliders.getActive().length === 1);
+      (sceneKey !== 'Room' || active[0].physics.world.colliders.getActive().length === 2);
   }, key);
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -247,6 +247,67 @@ try {
     return game.scene.getScene('Room').characterId;
   });
   ok(chosen === 'druid', 'Выбранный персонаж передан в комнату');
+
+  const mouseArt = await page.evaluate(async () => {
+    const { MOUSE } = await import('/src/data/mouse.ts');
+    const { MouseWander, mouseSpawn, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
+    const { generateMeadow } = await import('/src/world/meadowLayout.ts');
+    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mouse;
+    window.__mouseObservation = { states: [], moving: false, stopped: true, matching: true, clear: true };
+    const observe = () => {
+      const data = window.__mouseObservation, state = mouse.behavior.state;
+      if (data.states.at(-1) !== state) data.states.push(state);
+      const speed = mouse.body.velocity.length();
+      if (state === 'run' && speed > 1) data.moving = true;
+      if (state !== 'run' && speed > .01) data.stopped = false;
+      data.matching &&= mouse.anims.currentAnim?.key === `mouse-${state}`;
+      data.clear &&= !scene.world.obstacles.getChildren().some(tree => PhaserRectOverlap(mouse.body, tree.body));
+    };
+    const PhaserRectOverlap = (a, b) => a.x < b.right && a.right > b.x && a.y < b.bottom && a.bottom > b.y;
+    scene.events.on('postupdate', observe);
+    scene.events.once('shutdown', () => scene.events.off('postupdate', observe));
+    let alpha = true, nearest = true;
+    const unique = [];
+    for (const key of ['mouse-look', 'mouse-run', 'mouse-rise']) {
+      const texture = scene.textures.get(key), source = texture.getSourceImage();
+      const canvas = document.createElement('canvas'); canvas.width = source.width; canvas.height = source.height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(source, 0, 0);
+      const pixels = ctx.getImageData(0, 0, source.width, source.height).data;
+      alpha &&= pixels.some((value, i) => i % 4 === 3 && value === 0) &&
+        pixels.every((value, i) => i % 4 !== 3 || value === 0 || value === 255);
+      nearest &&= texture.source[0].scaleMode === 1;
+      const hashes = new Set();
+      for (let i = 0; i < source.width / 32; i++) hashes.add(Array.from(ctx.getImageData(i * 32, 0, 32, 32).data).join());
+      unique.push(hashes.size);
+    }
+    const look = scene.anims.get('mouse-look');
+    const durations = look.frames.map(frame => look.msPerFrame + frame.duration);
+    let layoutsSafe = true, pathsSafe = true, repeatable = true, seenCycles = true;
+    for (let seed = 0; seed < 100; seed++) {
+      const layout = generateMeadow(seed), start = mouseSpawn(layout), again = mouseSpawn(layout);
+      layoutsSafe &&= mouseCanStand(layout, start) && Math.hypot(start.x - layout.spawn.x, start.y - layout.spawn.y) <= 160.01;
+      repeatable &&= start.x === again.x && start.y === again.y;
+      if (seed >= 20) continue;
+      const brain = new MouseWander(layout, start), twin = new MouseWander(layout, start);
+      const position = { ...start }, other = { ...start }, states = new Set();
+      for (let tick = 0; tick < 1000; tick++) {
+        const v = brain.step(20, position), w = twin.step(20, other); states.add(brain.state);
+        repeatable &&= v.x === w.x && v.y === w.y && brain.state === twin.state;
+        position.x += v.x * .02; position.y += v.y * .02; other.x += w.x * .02; other.y += w.y * .02;
+        pathsSafe &&= mouseCanStand(layout, position, 0);
+      }
+      seenCycles &&= states.size === 4;
+    }
+    return { alpha, nearest, unique, durations, layoutsSafe, pathsSafe, repeatable, seenCycles,
+      body: mouse.body.width === 14 && mouse.body.height === 8,
+      scale: mouse.scale === MOUSE.scale, hudIgnored: !!(mouse.cameraFilter & scene.cameras.getCamera('hud').id) };
+  });
+  ok(mouseArt.alpha && mouseArt.nearest && mouseArt.unique[1] === 4 && mouseArt.unique[2] === 4,
+    'Мышь: прозрачные спрайты без шахматного фона, четыре разные фазы бега и подъёма, NEAREST');
+  ok(mouseArt.durations.join() === '1000,100,1000,100,1000,100,1000,100,1000' && mouseArt.body && mouseArt.scale && mouseArt.hudIgnored,
+    'Мышь сохраняет темп исходной GIF (5,4 с), масштаб 1,875 и тело 14×8; рисуется только камерой мира');
+  ok(mouseArt.layoutsSafe && mouseArt.pathsSafe && mouseArt.repeatable && mouseArt.seenCycles,
+    '100 seed: свободный старт; 20 симуляций по 20 с: безопасные пути, воспроизводимость и полный мирный цикл');
 
   const floorGeneration = await page.evaluate(async () => {
     const { generateForestFloor } = await import('/src/world/forestFloor.ts');
@@ -457,6 +518,7 @@ try {
         texture: object.texture.key, frame: object.frame.name, imageBounds: { x: object.getBounds().x, y: object.getBounds().y,
           width: object.displayWidth, height: object.displayHeight } })),
       colliders: scene.physics.world.colliders.getActive().length,
+      mouseCount: scene.children.list.filter(object => object.name === 'wandering-mouse').length,
       view: { x: view.x, y: view.y, width: view.width, height: view.height },
       hudView: { x: scene.hudCamera.worldView.x, y: scene.hudCamera.worldView.y, zoom: scene.hudCamera.zoom,
         width: scene.hudCamera.width, height: scene.hudCamera.height },
@@ -514,7 +576,8 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === 1, `Столкновения подключены один раз: ${current.colliders}`);
+    ok(current.colliders === 2 && current.mouseCount === 1,
+      `Одна мышь и два столкновения с деревьями (друид и мышь): ${current.mouseCount}, ${current.colliders}`);
   };
 
   const generation = await page.evaluate(async () => {
@@ -895,6 +958,31 @@ try {
     const idle = await waitState(current => !current.animationPlaying && current.frame === direction && current.vx === 0);
     ok(idle.facing === direction, `Отпускание ${key.toUpperCase()} возвращает стоящий спрайт ${direction}`);
   }
+
+  const observedMouse = await page.evaluate(() => window.__mouseObservation);
+  ok(['run', 'rise', 'look', 'lower'].every(state => observedMouse.states.includes(state)) && observedMouse.moving &&
+    observedMouse.stopped && observedMouse.matching && observedMouse.clear,
+    `Живая мышь пробегает, поднимается, осматривается и опускается; во время осматривания стоит: ${observedMouse.states.join(' → ')}`);
+  const mousePhysics = await page.evaluate(async () => {
+    const scene = window.__smokeGame.scene.getScene('Room'), mouse = scene.world.mouse;
+    const originalStep = mouse.behavior.step;
+    const oldMouse = { x: mouse.x, y: mouse.y }, oldPlayer = { x: scene.player.x, y: scene.player.y };
+    const tree = scene.world.obstacles.getChildren()[0].body;
+    mouse.behavior.step = () => ({ x: 90, y: 0 });
+    mouse.body.reset(tree.x - 27, tree.y + tree.height / 2 + 4);
+    await new Promise(resolve => setTimeout(resolve, 550));
+    const treeBlocks = Math.abs(mouse.body.right - tree.x) < 1;
+    mouse.behavior.step = () => ({ x: 0, y: 0 });
+    mouse.body.reset(oldMouse.x, oldMouse.y); mouse.setVelocity(0, 0);
+    scene.player.body.reset(oldMouse.x, oldMouse.y - 10);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const contact = scene.physics.overlap(scene.player, mouse), noDamage = scene.playerHealth === 3;
+    mouse.behavior.step = originalStep;
+    scene.player.body.reset(oldPlayer.x, oldPlayer.y);
+    return { treeBlocks, contact, noDamage };
+  });
+  ok(mousePhysics.treeBlocks && mousePhysics.contact && mousePhysics.noDamage,
+    'Реальная физика: дерево останавливает мышь; с друидом она пересекается без блокировки и урона');
 
   for (const [key, axis, sign] of [['w', 'y', -1], ['s', 'y', 1], ['a', 'x', -1], ['d', 'x', 1]]) {
     await restart();
