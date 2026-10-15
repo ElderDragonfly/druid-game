@@ -1,0 +1,61 @@
+{
+  "integrated": false,
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "previewScale": 1,
+  "baselineY": 300,
+  "idleSource": "../druid-sprites-v1/druid-04-basic.png",
+  "idleRedrawn": false,
+  "walkSource": "walk-source.png",
+  "bodySource": "walk-body-source.png",
+  "registration": "mean of face and torso, independent of feet",
+  "walkScale": 0.4861111111111111,
+  "idleScale": 0.2557077625570776,
+  "anchors": [
+    {
+      "top": 55,
+      "ground": 629,
+      "anchorX": 392.5,
+      "faceX": 385.0,
+      "spineX": 400
+    },
+    {
+      "top": 55,
+      "ground": 631,
+      "anchorX": 866.0,
+      "faceX": 857.0,
+      "spineX": 875
+    },
+    {
+      "top": 643,
+      "ground": 1205,
+      "anchorX": 392.0,
+      "faceX": 384.0,
+      "spineX": 400
+    },
+    {
+      "top": 643,
+      "ground": 1208,
+      "anchorX": 865.5,
+      "faceX": 856.0,
+      "spineX": 875
+    }
+  ],
+  "staff": {
+    "rigidMaster": true,
+    "liftPixels": [
+      0,
+      12,
+      0,
+      12
+    ],
+    "plantedOffsetY": 7
+  },
+  "layers": [
+    "walk-body-256x320.png",
+    "walk-arm-staff-256x320.png",
+    "walk-cloak-foreground-256x320.png"
+  ]
+}
