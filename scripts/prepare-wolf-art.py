@@ -61,6 +61,18 @@ ANIMATIONS = {
         "background_columns": (450, 480, 510),
         "state": "attack-down", "source_row": 5, "initial_source_row": 5,
     },
+    "idle": {
+        "rects": [(42, 400, 125, 467), (125, 400, 210, 467), (210, 400, 298, 467),
+                  (298, 400, 385, 467), (389, 400, 476, 467), (476, 400, 563, 467)],
+        "durations": [200] * 6,
+        "shadow_rects": [(42, 445, 125, 464), (125, 445, 210, 464), (210, 445, 298, 464),
+                         (298, 445, 385, 464), (389, 445, 476, 464), (476, 445, 563, 464)],
+        # Align the stationary torso/paws, independently of ear and muzzle motion.
+        "source_anchors": [(82, 460), (164, 460), (249, 460),
+                           (339, 460), (431, 460), (517, 460)],
+        "background_columns": (600, 630, 660),
+        "state": "idle", "source_row": 6, "initial_source_row": 6, "game_repeat": -1,
+    },
     "death": {
         "rects": [(42, 474, 115, 560), (119, 470, 179, 560), (184, 472, 238, 560),
                   (239, 494, 334, 560), (335, 501, 435, 560), (438, 524, 535, 560),
@@ -81,7 +93,7 @@ def cutout(source, rect, background_seeds=(), shadow_region=None):
         threshold = 150
         if (shadow_region and shadow_region[0] <= rect[0] + x < shadow_region[2]
                 and shadow_region[1] <= rect[1] + y < shadow_region[3]):
-            # In the attack rows, baked shadows darken the checker to ~130.
+            # Baked shadows can darken the checker to ~130.
             # Flood only from background; the wolf's dark outline bounds fur.
             threshold = 110
         return max(r, g, b) - min(r, g, b) < 32 and (r + g + b) / 3 >= threshold
@@ -205,6 +217,9 @@ def save_animation(source, name, settings):
         offset_y = 100 - (148 - rect[1]) if name == "run" else 100 - bounds[3]
         if name == "walk":
             offset_y = 100 - (219 - rect[1])
+        if "source_anchors" in settings:
+            anchor_x, anchor_y = settings["source_anchors"][index]
+            offset_x, offset_y = 64 - (anchor_x - rect[0]), 100 - (anchor_y - rect[1])
         frame = Image.new("RGBA", (WIDTH, HEIGHT))
         assert 0 <= bounds[0] + offset_x < bounds[2] + offset_x <= WIDTH
         assert 0 <= bounds[1] + offset_y < bounds[3] + offset_y <= HEIGHT
@@ -235,6 +250,8 @@ def save_animation(source, name, settings):
                                  "droolSourceRects": settings.get("detail_regions", {}).get(index, []),
                                  "sourceRow": settings["initial_source_row"] if index == 0
                                  else settings["source_row"]})
+        if "source_anchors" in settings:
+            metadata[-1]["sourceAnchor"] = list(settings["source_anchors"][index])
 
     atlas = Image.new("RGBA", (WIDTH * len(frames), HEIGHT))
     shadow_atlas = Image.new("RGBA", atlas.size)
@@ -257,7 +274,7 @@ def save_animation(source, name, settings):
     previews[0].save(OUT / f"wolf-{name}.gif", save_all=True, append_images=previews[1:],
                      duration=settings["durations"], loop=0, disposal=2, optimize=False)
     result = {"frames": metadata, "durations": settings["durations"], "previewScale": 3,
-              "gameRepeat": -1 if name in ("run", "walk") else 0}
+              "gameRepeat": settings.get("game_repeat", -1 if name in ("run", "walk") else 0)}
     if name == "run":
         result.update({"state": "aggro-run", "sourceRow": 2, "shadowAtlas": "wolf-run-shadow.png",
                        "mirrorForLeft": True})
