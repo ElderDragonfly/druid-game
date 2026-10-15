@@ -376,7 +376,7 @@ try {
       return bottom - top + 1;
     };
     const ratio = height('mouse-look', 0, 32, 32) * scene.world.mice[0].scaleY /
-      (height('druid-game-source', 0, 64, 80) * scene.player.scaleY);
+      (height('druid-game-source', 0, 256, 320) * scene.player.scaleY);
     return { counts: [...counts].sort((a,b) => a-b), safe, repeatable, clustered, awayFromStart,
       regions: regions.size, mean: total / 1000, independent, ratio,
       liveIndependent: new Set(scene.world.mice.map(mouse => mouse.behavior)).size === scene.world.mice.length,
@@ -758,9 +758,9 @@ try {
       feetOffset: (lastOpaqueY + 1 - sprite.displayOriginY) * sprite.scaleY,
       bodyFeetOffset: sprite.body.bottom - sprite.y, pixelSize: sprite.scaleY };
   });
-  ok(gameArt.key === 'druid-game' && gameArt.width === 64 && gameArt.height === 80 && gameArt.colors > 256,
-    'Друид использует выбранный спрайт 64×80 без нового ограничения палитры');
-  ok(gameArt.transparent > 2000 && gameArt.opaque > 1500 && gameArt.translucent === 0,
+  ok(gameArt.key === 'druid-game' && gameArt.width === 256 && gameArt.height === 320 && gameArt.colors > 256,
+    'Друид использует принятый подробный PNG 256×320 без уменьшения сетки и ограничения палитры');
+  ok(gameArt.transparent > 32000 && gameArt.opaque > 24000 && gameArt.translucent === 0,
     'Спрайт имеет прозрачные поля и чёткие непрозрачные пиксели');
   ok(Math.abs(gameArt.displayWidth - 87.5) < 0.01 && Math.abs(gameArt.displayHeight - 109.375) < 0.01,
     'После повышения детализации размер игрового друида сохраняется: 87,5×109,375');
@@ -771,26 +771,33 @@ try {
   const directionalArt = await page.evaluate(async () => {
     const texture = window.__smokeGame.textures.get('druid-game');
     const atlas = texture.getSourceImage().getContext('2d');
-    const sources = { down: 0, up: 64, left: 128, right: 192 };
-    return Promise.all(Object.entries(sources).map(async ([direction, sourceX]) => {
-      const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/idle-64x80.png'; await image.decode();
-      const reference = document.createElement('canvas'); reference.width = 64; reference.height = 80;
-      const context = reference.getContext('2d'); context.drawImage(image, sourceX, 0, 64, 80, 0, 0, 64, 80);
-      const expected = context.getImageData(0, 0, 64, 80).data;
+    const sources = [
+      { direction: 'down', sourceX: 0, width: 256, height: 320,
+        path: '/docs/art/druid-front-refinement-v2/idle-down-256x320.png' },
+      ...Object.entries({ up: 64, left: 128, right: 192 }).map(([direction, sourceX]) => ({
+        direction, sourceX, width: 64, height: 80, path: '/docs/art/druid-basic-walk-v1/idle-64x80.png',
+      })),
+    ];
+    return Promise.all(sources.map(async ({ direction, sourceX, width, height, path }) => {
+      const image = new Image(); image.src = path; await image.decode();
+      const reference = document.createElement('canvas'); reference.width = 256; reference.height = 320;
+      const context = reference.getContext('2d'); context.imageSmoothingEnabled = false;
+      context.drawImage(image, sourceX, 0, width, height, 0, 0, 256, 320);
+      const expected = context.getImageData(0, 0, 256, 320).data;
       const frame = texture.get(direction);
-      const actual = atlas.getImageData(frame.cutX, frame.cutY, 64, 80).data;
+      const actual = atlas.getImageData(frame.cutX, frame.cutY, 256, 320).data;
       const preserved = expected.length === actual.length && actual.every((value, index) => value === expected[index]);
       let signature = 2166136261;
       let lastY = -1;
       for (let i = 0; i < actual.length; i++) signature = Math.imul(signature ^ actual[i], 16777619);
-      for (let i = 3; i < actual.length; i += 4) if (actual[i]) lastY = Math.floor(i / 4 / 64);
+      for (let i = 3; i < actual.length; i += 4) if (actual[i]) lastY = Math.floor(i / 4 / 256);
       return { direction, preserved, width: frame.width, height: frame.height, signature, feetY: lastY + 1 };
     }));
   });
-  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 64 && view.height === 80),
-    'Все четыре кадра точно совпадают с соответствующими позами Basic 64×80');
-  ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 75),
-    'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 75');
+  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 256 && view.height === 320),
+    'Фронтальный кадр совпадает с принятым PNG 1:1; остальные ракурсы сохраняют прежние пиксели при ×4 NEAREST');
+  ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 300),
+    'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 300');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
@@ -839,17 +846,20 @@ try {
     'HP остаются на экране во время движения камеры');
 
   const walkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/walk-down-64x80.png'; await image.decode();
-    const texture = window.__smokeGame.textures.get('druid-walk-down-source');
+    const image = new Image(); image.src = '/docs/art/druid-front-refinement-v2/walk-down-256x320.png'; await image.decode();
     const read = source => {
-      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-      return context.getImageData(0, 0, 256, 80).data;
+      return context.getImageData(0, 0, 1024, 320).data;
     };
-    const expected = read(image); const actual = read(texture.getSourceImage());
-    return actual.every((value, index) => value === expected[index]);
+    const expected = read(image);
+    return ['druid-walk-down-source', 'druid-walk-down-source-runtime'].every(key => {
+      const texture = window.__smokeGame.textures.get(key);
+      const actual = read(texture.getSourceImage());
+      return texture.source[0].scaleMode === 1 && actual.every((value, index) => value === expected[index]);
+    });
   });
-  ok(walkPixels, 'Цикл ходьбы использует каждый пиксель принятого PNG без перерисовки или уменьшения');
+  ok(walkPixels, 'Все четыре подробных кадра ходьбы вниз совпадают с принятым PNG в исходной и игровой текстурах');
 
   // Длинный свободный проход нужен, чтобы препятствие не прервало проверяемый цикл.
   const corridorStart = await page.evaluate(() => {
@@ -874,9 +884,9 @@ try {
     let geometryPreserved = true;
     while (performance.now() - startTime < 1180) {
       if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
-      geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+      geometryPreserved &&= p.width === 256 && p.height === 320 && p.body.width === 20 && p.body.height === 25 &&
         Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
-        Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+        Math.abs((300 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
     return { frames, geometryPreserved, distance: p.y - startY, playing: p.anims.isPlaying };
@@ -925,9 +935,9 @@ try {
     let geometryPreserved = true;
     while (performance.now() - startTime < 1180) {
       if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
-      geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+      geometryPreserved &&= p.width === 256 && p.height === 320 && p.body.width === 20 && p.body.height === 25 &&
         Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
-        Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+        Math.abs((300 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
     return { frames, geometryPreserved, distance: startY - p.y, playing: p.anims.isPlaying };
@@ -968,10 +978,10 @@ try {
       const scene = window.__smokeGame.scene.getScene('Room');
       const animation = scene.anims.get(`druid-walk-${direction}`);
       const texture = scene.textures.get(animation.frames[0].textureKey);
-      return texture.key === `druid-walk-${direction}-source` && texture.source[0].scaleMode === 1 &&
+      return texture.key === `druid-walk-${direction}-source-runtime` && texture.source[0].scaleMode === 1 &&
         animation.frames.length === 4 && animation.msPerFrame === 160;
     }, direction);
-    ok(rawBasic, `${direction}: Basic используется напрямую с NEAREST, без прежней перекраски сапог`);
+    ok(rawBasic, `${direction}: Basic сохраняется с NEAREST, прежним размером в мире и без перекраски сапог`);
     const corridorFound = await page.evaluate(sign => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const obstacles = scene.world.obstacles.getChildren().map(object => object.body);
@@ -995,9 +1005,9 @@ try {
       let geometryPreserved = true;
       while (performance.now() - startTime < 1180) {
         if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
-        geometryPreserved &&= p.width === 64 && p.height === 80 && p.body.width === 20 && p.body.height === 25 &&
+        geometryPreserved &&= p.width === 256 && p.height === 320 && p.body.width === 20 && p.body.height === 25 &&
           Math.abs(p.displayWidth - 87.5) < 0.01 && Math.abs(p.displayHeight - 109.375) < 0.01 &&
-          Math.abs((75 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
+          Math.abs((300 - p.displayOriginY) * p.scaleY - 22.5) < 0.01;
         await new Promise(resolve => requestAnimationFrame(resolve));
       }
       return { frames, geometryPreserved, distance: (p.x - startX) * sign, playing: p.anims.isPlaying };

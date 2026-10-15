@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
-import idleSource from '../../docs/art/druid-basic-walk-v1/idle-64x80.png';
-import walkDownSource from '../../docs/art/druid-basic-walk-v1/walk-down-64x80.png';
+import idleSource from '../../docs/art/druid-front-refinement-v2/idle-down-256x320.png';
+import legacyIdleSource from '../../docs/art/druid-basic-walk-v1/idle-64x80.png';
+import walkDownSource from '../../docs/art/druid-front-refinement-v2/walk-down-256x320.png';
 import walkUpSource from '../../docs/art/druid-basic-walk-v1/walk-up-64x80.png';
 import walkLeftSource from '../../docs/art/druid-basic-walk-v1/walk-left-64x80.png';
 import walkRightSource from '../../docs/art/druid-basic-walk-v1/walk-right-64x80.png';
@@ -25,11 +26,11 @@ export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
   { key: DRUID_TEXTURES.basic, url: basic, frame: { x: 270, y: 80, width: 725, height: 1105 } },
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
-  { key: DRUID_TEXTURES.gameSource, url: idleSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
-  { key: DRUID_TEXTURES.leftSource, url: idleSource, frame: { x: 128, y: 0, width: 64, height: 80 } },
-  { key: DRUID_TEXTURES.rightSource, url: idleSource, frame: { x: 192, y: 0, width: 64, height: 80 } },
-  { key: DRUID_TEXTURES.backSource, url: idleSource, frame: { x: 64, y: 0, width: 64, height: 80 } },
-  { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.gameSource, url: idleSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
+  { key: DRUID_TEXTURES.leftSource, url: legacyIdleSource, frame: { x: 128, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.rightSource, url: legacyIdleSource, frame: { x: 192, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.backSource, url: legacyIdleSource, frame: { x: 64, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
   { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkLeft, url: walkLeftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkRight, url: walkRightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
@@ -46,8 +47,8 @@ export interface GameSpriteMetrics {
 }
 
 export const GAME_DRUID = {
-  // Выбранная сетка 64×80; размер в мире и физическое тело прежние.
-  width: 64, height: 80, scale: 87.5 / 64, feetY: 75,
+  // Общая сетка сохраняет подробный фронтальный PNG 1:1; размер в мире прежний.
+  width: 256, height: 320, scale: 87.5 / 256, feetY: 300,
   bodyWidth: 20, bodyHeight: 25, bodyCenterY: 10,
 } as const satisfies GameSpriteMetrics;
 
@@ -58,10 +59,9 @@ interface DruidView {
   footX: number;
 }
 
-// Неподвижные ракурсы Basic собраны из проходных поз того же набора.
-// Последние пять строк PNG прозрачны; опора ног остаётся на строке 75.
+// Остальные ракурсы пока прежние: целочисленное ×4 сохраняет их рисунок.
 export const DRUID_VIEWS: readonly DruidView[] = [
-  { direction: 'down', sourceKey: DRUID_TEXTURES.gameSource, x: 0, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'down', sourceKey: DRUID_TEXTURES.gameSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
   { direction: 'left', sourceKey: DRUID_TEXTURES.leftSource, x: 128, y: 0, width: 64, height: 75, footX: 32 },
   { direction: 'right', sourceKey: DRUID_TEXTURES.rightSource, x: 192, y: 0, width: 64, height: 75, footX: 32 },
   { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 64, y: 0, width: 64, height: 75, footX: 32 },
@@ -70,13 +70,13 @@ export const DRUID_VIEWS: readonly DruidView[] = [
 // Новые циклы добавляются сюда; отсутствие цикла оставляет неподвижный ракурс.
 export const DRUID_WALKS = [
   { direction: 'down', sourceKey: DRUID_TEXTURES.walkDown, animationKey: 'druid-walk-down',
-    frameCount: 4, frameDurationMs: 160 },
+    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
   { direction: 'up', sourceKey: DRUID_TEXTURES.walkUp, animationKey: 'druid-walk-up',
-    frameCount: 4, frameDurationMs: 160 },
+    frameWidth: 64, frameHeight: 80, frameCount: 4, frameDurationMs: 160 },
   { direction: 'left', sourceKey: DRUID_TEXTURES.walkLeft, animationKey: 'druid-walk-left',
-    frameCount: 4, frameDurationMs: 160 },
+    frameWidth: 64, frameHeight: 80, frameCount: 4, frameDurationMs: 160 },
   { direction: 'right', sourceKey: DRUID_TEXTURES.walkRight, animationKey: 'druid-walk-right',
-    frameCount: 4, frameDurationMs: 160 },
+    frameWidth: 64, frameHeight: 80, frameCount: 4, frameDurationMs: 160 },
 ] as const;
 
 export const DRUID_WALK_ANIMATIONS = Object.fromEntries(
@@ -103,10 +103,12 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     DRUID_VIEWS.forEach((view, index) => {
       const source = scene.textures.get(view.sourceKey).getSourceImage() as HTMLImageElement;
       const frameX = index * width;
-      const x = frameX + width / 2 - view.footX;
-      const y = feetY - view.height;
-      // Копирование 1:1: не уменьшаем сетку и не ограничиваем палитру.
-      atlas.context.drawImage(source, view.x, view.y, view.width, view.height, x, y, view.width, view.height);
+      const pixelScale = width / view.width;
+      const x = frameX + width / 2 - view.footX * pixelScale;
+      const y = feetY - view.height * pixelScale;
+      // Новый PNG копируется 1:1, прежние — ×4 с NEAREST без новых деталей.
+      atlas.context.drawImage(source, view.x, view.y, view.width, view.height,
+        x, y, view.width * pixelScale, view.height * pixelScale);
       atlas.add(view.direction, 0, frameX, 0, width, height);
     });
     // Убираем слабую фоновую дымку генерации; цвет и детали фигуры сохраняются.
@@ -118,7 +120,17 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
     atlas.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
   for (const walk of DRUID_WALKS) {
-    const key = walk.sourceKey;
+    const key = `${walk.sourceKey}-runtime`;
+    if (!scene.textures.exists(key)) {
+      const source = scene.textures.get(walk.sourceKey).getSourceImage() as HTMLImageElement;
+      const atlas = scene.textures.createCanvas(key, GAME_DRUID.width * walk.frameCount, GAME_DRUID.height)!;
+      atlas.context.imageSmoothingEnabled = false;
+      for (let i = 0; i < walk.frameCount; i++) {
+        atlas.context.drawImage(source, i * walk.frameWidth, 0, walk.frameWidth, walk.frameHeight,
+          i * GAME_DRUID.width, 0, GAME_DRUID.width, GAME_DRUID.height);
+      }
+      atlas.refresh().setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
     const texture = scene.textures.get(key);
     const frames = Array.from({ length: walk.frameCount }, (_, index) => {
       const frame = `walk-${walk.direction}-${index}`;

@@ -1,0 +1,56 @@
+{
+  "integrated": false,
+  "direction": "up",
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "previewScale": 1,
+  "baselineY": 300,
+  "scale": 0.611353711790393,
+  "registration": "hood center, independent of feet and staff",
+  "anchors": [
+    {
+      "top": 26,
+      "ground": 478,
+      "anchorX": 582.0
+    },
+    {
+      "top": 26,
+      "ground": 478,
+      "anchorX": 982.0
+    },
+    {
+      "top": 518,
+      "ground": 976,
+      "anchorX": 583.0
+    },
+    {
+      "top": 518,
+      "ground": 956,
+      "anchorX": 982.0
+    }
+  ],
+  "staff": {
+    "anatomicalHand": "left",
+    "screenSide": "left",
+    "rigidMaster": true,
+    "liftPixels": [
+      0,
+      6,
+      12,
+      6
+    ],
+    "plantedOffsetY": 9,
+    "plantsPerCycle": 1,
+    "stepsPerCycle": 2
+  },
+  "sources": [
+    "walk-source.png",
+    "walk-body-source.png"
+  ],
+  "layersBackToFront": [
+    "walk-arm-staff-256x320.png",
+    "walk-body-256x320.png"
+  ]
+}

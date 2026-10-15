@@ -1,4 +1,4 @@
-"""Detailed Basic 04 proposal, separate from runtime art.
+"""Accepted detailed Basic 04 front assets, now used by the game.
 
 Idle is reduced from the approved Basic 04, with a local rope-knot correction.
 The four drawn body poses receive local face and knot edits. One forearm/staff
@@ -232,7 +232,7 @@ def main():
     gif_frames = [preview(frame).quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames]
     gif_frames[0].save(OUT / 'walk-down-preview.gif', save_all=True, append_images=gif_frames[1:],
                        duration=FRAME_MS, loop=0, disposal=2, optimize=False)
-    metadata = {'integrated': False, 'frameWidth': SIZE[0], 'frameHeight': SIZE[1],
+    metadata = {'integrated': True, 'frameWidth': SIZE[0], 'frameHeight': SIZE[1],
         'frameCount': 4, 'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
         'idleSource': '../druid-sprites-v1/druid-04-basic.png', 'idleRedrawn': True,
         'localEdits': {'walkSource': 'walk-local-edit-source.png', 'idleSource': 'idle-knot-source.png',
@@ -247,7 +247,7 @@ def main():
                   'plantsPerCycle': 1, 'stepsPerCycle': 2},
         'layers': ['walk-body-256x320.png', 'walk-arm-staff-256x320.png', 'walk-cloak-foreground-256x320.png']}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    print('Basic 04: native 256x320, four 240ms frames, one staff plant per two steps, no runtime changes.')
+    print('Accepted front Basic 04: 256x320, four 240ms preview frames, one staff plant per two steps.')
 
 
 if __name__ == '__main__':

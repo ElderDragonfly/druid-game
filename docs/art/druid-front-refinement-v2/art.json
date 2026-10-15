@@ -1,5 +1,5 @@
 {
-  "integrated": false,
+  "integrated": true,
   "frameWidth": 256,
   "frameHeight": 320,
   "frameCount": 4,
