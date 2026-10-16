@@ -65,7 +65,7 @@ try {
   const loaded = await page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return ['main-camp', 'selection-camp', 'druid-standing-detail', 'druid-basic-detail', 'druid-camp-source', 'druid-game-source',
-      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source', 'druid-walk-right-source']
+      'druid-left-source', 'druid-right-source', 'druid-back-source', 'druid-walk-down-source', 'druid-walk-up-source', 'druid-walk-left-source', 'druid-walk-right-source', ...['down-left', 'down-right', 'up-left', 'up-right'].flatMap(d => [`druid-${d}-source`, `druid-walk-${d}-source`])]
       .every(key => game.textures.exists(key) && game.textures.get(key).getSourceImage().width > 0);
   });
   ok(loaded, 'Фоны, подробный портрет и два простых образа друида загружены');
@@ -545,7 +545,7 @@ try {
     for (let i = 0; i < mask.length; i += 4) if (mask[i + 3]) {
       for (let c = 0; c < 4; c++) sameFloorPixels &&= mask[i + c] === colors[i + c];
     }
-    for (const direction of ['down', 'up', 'left', 'right']) {
+    for (const direction of ['down', 'up', 'left', 'right', 'down-left', 'down-right', 'up-left', 'up-right']) {
       scene.player.setTexture('druid-game', direction);
       overlay.setVisible(false); await frames(); const before = read();
       overlay.setVisible(true); await frames(); const after = read();
@@ -571,7 +571,7 @@ try {
     return result;
   });
   ok(grassRendering.changedAllDirections && grassRendering.bootsOnly,
-    'Во всех четырёх ракурсах трава действительно перекрывает только низ обуви на игровом холсте');
+    'Во всех восьми ракурсах трава действительно перекрывает только низ обуви на игровом холсте');
   ok(grassRendering.flatUnchanged, 'На ровном покрове передний слой полностью прозрачен и не меняет изображение друида');
   ok(grassRendering.sameFloorPixels && grassRendering.staticPixels && grassRendering.nearest,
     'Передние травинки сохраняют цвета и позиции подстилки, остаются неподвижными и без сглаживания');
@@ -771,16 +771,10 @@ try {
   const directionalArt = await page.evaluate(async () => {
     const texture = window.__smokeGame.textures.get('druid-game');
     const atlas = texture.getSourceImage().getContext('2d');
-    const sources = [
-      { direction: 'down', sourceX: 0, width: 256, height: 320,
-        path: '/docs/art/druid-front-refinement-v2/idle-down-256x320.png' },
-      { direction: 'up', sourceX: 0, width: 256, height: 320,
-        path: '/docs/art/druid-back-refinement-v1/idle-up-256x320.png' },
-      ...['left', 'right'].map(direction => ({
-        direction, sourceX: 0, width: 256, height: 320,
-        path: `/docs/art/druid-side-refinement-v1/walk-${direction}-256x320.png`,
-      })),
-    ];
+    const sources = ['down', 'up', 'left', 'right', 'down-left', 'down-right', 'up-left', 'up-right'].map(direction => ({
+      direction, sourceX: 0, width: 256, height: 320,
+      path: `/docs/art/druid-eight-way-v1/idle-${direction}-256x320.png`,
+    }));
     return Promise.all(sources.map(async ({ direction, sourceX, width, height, path }) => {
       const image = new Image(); image.src = path; await image.decode();
       const reference = document.createElement('canvas'); reference.width = 256; reference.height = 320;
@@ -797,10 +791,10 @@ try {
       return { direction, preserved, width: frame.width, height: frame.height, signature, feetY: lastY + 1 };
     }));
   });
-  ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 256 && view.height === 320),
-    'Все четыре неподвижных ракурса совпадают с выбранными подробными PNG 1:1');
-  ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 300),
-    'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 300');
+  ok(directionalArt.length === 8 && directionalArt.every(view => view.preserved && view.width === 256 && view.height === 320),
+    'Все восемь неподвижных ракурсов совпадают с отдельными подробными PNG 1:1');
+  ok(new Set(directionalArt.map(view => view.signature)).size === 8 && directionalArt.every(view => view.feetY === 300),
+    'Ракурсы различаются; все восемь фигур имеют общую опору ног на строке 300');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
   assertMeadow(initial);
   await page.screenshot({ path: fileURLToPath(new URL('../test-results/room.png', import.meta.url)) });
@@ -849,7 +843,7 @@ try {
     'HP остаются на экране во время движения камеры');
 
   const walkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-front-refinement-v2/walk-down-256x320.png'; await image.decode();
+    const image = new Image(); image.src = '/docs/art/druid-eight-way-v1/walk-down-256x320.png'; await image.decode();
     const read = source => {
       const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
@@ -905,7 +899,7 @@ try {
   ok(idleAfterWalk.facing === 'down', 'Отпускание S останавливает цикл и возвращает стоящий фронтальный спрайт');
 
   const upWalkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-back-refinement-v1/walk-up-256x320.png'; await image.decode();
+    const image = new Image(); image.src = '/docs/art/druid-eight-way-v1/walk-up-256x320.png'; await image.decode();
     const read = source => {
       const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
@@ -956,8 +950,8 @@ try {
     'Во время ходьбы вверх сохраняются движение, размер, опора ног и физическое тело');
   // Проверяем переключение между активными циклами без остановки движения.
   await page.keyboard.down('d');
-  const rightDuringWalk = await waitState(current => current.facing === 'right' && current.animationKey === 'druid-walk-right' && current.animationPlaying);
-  ok(rightDuringWalk.vx > 0, 'Переход с W на W+D переключает ходьбу вверх на принятый цикл вправо');
+  const rightDuringWalk = await waitState(current => current.facing === 'up-right' && current.animationKey === 'druid-walk-up-right' && current.animationPlaying);
+  ok(rightDuringWalk.vx > 0, 'Переход с W на W+D включает отдельный диагональный цикл вверх-вправо');
   await page.keyboard.up('d');
   await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-up');
   await page.keyboard.up('w');
@@ -976,15 +970,15 @@ try {
     context.drawImage(scene.textures.get('druid-walk-up-source').getSourceImage(), 0, 0);
     const walking = context.getImageData(0, 0, 256, 320).data;
     const bootGrounded = (left, right) => {
-      for (let x = left; x < right; x++) if (standing[(299 * 256 + x) * 4 + 3]) return true;
+      for (let y = 280; y < 300; y++) for (let x = left; x < right; x++) if (standing[(y * 256 + x) * 4 + 3]) return true;
       return false;
     };
     return { bothPlanted: bootGrounded(100, 130) && bootGrounded(134, 165),
       differentLegs: standing.some((value, i) => i >= 200 * 256 * 4 && value !== walking[i]),
-      sameUpperBody: standing.slice(0, 200 * 256 * 4).every((value, i) => value === walking[i]) };
+      sameHood: standing.slice(0, 65 * 256 * 4).every((value, i) => value === walking[i]) };
   });
-  ok(plantedUp.bothPlanted && plantedUp.differentLegs && plantedUp.sameUpperBody,
-    'После W обе подошвы на земле: отдельные стоящие ноги, принятые корпус и посох сохранены');
+  ok(plantedUp.bothPlanted && plantedUp.differentLegs && plantedUp.sameHood,
+    'После W обе ноги опущены в устойчивую стойку; принятый капюшон сохранён');
   for (let phase = 0; phase < 4; phase++) {
     // Each phase starts in the same clear corridor, away from the world edge.
     await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), upCorridor);
@@ -996,8 +990,8 @@ try {
   ok(true, 'Остановка в каждой из четырёх фаз W возвращает отдельную стоящую позу');
 
   for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-side-refinement-v1' },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-side-refinement-v1' },
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-eight-way-v1' },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-eight-way-v1' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
       const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-256x320.png`; await image.decode();
@@ -1063,6 +1057,75 @@ try {
     await page.keyboard.up(key);
     const idle = await waitState(current => !current.animationPlaying && current.frame === direction && current.vx === 0);
     ok(idle.facing === direction, `Отпускание ${key.toUpperCase()} возвращает стоящий спрайт ${direction}`);
+  }
+
+  const clearSquare = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const obstacles = scene.world.obstacles.getChildren().map(o => o.body);
+    for (let y = 280; y < scene.layout.height - 280; y += 30) {
+      for (let x = 280; x < scene.layout.width - 280; x += 30) {
+        if (!obstacles.some(o => x - 250 < o.right && x + 250 > o.x && y - 250 < o.bottom && y + 250 > o.y)) return { x, y };
+      }
+    }
+    return null;
+  });
+  assert.ok(clearSquare, 'Нет свободного участка для проверки диагональных циклов');
+  for (const [direction, keys, sx, sy] of [
+    ['down-left', ['s', 'a'], -1, 1], ['down-right', ['s', 'd'], 1, 1],
+    ['up-left', ['w', 'a'], -1, -1], ['up-right', ['w', 'd'], 1, -1],
+  ]) {
+    const exactPixels = await page.evaluate(async direction => {
+      const image = new Image(); image.src = `/docs/art/druid-eight-way-v1/walk-${direction}-256x320.png`; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
+      const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+      const reference = context.getImageData(0, 0, 1024, 320).data;
+      return ['', '-runtime'].every(suffix => {
+        const texture = window.__smokeGame.textures.get(`druid-walk-${direction}-source${suffix}`);
+        context.clearRect(0, 0, 1024, 320); context.drawImage(texture.getSourceImage(), 0, 0);
+        return texture.source[0].scaleMode === 1 && context.getImageData(0, 0, 1024, 320).data.every((v, i) => v === reference[i]);
+      });
+    }, direction);
+    ok(exactPixels, `${direction}: четыре подробных PNG-кадра сохранены 1:1, NEAREST`);
+    await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), clearSquare);
+    for (const key of keys) await page.keyboard.down(key);
+    await waitState(s => s.animationPlaying && s.animationKey === `druid-walk-${direction}`);
+    const sample = await page.evaluate(async () => {
+      const p = window.__smokeGame.scene.getScene('Room').player;
+      const x = p.x, y = p.y, started = performance.now(), frames = [];
+      while (performance.now() - started < 1180) {
+        if (frames.at(-1) !== p.frame.name) frames.push(p.frame.name);
+        await new Promise(requestAnimationFrame);
+      }
+      return { frames, dx: p.x - x, dy: p.y - y, speed: p.body.velocity.length(),
+        width: p.width, height: p.height, bodyWidth: p.body.width, bodyHeight: p.body.height };
+    });
+    const indices = sample.frames.map(f => Number(f.replace(`walk-${direction}-`, '')));
+    ok(new Set(indices).size === 4 && indices.length >= 5 && indices.every((n, i) => !i || n === (indices[i - 1] + 1) % 4),
+      `${direction}: отдельные четыре фазы проигрываются и повторяются`);
+    ok(sample.dx * sx > 100 && sample.dy * sy > 100 && Math.abs(sample.speed - 220 * 2 / 3) < .01 &&
+      sample.width === 256 && sample.height === 320 && sample.bodyWidth === 20 && sample.bodyHeight === 25,
+      `${direction}: верное направление, обычная скорость и прежняя геометрия героя`);
+    // Release both keys before the next scene update, like the blur reset path.
+    await page.evaluate(() => window.__smokeGame.events.emit('blur'));
+    await Promise.all(keys.map(key => page.keyboard.up(key)));
+    const idle = await waitState(s => !s.animationPlaying && s.frame === direction && s.vx === 0 && s.vy === 0);
+    ok(idle.facing === direction, `${direction}: остановка использует отдельную устойчивую позу`);
+  }
+
+  for (const [key, direction] of [['a', 'left'], ['d', 'right']]) {
+    await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), clearSquare);
+    const poses = []; let previous = await state();
+    for (let tap = 0; tap < 4; tap++) {
+      await page.keyboard.down(key);
+      const walking = await waitState(s => s.animationPlaying && s.animationKey === `druid-walk-${direction}`);
+      poses.push(walking.frame);
+      await delay(65);
+      await page.keyboard.up(key);
+      const idle = await waitState(s => !s.animationPlaying && s.frame === direction && s.vx === 0);
+      assert.ok(Math.abs(idle.x - previous.x) > 0, 'Короткое нажатие действительно двигает героя');
+      previous = idle;
+    }
+    ok(new Set(poses).size === 4, `${direction}: четыре коротких нажатия продолжают шаг, вместо повторения одной позы (${poses.join(', ')})`);
   }
 
   const observedMouse = await page.evaluate(() => window.__mouseObservation);
@@ -1180,7 +1243,7 @@ try {
   await delay(100);
   const diagonal = await state();
   ok(Math.abs(Math.hypot(diagonal.vx, diagonal.vy) - 220 * 2 / 3) < 0.1, 'Диагональ не увеличивает скорость');
-  ok(diagonal.facing === 'right' && diagonal.animationPlaying && diagonal.animationKey === 'druid-walk-right', 'При S+D последняя нажатая D включает ходьбу вправо');
+  ok(diagonal.facing === 'down-right' && diagonal.animationPlaying && diagonal.animationKey === 'druid-walk-down-right', 'При S+D включается отдельный диагональный ракурс вниз-вправо');
   await page.keyboard.up('d');
   const remaining = await waitState(current => current.animationPlaying && current.animationKey === 'druid-walk-down' && current.vx === 0);
   ok(remaining.facing === 'down', 'После отпускания D удерживаемая S включает ходьбу вниз');

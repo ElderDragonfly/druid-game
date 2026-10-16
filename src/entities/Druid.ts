@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import { CHARACTERS, type CharacterDefinition } from '../data/characters';
 import { DruidMovement, type DruidState } from '../behavior/DruidMovement';
-import type { Facing } from '../input/FourWayFacing';
+import type { Facing } from '../input/EightWayFacing';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly actorState: DruidState;
   readonly behavior: DruidMovement;
   readonly appearance;
+  private activeWalk?: Facing;
+  private nextWalkFrame: Partial<Record<Facing, number>> = {};
 
   constructor(scene: Phaser.Scene, readonly definition: CharacterDefinition) {
     const appearance = definition.game ?? CHARACTERS[0].game!;
@@ -36,14 +38,30 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
     const speed = stopped ? 0 : this.behavior.travelSpeed(body.velocity, body.blocked);
     const animation = speed > .01 ? this.appearance.walkAnimations?.[this.actorState.facing] : undefined;
     if (animation) {
-      this.play(animation, true);
+      if (!this.anims.isPlaying || this.anims.currentAnim?.key !== animation) {
+        this.rememberStep();
+        const direction = this.actorState.facing;
+        // Begin visibly stepping immediately. Successive short taps continue
+        // with the next pose instead of resetting to the same first frame.
+        this.play({ key: animation, startFrame: this.nextWalkFrame[direction] ?? 0 });
+        this.activeWalk = direction;
+      }
       this.anims.timeScale = speed / (this.definition.stats ?? CHARACTERS[0].stats!).walkReferenceSpeed;
     } else {
+      this.rememberStep();
       this.anims.stop();
       this.anims.timeScale = 1;
       const frame = this.appearance.frames?.[this.actorState.facing];
       if (this.texture.key !== this.appearance.texture) this.setTexture(this.appearance.texture, frame);
       else if (frame && this.frame.name !== frame) this.setFrame(frame, false, false);
     }
+  }
+
+  private rememberStep() {
+    if (!this.activeWalk) return;
+    const count = this.anims.currentAnim?.frames.length ?? 4;
+    // Phaser's AnimationFrame.index is one-based; this is the next zero-based pose.
+    this.nextWalkFrame[this.activeWalk] = (this.anims.currentFrame?.index ?? 1) % count;
+    this.activeWalk = undefined;
   }
 }

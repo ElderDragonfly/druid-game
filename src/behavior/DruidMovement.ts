@@ -1,4 +1,4 @@
-import type { Facing } from '../input/FourWayFacing';
+import type { Facing } from '../input/EightWayFacing';
 
 export interface DruidState {
   health: number;

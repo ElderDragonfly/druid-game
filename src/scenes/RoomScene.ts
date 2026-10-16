@@ -6,7 +6,7 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
 import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
-import { FourWayFacing, type Facing, type MovementKeys } from '../input/FourWayFacing';
+import { EightWayFacing, type Facing, type MovementKeys } from '../input/EightWayFacing';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -16,7 +16,7 @@ export class RoomScene extends Phaser.Scene {
   world!: MeadowWorld;
   private seed = 0;
   private movement!: MovementKeys;
-  private facingInput!: FourWayFacing;
+  private facingInput!: EightWayFacing;
   facing: Facing = 'down';
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
@@ -48,7 +48,7 @@ export class RoomScene extends Phaser.Scene {
       up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as typeof this.movement;
-    this.facingInput = new FourWayFacing(this.movement);
+    this.facingInput = new EightWayFacing(this.movement);
     // Arcade syncs sprite coordinates in post-update; sample grass after that sync.
     const updateGrass = (_time: number, delta: number) => {
       this.world.update(delta);
@@ -62,7 +62,6 @@ export class RoomScene extends Phaser.Scene {
     const resize = () => this.resizeCameras();
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.facingInput.destroy();
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);

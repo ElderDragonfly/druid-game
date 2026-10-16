@@ -1,0 +1,34 @@
+{
+  "integrated": true,
+  "directions": [
+    "down",
+    "left",
+    "right",
+    "up",
+    "down-left",
+    "down-right",
+    "up-left",
+    "up-right"
+  ],
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "paletteReference": "docs/art/druid-front-refinement-v2/idle-down-256x320.png",
+  "clothMapping": "shared reference RGB palette, fixed per-direction lightness lookup",
+  "staffHand": "anatomical-left",
+  "diagonalStaffLift": [
+    0,
+    6,
+    12,
+    6
+  ],
+  "rearShoulderTiltPx": [
+    1.8,
+    0,
+    -1.8,
+    0
+  ],
+  "separateIdlePoses": true,
+  "diagonalLegGait": "accepted front/rear full legs, hip-anchored shear +/-0.14, alternating footfalls"
+}

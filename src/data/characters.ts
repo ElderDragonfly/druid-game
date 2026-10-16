@@ -1,5 +1,5 @@
 import { CAMP_DRUID, DRUID_TEXTURES, DRUID_WALK_ANIMATIONS, GAME_DRUID, type GameSpriteMetrics } from '../rendering/druidArt';
-import type { Facing } from '../input/FourWayFacing';
+import type { Facing } from '../input/EightWayFacing';
 
 export interface CharacterDefinition {
   id: string;
@@ -21,7 +21,8 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID,
-      frames: { up: 'up', down: 'down', left: 'left', right: 'right' }, walkAnimations: DRUID_WALK_ANIMATIONS },
+      frames: { up: 'up', down: 'down', left: 'left', right: 'right',
+        'down-left': 'down-left', 'down-right': 'down-right', 'up-left': 'up-left', 'up-right': 'up-right' }, walkAnimations: DRUID_WALK_ANIMATIONS },
   },
   { id: 'locked-1', name: 'Закрыто', available: false, description: 'Пока недоступен', portrait: { texture: DRUID_TEXTURES.standing, frame: 'figure' } },
   { id: 'locked-2', name: 'Закрыто', available: false, description: 'Пока недоступен', portrait: { texture: DRUID_TEXTURES.standing, frame: 'figure' } },

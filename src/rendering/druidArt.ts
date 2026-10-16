@@ -2,39 +2,42 @@ import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
-import idleSource from '../../docs/art/druid-front-refinement-v2/idle-down-256x320.png';
-import idleUpSource from '../../docs/art/druid-back-refinement-v1/idle-up-256x320.png';
-import walkDownSource from '../../docs/art/druid-front-refinement-v2/walk-down-256x320.png';
-import walkUpSource from '../../docs/art/druid-back-refinement-v1/walk-up-256x320.png';
-import walkLeftSource from '../../docs/art/druid-side-refinement-v1/walk-left-256x320.png';
-import walkRightSource from '../../docs/art/druid-side-refinement-v1/walk-right-256x320.png';
-import type { Facing } from '../input/FourWayFacing';
+import { FACINGS, type Facing } from '../input/EightWayFacing';
+
+const sources = import.meta.glob<string>('../../docs/art/druid-eight-way-v1/{idle,walk}-*-256x320.png',
+  { eager: true, query: '?url', import: 'default' });
+function sourceUrl(kind: 'idle' | 'walk', direction: Facing) {
+  const path = `../../docs/art/druid-eight-way-v1/${kind}-${direction}-256x320.png`;
+  const url = sources[path];
+  if (!url) throw new Error(`Missing druid art: ${path}`);
+  return url;
+}
 
 export const DRUID_TEXTURES = {
-  standing: 'druid-standing-detail',
-  basic: 'druid-basic-detail',
+  standing: 'druid-standing-detail', basic: 'druid-basic-detail',
   campSource: 'druid-camp-source', camp: 'druid-camp',
   gameSource: 'druid-game-source', game: 'druid-game',
   leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
-  walkDown: 'druid-walk-down-source',
-  walkUp: 'druid-walk-up-source',
-  walkLeft: 'druid-walk-left-source',
-  walkRight: 'druid-walk-right-source',
+  walkDown: 'druid-walk-down-source', walkUp: 'druid-walk-up-source',
+  walkLeft: 'druid-walk-left-source', walkRight: 'druid-walk-right-source',
 } as const;
+
+const idleKeys: Record<Facing, string> = {
+  down: DRUID_TEXTURES.gameSource, up: DRUID_TEXTURES.backSource,
+  left: DRUID_TEXTURES.leftSource, right: DRUID_TEXTURES.rightSource,
+  'down-left': 'druid-down-left-source', 'down-right': 'druid-down-right-source',
+  'up-left': 'druid-up-left-source', 'up-right': 'druid-up-right-source',
+};
 
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
   { key: DRUID_TEXTURES.basic, url: basic, frame: { x: 270, y: 80, width: 725, height: 1105 } },
   { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
-  { key: DRUID_TEXTURES.gameSource, url: idleSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.leftSource, url: walkLeftSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.rightSource, url: walkRightSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.backSource, url: idleUpSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.walkLeft, url: walkLeftSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.walkRight, url: walkRightSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-] as const;
+  ...FACINGS.flatMap(direction => [
+    { key: idleKeys[direction], url: sourceUrl('idle', direction), frame: { x: 0, y: 0, width: 256, height: 320 } },
+    { key: `druid-walk-${direction}-source`, url: sourceUrl('walk', direction), frame: { x: 0, y: 0, width: 256, height: 320 } },
+  ]),
+];
 
 export const CAMP_DRUID = {
   width: 696, height: 864, scale: 960 / 1536,
@@ -59,25 +62,15 @@ interface DruidView {
   footX: number;
 }
 
-// Все принятые ракурсы используют общую сетку без пересчёта пикселей.
-export const DRUID_VIEWS: readonly DruidView[] = [
-  { direction: 'down', sourceKey: DRUID_TEXTURES.gameSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
-  { direction: 'left', sourceKey: DRUID_TEXTURES.leftSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
-  { direction: 'right', sourceKey: DRUID_TEXTURES.rightSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
-  { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
-];
+// All eight idle poses are separate drawings, independent of walking frames.
+export const DRUID_VIEWS: readonly DruidView[] = FACINGS.map(direction => ({
+  direction, sourceKey: idleKeys[direction], x: 0, y: 0, width: 256, height: 320, footX: 128,
+}));
 
-// Новые циклы добавляются сюда; отсутствие цикла оставляет неподвижный ракурс.
-export const DRUID_WALKS = [
-  { direction: 'down', sourceKey: DRUID_TEXTURES.walkDown, animationKey: 'druid-walk-down',
-    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
-  { direction: 'up', sourceKey: DRUID_TEXTURES.walkUp, animationKey: 'druid-walk-up',
-    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
-  { direction: 'left', sourceKey: DRUID_TEXTURES.walkLeft, animationKey: 'druid-walk-left',
-    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
-  { direction: 'right', sourceKey: DRUID_TEXTURES.walkRight, animationKey: 'druid-walk-right',
-    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
-] as const;
+export const DRUID_WALKS = FACINGS.map(direction => ({
+  direction, sourceKey: `druid-walk-${direction}-source`, animationKey: `druid-walk-${direction}`,
+  frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160,
+}));
 
 export const DRUID_WALK_ANIMATIONS = Object.fromEntries(
   DRUID_WALKS.map(walk => [walk.direction, walk.animationKey]),
@@ -105,7 +98,7 @@ export function prepareDruidTextures(scene: Phaser.Scene) {
       const frameX = index * width;
       const pixelScale = width / view.width;
       const x = frameX + width / 2 - view.footX * pixelScale;
-      const y = feetY - view.height * pixelScale;
+      const y = feetY - GAME_DRUID.feetY * pixelScale;
       // Принятые PNG копируются 1:1 с NEAREST, без потери деталей.
       atlas.context.drawImage(source, view.x, view.y, view.width, view.height,
         x, y, view.width * pixelScale, view.height * pixelScale);
