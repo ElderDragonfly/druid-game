@@ -1,0 +1,103 @@
+{
+  "integrated": true,
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "cycleDurationMs": 960,
+  "directions": {
+    "down-left": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        1380,
+        1409,
+        859,
+        1145
+      ]
+    },
+    "down-right": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        935,
+        1101,
+        717,
+        1214
+      ]
+    },
+    "up-left": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        2633,
+        2777,
+        2178,
+        2451
+      ]
+    },
+    "up-right": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        2706,
+        3303,
+        2302,
+        3527
+      ]
+    }
+  },
+  "rearHalfCycles": [
+    {
+      "support": "left",
+      "swing": "right",
+      "frames": [
+        0,
+        1
+      ],
+      "durationMs": 480
+    },
+    {
+      "support": "right",
+      "swing": "left",
+      "frames": [
+        2,
+        3
+      ],
+      "durationMs": 480
+    }
+  ],
+  "rearSourcePoses": [
+    "half-a:0",
+    "half-a:1",
+    "half-b:0",
+    "half-b:1"
+  ],
+  "brownReference": "druid-front-refinement-v2/idle-down-256x320.png",
+  "brownTransfer": "fixed per-source tone lookup; exact original trouser/boot palette",
+  "frontGeometry": "v2 leg alpha and pose order retained exactly",
+  "preserved": "accepted upper body, cloak, staff, all idle and cardinal art",
+  "shear": false
+}

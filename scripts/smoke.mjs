@@ -1074,9 +1074,9 @@ try {
     ['down-left', ['s', 'a'], -1, 1], ['down-right', ['s', 'd'], 1, 1],
     ['up-left', ['w', 'a'], -1, -1], ['up-right', ['w', 'd'], 1, -1],
   ]) {
-    const frameCount = direction.startsWith('up-') ? 8 : 4;
+    const frameCount = 4;
     const exactPixels = await page.evaluate(async ({ direction, frameCount }) => {
-      const image = new Image(); image.src = `/docs/art/druid-diagonal-legs-v2/walk-${direction}-256x320.png`; await image.decode();
+      const image = new Image(); image.src = `/docs/art/druid-diagonal-legs-v3/walk-${direction}-256x320.png`; await image.decode();
       const width = frameCount * 256;
       const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
@@ -1091,7 +1091,7 @@ try {
       context.clearRect(0, 0, width, 320);
       for (let i = 0; i < frameCount; i++) context.drawImage(original, Math.floor(i * 4 / frameCount) * 256, 0, 256, 320, i * 256, 0, 256, 320);
       const previous = context.getImageData(0, 0, width, 320).data;
-      const maskImage = new Image(); maskImage.src = `/docs/art/druid-diagonal-legs-v2/protected-${direction}-256x320.png`; await maskImage.decode();
+      const maskImage = new Image(); maskImage.src = `/docs/art/druid-diagonal-legs-v3/protected-${direction}-256x320.png`; await maskImage.decode();
       context.clearRect(0, 0, width, 320); context.drawImage(maskImage, 0, 0);
       const mask = context.getImageData(0, 0, width, 320).data;
       let protectedUnchanged = true, changedPixels = 0, changedHipPixels = 0;
@@ -1113,9 +1113,66 @@ try {
     ok(exactPixels.protectedUnchanged && exactPixels.changedPixels > 500,
       `${direction}: заменены ноги, все защищённые пиксели принятого корпуса и плаща сохранены`);
     ok(exactPixels.frames === frameCount && Math.abs(exactPixels.cycleMs - 960) < .01,
-      `${direction}: промежуточные фазы сохраняют прежний цикл 960 мс`);
+      `${direction}: четыре равномерные фазы сохраняют прежний цикл 960 мс`);
     if (direction.startsWith('down-')) ok(exactPixels.changedHipPixels > 100,
       `${direction}: новый стык проходит под подолом, без прежнего обрезания на y=225`);
+    const lowerBody = await page.evaluate(async direction => {
+      async function pixels(path) {
+        const image = new Image(); image.src = path; await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+        const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+        return { data: context.getImageData(0, 0, image.width, image.height).data, width: image.width };
+      }
+      const [current, previous, mask, oldMask, reference] = await Promise.all([
+        pixels(`/docs/art/druid-diagonal-legs-v3/legs-${direction}-256x320.png`),
+        pixels(`/docs/art/druid-diagonal-legs-v2/legs-${direction}-256x320.png`),
+        pixels(`/docs/art/druid-diagonal-legs-v3/protected-${direction}-256x320.png`),
+        pixels(`/docs/art/druid-diagonal-legs-v2/protected-${direction}-256x320.png`),
+        pixels('/docs/art/druid-front-refinement-v2/idle-down-256x320.png'),
+      ]);
+      const rgb = (d, i) => `${d[i]},${d[i + 1]},${d[i + 2]}`;
+      const brown = (d, i) => d[i + 3] && d[i] >= 35 && d[i] > d[i + 1] * 1.15 && d[i + 1] > d[i + 2] * 1.15;
+      const luma = (d, i) => .2126 * d[i] + .7152 * d[i + 1] + .0722 * d[i + 2];
+      const median = values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
+      const palette = new Set(), originalTones = [];
+      for (let i = 0; i < reference.data.length; i += 4) {
+        if (reference.data[i + 3]) palette.add(rgb(reference.data, i));
+        const x = i / 4 % 256, y = Math.floor(i / 4 / 256);
+        if (y >= 215 && x >= 80 && x < 178 && brown(reference.data, i)) originalTones.push(luma(reference.data, i));
+      }
+      const tones = [], oldTones = []; let paletteMatches = 0, alphaUnchanged = true;
+      for (let i = 0; i < current.data.length; i += 4) {
+        alphaUnchanged &&= current.data[i + 3] === previous.data[i + 3];
+        if (!mask.data[i + 3] && brown(current.data, i)) {
+          tones.push(luma(current.data, i));
+          if (palette.has(rgb(current.data, i))) paletteMatches++;
+        }
+      }
+      for (let i = 0; i < previous.data.length; i += 4) {
+        if (!oldMask.data[i + 3] && brown(previous.data, i)) oldTones.push(luma(previous.data, i));
+      }
+      const soles = [[], []];
+      for (let frame = 0; frame < 4; frame++) {
+        const bottom = [-1, -1];
+        for (let y = 250; y < 320; y++) for (let x = 0; x < 256; x++) {
+          if (current.data[4 * (y * current.width + frame * 256 + x) + 3]) bottom[x < 128 ? 0 : 1] = y;
+        }
+        soles[0].push(bottom[0]); soles[1].push(bottom[1]);
+      }
+      const [far, near] = direction.endsWith('right') ? soles : [soles[1], soles[0]];
+      return { alphaUnchanged, paletteFraction: paletteMatches / tones.length,
+        median: median(tones), oldMedian: median(oldTones), referenceMedian: median(originalTones),
+        nearLift: near[0] - near[1], farLift: far[2] - far[3],
+        supportDrift: Math.max(Math.abs(far[0] - far[1]), Math.abs(near[2] - near[3])) };
+    }, direction);
+    ok(lowerBody.paletteFraction > .99 && lowerBody.median < lowerBody.oldMedian * .9 &&
+      Math.abs(lowerBody.median - lowerBody.referenceMedian) < 5,
+      `${direction}: штаны и сапоги используют исходные тёмные RGB; средний тон совпадает со стоящим друидом`);
+    if (direction.startsWith('down-')) ok(lowerBody.alphaUnchanged,
+      `${direction}: сохранены все силуэты и порядок принятых передних фаз`);
+    else ok(lowerBody.nearLift >= 5 && lowerBody.farLift >= 5 && lowerBody.supportDrift <= 4 &&
+      lowerBody.nearLift / lowerBody.farLift >= .6 && lowerBody.nearLift / lowerBody.farLift <= 1.6,
+      `${direction}: обе ноги поочерёдно переносятся на сопоставимую высоту, опорная стопа остаётся у земли`);
     await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), clearSquare);
     for (const key of keys) await page.keyboard.down(key);
     await waitState(s => s.animationPlaying && s.animationKey === `druid-walk-${direction}`);
