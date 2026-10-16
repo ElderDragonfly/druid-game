@@ -1075,8 +1075,9 @@ try {
     ['up-left', ['w', 'a'], -1, -1], ['up-right', ['w', 'd'], 1, -1],
   ]) {
     const frameCount = 4;
-    const exactPixels = await page.evaluate(async ({ direction, frameCount }) => {
-      const image = new Image(); image.src = `/docs/art/druid-diagonal-legs-v3/walk-${direction}-256x320.png`; await image.decode();
+    const artFolder = direction.startsWith('up-') ? 'druid-rear-diagonal-walk-v4' : 'druid-diagonal-legs-v3';
+    const exactPixels = await page.evaluate(async ({ direction, frameCount, artFolder }) => {
+      const image = new Image(); image.src = `/docs/art/${artFolder}/walk-${direction}-256x320.png`; await image.decode();
       const width = frameCount * 256;
       const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
@@ -1091,7 +1092,7 @@ try {
       context.clearRect(0, 0, width, 320);
       for (let i = 0; i < frameCount; i++) context.drawImage(original, Math.floor(i * 4 / frameCount) * 256, 0, 256, 320, i * 256, 0, 256, 320);
       const previous = context.getImageData(0, 0, width, 320).data;
-      const maskImage = new Image(); maskImage.src = `/docs/art/druid-diagonal-legs-v3/protected-${direction}-256x320.png`; await maskImage.decode();
+      const maskImage = new Image(); maskImage.src = `/docs/art/${artFolder}/protected-${direction}-256x320.png`; await maskImage.decode();
       context.clearRect(0, 0, width, 320); context.drawImage(maskImage, 0, 0);
       const mask = context.getImageData(0, 0, width, 320).data;
       let protectedUnchanged = true, changedPixels = 0, changedHipPixels = 0;
@@ -1108,7 +1109,7 @@ try {
       return { exact, protectedUnchanged, changedPixels, changedHipPixels,
         cycleMs: animation.msPerFrame * animation.frames.length / (2 / 3),
         frames: animation.frames.length };
-    }, { direction, frameCount });
+    }, { direction, frameCount, artFolder });
     ok(exactPixels.exact, `${direction}: новые ноги загружены из ${frameCount} PNG-кадров 1:1, NEAREST`);
     ok(exactPixels.protectedUnchanged && exactPixels.changedPixels > 500,
       `${direction}: заменены ноги, все защищённые пиксели принятого корпуса и плаща сохранены`);
@@ -1116,7 +1117,7 @@ try {
       `${direction}: четыре равномерные фазы сохраняют прежний цикл 960 мс`);
     if (direction.startsWith('down-')) ok(exactPixels.changedHipPixels > 100,
       `${direction}: новый стык проходит под подолом, без прежнего обрезания на y=225`);
-    const lowerBody = await page.evaluate(async direction => {
+    const lowerBody = await page.evaluate(async ({ direction, artFolder }) => {
       async function pixels(path) {
         const image = new Image(); image.src = path; await image.decode();
         const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
@@ -1124,9 +1125,9 @@ try {
         return { data: context.getImageData(0, 0, image.width, image.height).data, width: image.width };
       }
       const [current, previous, mask, oldMask, reference] = await Promise.all([
-        pixels(`/docs/art/druid-diagonal-legs-v3/legs-${direction}-256x320.png`),
+        pixels(`/docs/art/${artFolder}/legs-${direction}-256x320.png`),
         pixels(`/docs/art/druid-diagonal-legs-v2/legs-${direction}-256x320.png`),
-        pixels(`/docs/art/druid-diagonal-legs-v3/protected-${direction}-256x320.png`),
+        pixels(`/docs/art/${artFolder}/protected-${direction}-256x320.png`),
         pixels(`/docs/art/druid-diagonal-legs-v2/protected-${direction}-256x320.png`),
         pixels('/docs/art/druid-front-refinement-v2/idle-down-256x320.png'),
       ]);
@@ -1151,28 +1152,69 @@ try {
       for (let i = 0; i < previous.data.length; i += 4) {
         if (!oldMask.data[i + 3] && brown(previous.data, i)) oldTones.push(luma(previous.data, i));
       }
-      const soles = [[], []];
-      for (let frame = 0; frame < 4; frame++) {
-        const bottom = [-1, -1];
-        for (let y = 250; y < 320; y++) for (let x = 0; x < 256; x++) {
-          if (current.data[4 * (y * current.width + frame * 256 + x) + 3]) bottom[x < 128 ? 0 : 1] = y;
-        }
-        soles[0].push(bottom[0]); soles[1].push(bottom[1]);
-      }
-      const [far, near] = direction.endsWith('right') ? soles : [soles[1], soles[0]];
       return { alphaUnchanged, paletteFraction: paletteMatches / tones.length,
-        median: median(tones), oldMedian: median(oldTones), referenceMedian: median(originalTones),
-        nearLift: near[0] - near[1], farLift: far[2] - far[3],
-        supportDrift: Math.max(Math.abs(far[0] - far[1]), Math.abs(near[2] - near[3])) };
-    }, direction);
+        median: median(tones), oldMedian: median(oldTones), referenceMedian: median(originalTones) };
+    }, { direction, artFolder });
     ok(lowerBody.paletteFraction > .99 && lowerBody.median < lowerBody.oldMedian * .9 &&
       Math.abs(lowerBody.median - lowerBody.referenceMedian) < 5,
       `${direction}: штаны и сапоги используют исходные тёмные RGB; средний тон совпадает со стоящим друидом`);
     if (direction.startsWith('down-')) ok(lowerBody.alphaUnchanged,
       `${direction}: сохранены все силуэты и порядок принятых передних фаз`);
-    else ok(lowerBody.nearLift >= 5 && lowerBody.farLift >= 5 && lowerBody.supportDrift <= 4 &&
-      lowerBody.nearLift / lowerBody.farLift >= .6 && lowerBody.nearLift / lowerBody.farLift <= 1.6,
-      `${direction}: обе ноги поочерёдно переносятся на сопоставимую высоту, опорная стопа остаётся у земли`);
+    else {
+      const stride = await page.evaluate(async direction => {
+        const soles = [];
+        for (const role of ['near', 'far']) {
+          const image = new Image(); image.src = `/docs/art/druid-rear-diagonal-walk-v4/${role}-leg-${direction}-256x320.png`;
+          await image.decode();
+          const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+          const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+          const data = context.getImageData(0, 0, image.width, image.height).data;
+          const feet = [];
+          for (let frame = 0; frame < 4; frame++) {
+            let bottom = -1;
+            for (let y = 250; y < 320; y++) for (let x = 0; x < 256; x++) {
+              if (data[4 * (y * image.width + frame * 256 + x) + 3]) bottom = y;
+            }
+            let xSum = 0, count = 0;
+            for (let y = bottom - 3; y <= bottom; y++) for (let x = 0; x < 256; x++) {
+              if (data[4 * (y * image.width + frame * 256 + x) + 3]) { xSum += x; count++; }
+            }
+            feet.push({ x: xSum / count, y: bottom });
+          }
+          soles.push(feet);
+        }
+        const [near, far] = soles;
+        return { firstContact: near[0].y - far[0].y, oppositeContact: far[2].y - near[2].y,
+          nearTravel: Math.abs(near[2].x - near[0].x), farTravel: Math.abs(far[2].x - far[0].x),
+          nearPassing: near[0].y - near[1].y, farPassing: far[2].y - far[3].y };
+      }, direction);
+      ok(stride.firstContact >= 10 && stride.oppositeContact >= 8 && stride.nearTravel >= 10 && stride.farTravel >= 10 &&
+        stride.nearPassing >= 10 && stride.farPassing >= 10,
+        `${direction}: ведущая стопа действительно меняется; обе ноги проходят вперёд/назад и выполняют перенос`);
+      if (direction === 'up-right') {
+        const seam = await page.evaluate(async () => {
+          const values = [];
+          for (const folder of ['druid-diagonal-legs-v3', 'druid-rear-diagonal-walk-v4']) {
+            const image = new Image(); image.src = `/docs/art/${folder}/walk-up-right-256x320.png`; await image.decode();
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 320;
+            const context = canvas.getContext('2d'); context.drawImage(image, 512, 0, 256, 320, 0, 0, 256, 320);
+            const data = context.getImageData(0, 0, 256, 320).data;
+            let sum = 0, run = 0, longest = 0;
+            for (let x = 80; x < 155; x++) {
+              const above = 4 * (96 * 256 + x), below = above + 256 * 4;
+              const difference = [0, 1, 2].reduce((v, c) => v + Math.abs(data[above + c] - data[below + c]), 0) / 3;
+              sum += difference;
+              run = difference > 12 && data[above + 3] && data[below + 3] ? run + 1 : 0;
+              longest = Math.max(longest, run);
+            }
+            values.push({ contrast: sum / 75, longest });
+          }
+          return { previous: values[0], current: values[1] };
+        });
+        ok(seam.current.contrast < seam.previous.contrast * .5 && seam.current.longest <= 6,
+          'Вверх-вправо: устранён горизонтальный срез капюшона на плечах в третьей фазе');
+      }
+    }
     await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), clearSquare);
     for (const key of keys) await page.keyboard.down(key);
     await waitState(s => s.animationPlaying && s.animationKey === `druid-walk-${direction}`);

@@ -1,0 +1,72 @@
+{
+  "integrated": true,
+  "directions": [
+    "up-left",
+    "up-right"
+  ],
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "cycleDurationMs": 960,
+  "phases": [
+    "far-left contact, near-right trails",
+    "near-right passing, far-left supports",
+    "near-right contact, far-left trails",
+    "far-left passing, near-right supports"
+  ],
+  "shoulders": "continuous original upper drawings, no first-head rectangle at y=97",
+  "legConstruction": "four drawn whole-leg poses, opposite phases at distinct hip anchors",
+  "registration": "thigh/sole registration of actual three-quarter drawings; shared width scale 1.35",
+  "nearLegPhases": [
+    2,
+    3,
+    0,
+    1
+  ],
+  "farLegPhases": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "nearSoleTargets": [
+    [
+      138,
+      298
+    ],
+    [
+      146,
+      280
+    ],
+    [
+      154,
+      282
+    ],
+    [
+      146,
+      290
+    ]
+  ],
+  "farSoleTargets": [
+    [
+      125,
+      279
+    ],
+    [
+      117,
+      287
+    ],
+    [
+      109,
+      295
+    ],
+    [
+      117,
+      277
+    ]
+  ],
+  "brownReference": "druid-front-refinement-v2/idle-down-256x320.png",
+  "preserved": "lower cloak contour, hands/staff, all other directions and idles",
+  "frontalLegShear": false
+}
