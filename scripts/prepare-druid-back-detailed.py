@@ -1,4 +1,4 @@
-"""Separate detailed Basic 04 rear walk proposal; never changes runtime art."""
+"""Accepted detailed Basic 04 rear walk assets, now imported by the game."""
 import json
 from pathlib import Path
 import runpy
@@ -244,7 +244,7 @@ def main():
     gif_frames = [front['preview'](f).quantize(palette=palette, dither=Image.Dither.NONE) for f in frames]
     gif_frames[0].save(OUT / 'walk-up-preview.gif', save_all=True, append_images=gif_frames[1:],
                        duration=FRAME_MS, loop=0, disposal=2, optimize=False)
-    metadata = {'integrated': False, 'direction': 'up', 'frameWidth': 256, 'frameHeight': 320,
+    metadata = {'integrated': True, 'direction': 'up', 'frameWidth': 256, 'frameHeight': 320,
         'frameCount': 4, 'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
         'scale': scale, 'registration': 'anchored hood/torso; moving cloth and fixed vertical leg lanes',
         'gait': {'source': 'walk-gait-source.png', 'torsoFixed': True, 'torsoOffsetY': [0, 0, 0, 0],
@@ -264,7 +264,7 @@ def main():
                                   'walk-right-arm-region-256x320.png'],
         'layersBackToFront': ['walk-arm-staff-256x320.png', 'walk-body-256x320.png']}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    print('Rear Basic 04 proposal: 4 × 256x320, 240 ms, one staff plant per two steps; not integrated.')
+    print('Accepted rear Basic 04: 4 × 256x320, 240 ms preview, one staff plant per two steps.')
 
 
 if __name__ == '__main__':

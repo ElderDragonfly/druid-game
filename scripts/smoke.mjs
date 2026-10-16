@@ -774,7 +774,9 @@ try {
     const sources = [
       { direction: 'down', sourceX: 0, width: 256, height: 320,
         path: '/docs/art/druid-front-refinement-v2/idle-down-256x320.png' },
-      ...Object.entries({ up: 64, left: 128, right: 192 }).map(([direction, sourceX]) => ({
+      { direction: 'up', sourceX: 0, width: 256, height: 320,
+        path: '/docs/art/druid-back-refinement-v1/walk-up-256x320.png' },
+      ...Object.entries({ left: 128, right: 192 }).map(([direction, sourceX]) => ({
         direction, sourceX, width: 64, height: 80, path: '/docs/art/druid-basic-walk-v1/idle-64x80.png',
       })),
     ];
@@ -795,7 +797,7 @@ try {
     }));
   });
   ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 256 && view.height === 320),
-    'Фронтальный кадр совпадает с принятым PNG 1:1; остальные ракурсы сохраняют прежние пиксели при ×4 NEAREST');
+    'Фронтальный и задний кадры совпадают с принятыми PNG 1:1; боковые сохраняют прежние пиксели при ×4 NEAREST');
   ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 300),
     'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 300');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
@@ -902,17 +904,20 @@ try {
   ok(idleAfterWalk.facing === 'down', 'Отпускание S останавливает цикл и возвращает стоящий фронтальный спрайт');
 
   const upWalkPixels = await page.evaluate(async () => {
-    const image = new Image(); image.src = '/docs/art/druid-basic-walk-v1/walk-up-64x80.png'; await image.decode();
-    const texture = window.__smokeGame.textures.get('druid-walk-up-source');
+    const image = new Image(); image.src = '/docs/art/druid-back-refinement-v1/walk-up-256x320.png'; await image.decode();
     const read = source => {
-      const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-      return context.getImageData(0, 0, 256, 80).data;
+      return context.getImageData(0, 0, 1024, 320).data;
     };
-    const expected = read(image); const actual = read(texture.getSourceImage());
-    return actual.every((value, index) => value === expected[index]);
+    const expected = read(image);
+    return ['druid-walk-up-source', 'druid-walk-up-source-runtime'].every(key => {
+      const texture = window.__smokeGame.textures.get(key);
+      const actual = read(texture.getSourceImage());
+      return texture.source[0].scaleMode === 1 && actual.every((value, index) => value === expected[index]);
+    });
   });
-  ok(upWalkPixels, 'Ходьба вверх использует принятый PNG без изменения пикселей');
+  ok(upWalkPixels, 'Все четыре подробных кадра ходьбы вверх совпадают с принятой полосой в исходной и игровой текстурах');
   const upCorridor = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');
     const obstacles = scene.world.obstacles.getChildren().map(object => object.body);

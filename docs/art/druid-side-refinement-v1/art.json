@@ -1,0 +1,118 @@
+{
+  "integrated": false,
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "previewScale": 1,
+  "baselineY": 300,
+  "registration": "fixed hood, independent of feet; common head in each direction",
+  "sources": [
+    "walk-source.png",
+    "walk-body-source.png",
+    "arm-staff-source.png"
+  ],
+  "directions": {
+    "left": {
+      "scale": 0.6222222222222222,
+      "hoodY": 20,
+      "anchors": [
+        {
+          "top": 27,
+          "ground": 477,
+          "anchorX": 183.0
+        },
+        {
+          "top": 27,
+          "ground": 477,
+          "anchorX": 556.0
+        },
+        {
+          "top": 27,
+          "ground": 477,
+          "anchorX": 968.0
+        },
+        {
+          "top": 27,
+          "ground": 477,
+          "anchorX": 1354.0
+        }
+      ],
+      "staff": {
+        "anatomicalHand": "left",
+        "near": true,
+        "rigidMaster": true,
+        "liftPixels": [
+          0,
+          6,
+          12,
+          6
+        ],
+        "plantedOffsetY": -5,
+        "carryX": [
+          0,
+          -3,
+          -6,
+          -3
+        ],
+        "plantsPerCycle": 1,
+        "stepsPerCycle": 2
+      },
+      "layerOrder": [
+        "body",
+        "arm-staff",
+        "cloak-foreground"
+      ]
+    },
+    "right": {
+      "scale": 0.6334841628959276,
+      "hoodY": 20,
+      "anchors": [
+        {
+          "top": 519,
+          "ground": 961,
+          "anchorX": 213.0
+        },
+        {
+          "top": 520,
+          "ground": 960,
+          "anchorX": 591.0
+        },
+        {
+          "top": 520,
+          "ground": 961,
+          "anchorX": 976.0
+        },
+        {
+          "top": 520,
+          "ground": 961,
+          "anchorX": 1373.0
+        }
+      ],
+      "staff": {
+        "anatomicalHand": "left",
+        "near": false,
+        "rigidMaster": true,
+        "liftPixels": [
+          0,
+          6,
+          12,
+          6
+        ],
+        "plantedOffsetY": -4,
+        "carryX": [
+          0,
+          3,
+          6,
+          3
+        ],
+        "plantsPerCycle": 1,
+        "stepsPerCycle": 2
+      },
+      "layerOrder": [
+        "arm-staff",
+        "body"
+      ]
+    }
+  }
+}

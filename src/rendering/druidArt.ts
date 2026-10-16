@@ -5,7 +5,7 @@ import campSource from '../../docs/art/druid-detail-preview-v1/character-selecti
 import idleSource from '../../docs/art/druid-front-refinement-v2/idle-down-256x320.png';
 import legacyIdleSource from '../../docs/art/druid-basic-walk-v1/idle-64x80.png';
 import walkDownSource from '../../docs/art/druid-front-refinement-v2/walk-down-256x320.png';
-import walkUpSource from '../../docs/art/druid-basic-walk-v1/walk-up-64x80.png';
+import walkUpSource from '../../docs/art/druid-back-refinement-v1/walk-up-256x320.png';
 import walkLeftSource from '../../docs/art/druid-basic-walk-v1/walk-left-64x80.png';
 import walkRightSource from '../../docs/art/druid-basic-walk-v1/walk-right-64x80.png';
 import type { Facing } from '../input/FourWayFacing';
@@ -29,9 +29,9 @@ export const DRUID_ART = [
   { key: DRUID_TEXTURES.gameSource, url: idleSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
   { key: DRUID_TEXTURES.leftSource, url: legacyIdleSource, frame: { x: 128, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.rightSource, url: legacyIdleSource, frame: { x: 192, y: 0, width: 64, height: 80 } },
-  { key: DRUID_TEXTURES.backSource, url: legacyIdleSource, frame: { x: 64, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.backSource, url: walkUpSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
   { key: DRUID_TEXTURES.walkDown, url: walkDownSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
-  { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
+  { key: DRUID_TEXTURES.walkUp, url: walkUpSource, frame: { x: 0, y: 0, width: 256, height: 320 } },
   { key: DRUID_TEXTURES.walkLeft, url: walkLeftSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
   { key: DRUID_TEXTURES.walkRight, url: walkRightSource, frame: { x: 0, y: 0, width: 64, height: 80 } },
 ] as const;
@@ -59,12 +59,12 @@ interface DruidView {
   footX: number;
 }
 
-// Остальные ракурсы пока прежние: целочисленное ×4 сохраняет их рисунок.
+// Боковые ракурсы пока прежние: целочисленное ×4 сохраняет их рисунок.
 export const DRUID_VIEWS: readonly DruidView[] = [
   { direction: 'down', sourceKey: DRUID_TEXTURES.gameSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
   { direction: 'left', sourceKey: DRUID_TEXTURES.leftSource, x: 128, y: 0, width: 64, height: 75, footX: 32 },
   { direction: 'right', sourceKey: DRUID_TEXTURES.rightSource, x: 192, y: 0, width: 64, height: 75, footX: 32 },
-  { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 64, y: 0, width: 64, height: 75, footX: 32 },
+  { direction: 'up', sourceKey: DRUID_TEXTURES.backSource, x: 0, y: 0, width: 256, height: 300, footX: 128 },
 ];
 
 // Новые циклы добавляются сюда; отсутствие цикла оставляет неподвижный ракурс.
@@ -72,7 +72,7 @@ export const DRUID_WALKS = [
   { direction: 'down', sourceKey: DRUID_TEXTURES.walkDown, animationKey: 'druid-walk-down',
     frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
   { direction: 'up', sourceKey: DRUID_TEXTURES.walkUp, animationKey: 'druid-walk-up',
-    frameWidth: 64, frameHeight: 80, frameCount: 4, frameDurationMs: 160 },
+    frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160 },
   { direction: 'left', sourceKey: DRUID_TEXTURES.walkLeft, animationKey: 'druid-walk-left',
     frameWidth: 64, frameHeight: 80, frameCount: 4, frameDurationMs: 160 },
   { direction: 'right', sourceKey: DRUID_TEXTURES.walkRight, animationKey: 'druid-walk-right',
