@@ -1074,33 +1074,48 @@ try {
     ['down-left', ['s', 'a'], -1, 1], ['down-right', ['s', 'd'], 1, 1],
     ['up-left', ['w', 'a'], -1, -1], ['up-right', ['w', 'd'], 1, -1],
   ]) {
-    const exactPixels = await page.evaluate(async direction => {
-      const image = new Image(); image.src = `/docs/art/druid-diagonal-legs-v1/walk-${direction}-256x320.png`; await image.decode();
-      const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
+    const frameCount = direction.startsWith('up-') ? 8 : 4;
+    const exactPixels = await page.evaluate(async ({ direction, frameCount }) => {
+      const image = new Image(); image.src = `/docs/art/druid-diagonal-legs-v2/walk-${direction}-256x320.png`; await image.decode();
+      const width = frameCount * 256;
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = 320;
       const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
-      const reference = context.getImageData(0, 0, 1024, 320).data;
+      const reference = context.getImageData(0, 0, width, 320).data;
       const exact = ['', '-runtime'].every(suffix => {
         const texture = window.__smokeGame.textures.get(`druid-walk-${direction}-source${suffix}`);
-        context.clearRect(0, 0, 1024, 320); context.drawImage(texture.getSourceImage(), 0, 0);
-        return texture.source[0].scaleMode === 1 && context.getImageData(0, 0, 1024, 320).data.every((v, i) => v === reference[i]);
+        context.clearRect(0, 0, width, 320); context.drawImage(texture.getSourceImage(), 0, 0);
+        return texture.source[0].scaleMode === 1 && texture.getSourceImage().width === width &&
+          context.getImageData(0, 0, width, 320).data.every((v, i) => v === reference[i]);
       });
       const original = new Image(); original.src = `/docs/art/druid-eight-way-v1/walk-${direction}-256x320.png`; await original.decode();
-      context.clearRect(0, 0, 1024, 320); context.drawImage(original, 0, 0);
-      const previous = context.getImageData(0, 0, 1024, 320).data;
-      const maskImage = new Image(); maskImage.src = `/docs/art/druid-diagonal-legs-v1/protected-${direction}-256x320.png`; await maskImage.decode();
-      context.clearRect(0, 0, 1024, 320); context.drawImage(maskImage, 0, 0);
-      const mask = context.getImageData(0, 0, 1024, 320).data;
-      let protectedUnchanged = true, changedPixels = 0;
+      context.clearRect(0, 0, width, 320);
+      for (let i = 0; i < frameCount; i++) context.drawImage(original, Math.floor(i * 4 / frameCount) * 256, 0, 256, 320, i * 256, 0, 256, 320);
+      const previous = context.getImageData(0, 0, width, 320).data;
+      const maskImage = new Image(); maskImage.src = `/docs/art/druid-diagonal-legs-v2/protected-${direction}-256x320.png`; await maskImage.decode();
+      context.clearRect(0, 0, width, 320); context.drawImage(maskImage, 0, 0);
+      const mask = context.getImageData(0, 0, width, 320).data;
+      let protectedUnchanged = true, changedPixels = 0, changedHipPixels = 0;
       for (let i = 0; i < reference.length; i += 4) {
         const different = [0, 1, 2, 3].some(c => reference[i + c] !== previous[i + c]);
         if (mask[i + 3]) protectedUnchanged &&= !different;
-        if (different) changedPixels++;
+        if (different) {
+          changedPixels++;
+          const y = Math.floor(i / 4 / width);
+          if (y >= 195 && y < 225) changedHipPixels++;
+        }
       }
-      return { exact, protectedUnchanged, changedPixels };
-    }, direction);
-    ok(exactPixels.exact, `${direction}: новые ноги загружены из четырёх PNG-кадров 1:1, NEAREST`);
+      const animation = window.__smokeGame.anims.get(`druid-walk-${direction}`);
+      return { exact, protectedUnchanged, changedPixels, changedHipPixels,
+        cycleMs: animation.msPerFrame * animation.frames.length / (2 / 3),
+        frames: animation.frames.length };
+    }, { direction, frameCount });
+    ok(exactPixels.exact, `${direction}: новые ноги загружены из ${frameCount} PNG-кадров 1:1, NEAREST`);
     ok(exactPixels.protectedUnchanged && exactPixels.changedPixels > 500,
       `${direction}: заменены ноги, все защищённые пиксели принятого корпуса и плаща сохранены`);
+    ok(exactPixels.frames === frameCount && Math.abs(exactPixels.cycleMs - 960) < .01,
+      `${direction}: промежуточные фазы сохраняют прежний цикл 960 мс`);
+    if (direction.startsWith('down-')) ok(exactPixels.changedHipPixels > 100,
+      `${direction}: новый стык проходит под подолом, без прежнего обрезания на y=225`);
     await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), clearSquare);
     for (const key of keys) await page.keyboard.down(key);
     await waitState(s => s.animationPlaying && s.animationKey === `druid-walk-${direction}`);
@@ -1115,8 +1130,8 @@ try {
         width: p.width, height: p.height, bodyWidth: p.body.width, bodyHeight: p.body.height };
     });
     const indices = sample.frames.map(f => Number(f.replace(`walk-${direction}-`, '')));
-    ok(new Set(indices).size === 4 && indices.length >= 5 && indices.every((n, i) => !i || n === (indices[i - 1] + 1) % 4),
-      `${direction}: отдельные четыре фазы проигрываются и повторяются`);
+    ok(new Set(indices).size === frameCount && indices.length >= frameCount + 1 && indices.every((n, i) => !i || n === (indices[i - 1] + 1) % frameCount),
+      `${direction}: все ${frameCount} фаз последовательно проигрываются и повторяются`);
     ok(sample.dx * sx > 100 && sample.dy * sy > 100 && Math.abs(sample.speed - 220 * 2 / 3) < .01 &&
       sample.width === 256 && sample.height === 320 && sample.bodyWidth === 20 && sample.bodyHeight === 25,
       `${direction}: верное направление, обычная скорость и прежняя геометрия героя`);

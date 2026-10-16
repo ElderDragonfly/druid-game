@@ -1,0 +1,103 @@
+{
+  "integrated": true,
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "cycleDurationMs": 960,
+  "directions": {
+    "down-left": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        1380,
+        1409,
+        859,
+        1145
+      ]
+    },
+    "down-right": {
+      "frameCount": 4,
+      "frameDurationMs": 240,
+      "bodyPhases": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "garmentOverlapPixels": [
+        935,
+        1101,
+        717,
+        1214
+      ]
+    },
+    "up-left": {
+      "frameCount": 8,
+      "frameDurationMs": 120,
+      "bodyPhases": [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+        3,
+        3
+      ],
+      "garmentOverlapPixels": [
+        2362,
+        2312,
+        2452,
+        2512,
+        1975,
+        1859,
+        2294,
+        2298
+      ]
+    },
+    "up-right": {
+      "frameCount": 8,
+      "frameDurationMs": 120,
+      "bodyPhases": [
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+        3,
+        3
+      ],
+      "garmentOverlapPixels": [
+        2500,
+        2532,
+        2944,
+        3019,
+        2114,
+        1997,
+        3333,
+        3235
+      ]
+    }
+  },
+  "legThickness": "redrawn about 20 percent fuller",
+  "join": "legs overlap behind actual tunic/cloak contour; contact shadow only on legs",
+  "preserved": "all pixels above y=195, plus actual garment and staff pixels",
+  "rearGait": "eight evenly timed grounded walking poses, fixed hip registration",
+  "rearSourcePoseOrder": [
+    0,
+    2,
+    1,
+    6,
+    4,
+    3,
+    7,
+    5
+  ],
+  "shear": false
+}

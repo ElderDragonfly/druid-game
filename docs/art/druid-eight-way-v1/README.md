@@ -1,6 +1,6 @@
 # Друид Basic: восемь направлений
 
-Неподвижные позы и четыре основных направления подключены к игре. Диагональная ходьба обновлена: [новые ноги вполоборота](../druid-diagonal-legs-v1/README.md); старые полосы здесь сохранены как предыдущая версия. Размер каждого кадра **256×320**, четыре фазы ходьбы на направление. В мире герой сохраняет кадр 87,5×109,375, тело 20×25 и скорость 146,67 единиц/с. При этой скорости одна фаза длится 240 мс, цикл — 960 мс. Фильтр NEAREST, прозрачность 0/255.
+Неподвижные позы и четыре основных направления подключены к игре. Диагональная ходьба обновлена: [новые ноги вполоборота](../druid-diagonal-legs-v2/README.md); старые полосы здесь сохранены как предыдущая версия. Размер каждого кадра **256×320**, четыре фазы ходьбы на направление. В мире герой сохраняет кадр 87,5×109,375, тело 20×25 и скорость 146,67 единиц/с. При этой скорости одна фаза длится 240 мс, цикл — 960 мс. Фильтр NEAREST, прозрачность 0/255.
 
 | Ракурс / клавиши | Стоящая поза | Ходьба |
 | --- | --- | --- |
@@ -8,10 +8,10 @@
 | Вверх / W | [PNG](idle-up-256x320.png) | [GIF](walk-up-preview.gif) |
 | Влево / A | [PNG](idle-left-256x320.png) | [GIF](walk-left-preview.gif) |
 | Вправо / D | [PNG](idle-right-256x320.png) | [GIF](walk-right-preview.gif) |
-| Вниз-влево / S+A | [PNG](idle-down-left-256x320.png) | [GIF](../druid-diagonal-legs-v1/walk-down-left-preview.gif) |
-| Вниз-вправо / S+D | [PNG](idle-down-right-256x320.png) | [GIF](../druid-diagonal-legs-v1/walk-down-right-preview.gif) |
-| Вверх-влево / W+A | [PNG](idle-up-left-256x320.png) | [GIF](../druid-diagonal-legs-v1/walk-up-left-preview.gif) |
-| Вверх-вправо / W+D | [PNG](idle-up-right-256x320.png) | [GIF](../druid-diagonal-legs-v1/walk-up-right-preview.gif) |
+| Вниз-влево / S+A | [PNG](idle-down-left-256x320.png) | [GIF](../druid-diagonal-legs-v2/walk-down-left-preview.gif) |
+| Вниз-вправо / S+D | [PNG](idle-down-right-256x320.png) | [GIF](../druid-diagonal-legs-v2/walk-down-right-preview.gif) |
+| Вверх-влево / W+A | [PNG](idle-up-left-256x320.png) | [GIF](../druid-diagonal-legs-v2/walk-up-left-preview.gif) |
+| Вверх-вправо / W+D | [PNG](idle-up-right-256x320.png) | [GIF](../druid-diagonal-legs-v2/walk-up-right-preview.gif) |
 
 [Все стоящие ракурсы рядом](idle-eight-directions-preview.png). Полосы ходьбы называются `walk-{направление}-256x320.png`, кадры рядом на фоне — `walk-{направление}-frames-preview.png`. GIF всех направлений используют единую палитру без дизеринга; PNG сохраняют полные цвета.
 

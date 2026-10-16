@@ -4,10 +4,10 @@ import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 
-const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v1}/{idle,walk}-*-256x320.png',
+const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v2}/{idle,walk}-*-256x320.png',
   { eager: true, query: '?url', import: 'default' });
 function sourceUrl(kind: 'idle' | 'walk', direction: Facing) {
-  const folder = kind === 'walk' && direction.includes('-') ? 'druid-diagonal-legs-v1' : 'druid-eight-way-v1';
+  const folder = kind === 'walk' && direction.includes('-') ? 'druid-diagonal-legs-v2' : 'druid-eight-way-v1';
   const path = `../../docs/art/${folder}/${kind}-${direction}-256x320.png`;
   const url = sources[path];
   if (!url) throw new Error(`Missing druid art: ${path}`);
@@ -68,10 +68,13 @@ export const DRUID_VIEWS: readonly DruidView[] = FACINGS.map(direction => ({
   direction, sourceKey: idleKeys[direction], x: 0, y: 0, width: 256, height: 320, footX: 128,
 }));
 
-export const DRUID_WALKS = FACINGS.map(direction => ({
-  direction, sourceKey: `druid-walk-${direction}-source`, animationKey: `druid-walk-${direction}`,
-  frameWidth: 256, frameHeight: 320, frameCount: 4, frameDurationMs: 160,
-}));
+export const DRUID_WALKS = FACINGS.map(direction => {
+  const frameCount = direction.startsWith('up-') ? 8 : 4;
+  return {
+    direction, sourceKey: `druid-walk-${direction}-source`, animationKey: `druid-walk-${direction}`,
+    frameWidth: 256, frameHeight: 320, frameCount, frameDurationMs: 640 / frameCount,
+  };
+});
 
 export const DRUID_WALK_ANIMATIONS = Object.fromEntries(
   DRUID_WALKS.map(walk => [walk.direction, walk.animationKey]),
