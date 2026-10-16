@@ -4,10 +4,11 @@ import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 
-const sources = import.meta.glob<string>('../../docs/art/druid-eight-way-v1/{idle,walk}-*-256x320.png',
+const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v1}/{idle,walk}-*-256x320.png',
   { eager: true, query: '?url', import: 'default' });
 function sourceUrl(kind: 'idle' | 'walk', direction: Facing) {
-  const path = `../../docs/art/druid-eight-way-v1/${kind}-${direction}-256x320.png`;
+  const folder = kind === 'walk' && direction.includes('-') ? 'druid-diagonal-legs-v1' : 'druid-eight-way-v1';
+  const path = `../../docs/art/${folder}/${kind}-${direction}-256x320.png`;
   const url = sources[path];
   if (!url) throw new Error(`Missing druid art: ${path}`);
   return url;

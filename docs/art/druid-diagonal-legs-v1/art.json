@@ -1,0 +1,18 @@
+{
+  "integrated": true,
+  "directions": [
+    "down-left",
+    "down-right",
+    "up-left",
+    "up-right"
+  ],
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "replacedArea": "legs below y=225; original cloth and staff occlude them",
+  "legs": "drawn front/rear three-quarter right; symmetric legs mirrored for left",
+  "preserved": "all original pixels above y=225 and protected torso/cloak/hand/staff pixels",
+  "cleanup": "discard tiny detached scraps in the old staff cutout below the unchanged upper region",
+  "shear": false
+}
