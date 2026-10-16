@@ -775,9 +775,10 @@ try {
       { direction: 'down', sourceX: 0, width: 256, height: 320,
         path: '/docs/art/druid-front-refinement-v2/idle-down-256x320.png' },
       { direction: 'up', sourceX: 0, width: 256, height: 320,
-        path: '/docs/art/druid-back-refinement-v1/walk-up-256x320.png' },
-      ...Object.entries({ left: 128, right: 192 }).map(([direction, sourceX]) => ({
-        direction, sourceX, width: 64, height: 80, path: '/docs/art/druid-basic-walk-v1/idle-64x80.png',
+        path: '/docs/art/druid-back-refinement-v1/idle-up-256x320.png' },
+      ...['left', 'right'].map(direction => ({
+        direction, sourceX: 0, width: 256, height: 320,
+        path: `/docs/art/druid-side-refinement-v1/walk-${direction}-256x320.png`,
       })),
     ];
     return Promise.all(sources.map(async ({ direction, sourceX, width, height, path }) => {
@@ -797,7 +798,7 @@ try {
     }));
   });
   ok(directionalArt.length === 4 && directionalArt.every(view => view.preserved && view.width === 256 && view.height === 320),
-    'Фронтальный и задний кадры совпадают с принятыми PNG 1:1; боковые сохраняют прежние пиксели при ×4 NEAREST');
+    'Все четыре неподвижных ракурса совпадают с выбранными подробными PNG 1:1');
   ok(new Set(directionalArt.map(view => view.signature)).size === 4 && directionalArt.every(view => view.feetY === 300),
     'Ракурсы различаются; все четыре фигуры имеют общую опору ног на строке 300');
   ok(initial.facing === 'down' && initial.frame === 'down', 'При входе друид стоит лицом к игроку');
@@ -926,7 +927,7 @@ try {
         const corridor = { x: x - 10, y: y - 230, right: x + 10, bottom: y + 12.5 };
         if (obstacles.some(o => corridor.x < o.right && corridor.right > o.x && corridor.y < o.bottom && corridor.bottom > o.y)) continue;
         scene.player.body.reset(x, y - 10);
-        return true;
+        return { x, y: y - 10 };
       }
     }
     return false;
@@ -963,22 +964,54 @@ try {
   const idleAfterUp = await waitState(current => !current.animationPlaying && current.frame === 'up' && current.vy === 0);
   ok(idleAfterUp.facing === 'up', 'Отпускание W возвращает стоящий вид со спины');
 
+  const plantedUp = await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const player = scene.player;
+    const frame = player.frame;
+    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 320;
+    const context = canvas.getContext('2d');
+    context.drawImage(player.texture.getSourceImage(), frame.cutX, frame.cutY, 256, 320, 0, 0, 256, 320);
+    const standing = context.getImageData(0, 0, 256, 320).data;
+    context.clearRect(0, 0, 256, 320);
+    context.drawImage(scene.textures.get('druid-walk-up-source').getSourceImage(), 0, 0);
+    const walking = context.getImageData(0, 0, 256, 320).data;
+    const bootGrounded = (left, right) => {
+      for (let x = left; x < right; x++) if (standing[(299 * 256 + x) * 4 + 3]) return true;
+      return false;
+    };
+    return { bothPlanted: bootGrounded(100, 130) && bootGrounded(134, 165),
+      differentLegs: standing.some((value, i) => i >= 200 * 256 * 4 && value !== walking[i]),
+      sameUpperBody: standing.slice(0, 200 * 256 * 4).every((value, i) => value === walking[i]) };
+  });
+  ok(plantedUp.bothPlanted && plantedUp.differentLegs && plantedUp.sameUpperBody,
+    'После W обе подошвы на земле: отдельные стоящие ноги, принятые корпус и посох сохранены');
+  for (let phase = 0; phase < 4; phase++) {
+    // Each phase starts in the same clear corridor, away from the world edge.
+    await page.evaluate(point => window.__smokeGame.scene.getScene('Room').player.body.reset(point.x, point.y), upCorridor);
+    await page.keyboard.down('w');
+    await waitState(current => current.frame === `walk-up-${phase}` && current.animationPlaying);
+    await page.keyboard.up('w');
+    await waitState(current => current.frame === 'up' && !current.animationPlaying && current.vy === 0);
+  }
+  ok(true, 'Остановка в каждой из четырёх фаз W возвращает отдельную стоящую позу');
+
   for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-basic-walk-v1' },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-basic-walk-v1' },
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-side-refinement-v1' },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-side-refinement-v1' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
-      const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-64x80.png`; await image.decode();
+      const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-256x320.png`; await image.decode();
       const texture = window.__smokeGame.textures.get(`druid-walk-${direction}-source`);
+      const runtime = window.__smokeGame.textures.get(`druid-walk-${direction}-source-runtime`);
       const read = source => {
-        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80;
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
         const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-        return context.getImageData(0, 0, 256, 80).data;
+        return context.getImageData(0, 0, 1024, 320).data;
       };
-      const expected = read(image); const actual = read(texture.getSourceImage());
-      return actual.every((value, index) => value === expected[index]);
+      const expected = read(image);
+      return [texture, runtime].every(source => read(source.getSourceImage()).every((value, index) => value === expected[index]));
     }, { direction, folder });
-    ok(walkPixels, `${direction}: исходный PNG принятой GIF сохранён без изменения пикселей`);
+    ok(walkPixels, `${direction}: все четыре принятых подробных кадра сохранены 1:1 в исходной и игровой текстурах`);
     const rawBasic = await page.evaluate(direction => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const animation = scene.anims.get(`druid-walk-${direction}`);

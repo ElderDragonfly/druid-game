@@ -1,4 +1,4 @@
-"""Detailed Basic 04 profile walk proposals, separate from runtime art."""
+"""Accepted detailed Basic 04 profile walks, imported by the game."""
 import json
 from pathlib import Path
 import runpy
@@ -127,12 +127,12 @@ def main():
         gif_frames = [front['preview'](f).quantize(palette=palette, dither=Image.Dither.NONE) for f in frames]
         gif_frames[0].save(OUT / f'walk-{direction}-preview.gif', save_all=True, append_images=gif_frames[1:],
             duration=FRAME_MS, loop=0, disposal=2, optimize=False)
-    metadata = {'integrated': False, 'frameWidth': 256, 'frameHeight': 320, 'frameCount': 4,
+    metadata = {'integrated': True, 'frameWidth': 256, 'frameHeight': 320, 'frameCount': 4,
         'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
         'registration': 'fixed hood, independent of feet; common head in each direction',
         'sources': ['walk-source.png', 'walk-body-source.png', 'arm-staff-source.png'], 'directions': info}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')
-    print('Side Basic 04 proposals: left and right, 4 x 256x320, 240 ms; not integrated.')
+    print('Accepted side Basic 04 walks: left and right, 4 x 256x320, 240 ms; integrated.')
 
 
 if __name__ == '__main__':
