@@ -37,7 +37,11 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   }
 
   move(x: number, y: number, facing: Facing) {
-    const velocity = this.behavior.velocity(x, y, this.casting.active ? this.casting.facing : facing);
+    const casting = this.casting.active;
+    // Casting takes priority over held movement keys, including between
+    // repeated casts. The unchanged speed stat is used again when it ends.
+    const velocity = this.behavior.velocity(casting ? 0 : x, casting ? 0 : y,
+      casting ? this.casting.facing : facing);
     this.setVelocity(velocity.x, velocity.y);
     this.updateAppearance();
   }

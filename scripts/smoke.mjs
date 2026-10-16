@@ -1504,8 +1504,10 @@ try {
     const game = window.__smokeGame;
     const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
       const image = new Image();
+      const folder = ['right', 'down-right', 'up-right'].includes(art.direction)
+        ? 'druid-cast-right-v2' : 'druid-cast-eight-way-v1';
       image.src = art.direction === 'down' ? '/docs/art/druid-cast-down-v1/cast-down-512x384.png'
-        : `/docs/art/druid-cast-eight-way-v1/cast-${art.direction}-512x384.png`;
+        : `/docs/art/${folder}/cast-${art.direction}-512x384.png`;
       await image.decode();
       const texture = game.textures.get(art.key), frames = DRUID_CAST_APPEARANCE[art.direction].frames;
       const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 384;
@@ -1529,6 +1531,7 @@ try {
     return { active: p.casting.active, facing: p.actorState.facing, phase: p.casting.frameIndex,
       texture: v.texture.key, frame: v.frame.name, visible: v.visible, playerVisible: p.visible,
       idle: p.frame.name, x: p.x, y: p.y, bodyWidth: p.body.width, bodyHeight: p.body.height,
+      vx: p.body.velocity.x, vy: p.body.velocity.y, speedStat: p.actorState.speed,
       bodyX: p.body.x, bodyY: p.body.y, bodyRight: p.body.right, bodyBottom: p.body.bottom,
       visualX: v.x, visualY: v.y, alignedFeet: v.y - v.displayOriginY * v.scaleY + 340 * v.scaleY,
       playerFeet: p.y - p.displayOriginY * p.scaleY + 300 * p.scaleY,
@@ -1576,7 +1579,10 @@ try {
       await page.screenshot({ path: fileURLToPath(new URL('../test-results/casting-down.png', import.meta.url)) });
     }
     for (const arrow of arrows) await page.keyboard.up(arrow);
-    const idle = await waitCast(s => !s.active && !s.visible && s.playerVisible && s.idle === direction);
+    // Real keyup events may straddle a rendered frame: the remaining arrow
+    // legitimately turns a diagonal cast before the second key is released.
+    const finishingFacing = (await castState()).facing;
+    const idle = await waitCast(s => !s.active && !s.visible && s.playerVisible && s.idle === finishingFacing);
     ok(idle.x === beforeCasts.x && idle.y === beforeCasts.y && idle.bodyX === beforeCasts.bodyX &&
       idle.bodyY === beforeCasts.bodyY && idle.bodyRight === beforeCasts.bodyRight && idle.bodyBottom === beforeCasts.bodyBottom,
       `После ${direction}: жест заканчивается, друид остаётся в стойке нужного направления без сдвига тела`);
@@ -1602,17 +1608,51 @@ try {
         }
       }
     }
-    throw new Error('Нет прохода для одновременного движения и атаки');
+    throw new Error('Нет прохода для проверки остановки при атаке и возобновления ходьбы');
   });
-  const beforeMovingCast = await castState();
-  await page.keyboard.down('s'); await page.keyboard.down('ArrowLeft');
-  await delay(220);
-  const movingCast = await castState();
-  ok(movingCast.active && movingCast.facing === 'left' && movingCast.y > beforeMovingCast.y + 10 &&
-    movingCast.x === beforeMovingCast.x && Math.abs(movingCast.visualY - movingCast.y) < .01,
-    'WASD и стрелки независимы: друид движется вниз и выполняет жест влево, без отставания изображения');
-  await page.keyboard.up('s'); await page.keyboard.up('ArrowLeft');
+  const beforeWalk = await castState();
+  await page.keyboard.down('s');
+  await waitState(s => s.y > beforeWalk.y + 12 && s.animationKey === 'druid-walk-down');
+  await page.keyboard.down('ArrowRight');
+  const castingStop = await waitCast(s => s.active && s.vx === 0 && s.vy === 0);
+  const stationary = await page.evaluate(async () => {
+    const p = window.__smokeGame.scene.getScene('Room').player;
+    const x = p.x, y = p.y, phases = new Set();
+    const end = performance.now() + 1500;
+    let frozen = true;
+    while (performance.now() < end) {
+      frozen &&= p.x === x && p.y === y && p.body.velocity.length() === 0 && p.casting.active;
+      phases.add(p.casting.frameIndex);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    return { frozen, phases: phases.size, walkStopped: !p.anims.isPlaying };
+  });
+  ok(stationary.frozen && stationary.phases === 6 && stationary.walkStopped &&
+    castingStop.speedStat === beforeWalk.speedStat,
+    'Начало каста останавливает ходьбу; удержание S и стрелки не сдвигает героя даже между повторами и не меняет скорость');
+  await page.keyboard.up('ArrowRight');
+  const finishingCast = await castState();
+  await waitCast(s => !s.active && s.playerVisible);
+  const resumed = await waitState(s => s.y > finishingCast.y + 12 && s.animationPlaying && s.animationKey === 'druid-walk-down');
+  ok(resumed.vy > 0 && resumed.vx === 0 && resumed.facing === 'down',
+    'После отпускания стрелки и завершения жеста удерживаемая S снова включает ходьбу вниз');
+  await page.keyboard.press('ArrowUp');
+  const tappedCast = await waitCast(s => s.active && s.facing === 'up' && s.vx === 0 && s.vy === 0);
+  await delay(150);
+  const duringTap = await castState();
+  ok(duringTap.active && duringTap.x === tappedCast.x && duringTap.y === tappedCast.y,
+    'Короткое нажатие стрелки блокирует ходьбу до конца жеста, даже когда стрелка уже отпущена');
   await waitCast(s => !s.active);
+  await waitState(s => s.animationKey === 'druid-walk-down' && s.vy > 0);
+  await page.keyboard.down('ArrowDown'); await page.keyboard.down('ArrowRight');
+  const diagonalStop = await waitCast(s => s.active && s.facing === 'down-right' && s.vx === 0 && s.vy === 0);
+  await delay(200);
+  const duringDiagonal = await castState();
+  ok(duringDiagonal.x === diagonalStop.x && duringDiagonal.y === diagonalStop.y,
+    'Диагональный каст тоже останавливает героя при удерживаемой WASD');
+  await page.keyboard.up('s'); await page.keyboard.up('ArrowDown'); await page.keyboard.up('ArrowRight');
+  const diagonalEndFacing = (await castState()).facing;
+  await waitCast(s => !s.active && s.idle === diagonalEndFacing);
   await page.keyboard.down('ArrowUp'); await page.keyboard.down('ArrowDown');
   // The two real keydown events can land on adjacent rendered frames. Let a
   // gesture started by the first key finish; the conflicting pair must not

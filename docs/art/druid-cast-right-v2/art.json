@@ -1,0 +1,82 @@
+{
+  "integrated": true,
+  "directions": {
+    "right": {
+      "newGripCenters": [
+        [
+          223.0,
+          98.0
+        ],
+        [
+          227.0,
+          101.0
+        ]
+      ],
+      "preservedFrames": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "bodyOutsideArmMask": "byte-identical"
+    },
+    "down-right": {
+      "newGripCenters": [
+        [
+          219.0,
+          101.0
+        ],
+        [
+          227.0,
+          106.0
+        ]
+      ],
+      "preservedFrames": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "bodyOutsideArmMask": "byte-identical"
+    },
+    "up-right": {
+      "newGripCenters": [
+        [
+          207.0,
+          91.0
+        ],
+        [
+          218.0,
+          102.0
+        ]
+      ],
+      "preservedFrames": [
+        0,
+        1,
+        2,
+        5,
+        6,
+        7
+      ],
+      "bodyOutsideArmMask": "byte-identical"
+    }
+  },
+  "changedFrames": [
+    3,
+    4
+  ],
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "idleOffset": [
+    128,
+    40
+  ],
+  "durationMs": 670,
+  "staffHand": "anatomical-left",
+  "otherDirections": "all five original assets are unchanged",
+  "movement": "stationary while casting; held WASD resumes after the gesture"
+}
