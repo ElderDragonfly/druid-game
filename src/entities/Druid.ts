@@ -2,11 +2,15 @@ import Phaser from 'phaser';
 import { CHARACTERS, type CharacterDefinition } from '../data/characters';
 import { DruidMovement, type DruidState } from '../behavior/DruidMovement';
 import type { Facing } from '../input/EightWayFacing';
+import { DruidCasting } from '../behavior/DruidCasting';
+import { CAST_METRICS } from '../rendering/druidCastArt';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly actorState: DruidState;
   readonly behavior: DruidMovement;
   readonly appearance;
+  readonly casting = new DruidCasting();
+  readonly castVisual: Phaser.GameObjects.Image;
   private activeWalk?: Facing;
   private nextWalkFrame: Partial<Record<Facing, number>> = {};
 
@@ -25,15 +29,21 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
       .setSize(art.bodyWidth / art.scale, art.bodyHeight / art.scale)
       .setOffset((art.width - art.bodyWidth / art.scale) / 2,
         originY + (art.bodyCenterY - art.bodyHeight / 2) / art.scale).setCollideWorldBounds(true);
+    const initialCast = appearance.casts?.down;
+    this.castVisual = scene.add.image(0, 0, initialCast?.texture ?? appearance.texture, initialCast?.frames[0])
+      .setOrigin(.5, (originY + CAST_METRICS.offsetY) / CAST_METRICS.height)
+      .setScale(art.scale).setVisible(false).setName('druid-casting');
+    this.once(Phaser.GameObjects.Events.DESTROY, () => this.castVisual.destroy());
   }
 
   move(x: number, y: number, facing: Facing) {
-    const velocity = this.behavior.velocity(x, y, facing);
+    const velocity = this.behavior.velocity(x, y, this.casting.active ? this.casting.facing : facing);
     this.setVelocity(velocity.x, velocity.y);
     this.updateAppearance();
   }
 
   updateAppearance(stopped = false) {
+    if (this.casting.active) return;
     const body = this.body as Phaser.Physics.Arcade.Body;
     const speed = stopped ? 0 : this.behavior.travelSpeed(body.velocity, body.blocked);
     const animation = speed > .01 ? this.appearance.walkAnimations?.[this.actorState.facing] : undefined;
@@ -55,6 +65,29 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
       if (this.texture.key !== this.appearance.texture) this.setTexture(this.appearance.texture, frame);
       else if (frame && this.frame.name !== frame) this.setFrame(frame, false, false);
     }
+  }
+
+  updateCasting(delta: number, requested?: Facing) {
+    this.casting.update(delta, requested && this.appearance.casts?.[requested] ? requested : undefined);
+    if (this.casting.active) {
+      this.rememberStep();
+      this.anims.stop();
+      this.actorState.facing = this.casting.facing;
+      const art = this.appearance.casts![this.casting.facing]!;
+      this.castVisual.setTexture(art.texture, art.frames[this.casting.frameIndex]);
+    }
+    this.setVisible(!this.casting.active);
+    this.castVisual.setVisible(this.casting.active);
+  }
+
+  syncCastVisual() {
+    this.castVisual.setPosition(this.x, this.y).setDepth(this.depth);
+  }
+
+  cancelCast() {
+    this.casting.cancel();
+    this.castVisual.setVisible(false);
+    this.setVisible(true);
   }
 
   private rememberStep() {

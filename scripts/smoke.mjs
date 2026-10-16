@@ -1498,6 +1498,139 @@ try {
   }
 
   await restart();
+  const castAssets = await page.evaluate(async () => {
+    const { FACINGS } = await import('/src/input/EightWayFacing.ts');
+    const { DRUID_CAST_ART, DRUID_CAST_APPEARANCE } = await import('/src/rendering/druidCastArt.ts');
+    const game = window.__smokeGame;
+    const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
+      const image = new Image();
+      image.src = art.direction === 'down' ? '/docs/art/druid-cast-down-v1/cast-down-512x384.png'
+        : `/docs/art/druid-cast-eight-way-v1/cast-${art.direction}-512x384.png`;
+      await image.decode();
+      const texture = game.textures.get(art.key), frames = DRUID_CAST_APPEARANCE[art.direction].frames;
+      const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 384;
+      const context = canvas.getContext('2d');
+      return texture.source[0].scaleMode === 1 && frames.length === 6 && frames.every((name, index) => {
+        context.clearRect(0, 0, 512, 384); context.drawImage(image, (index + 1) * 512, 0, 512, 384, 0, 0, 512, 384);
+        const expected = context.getImageData(0, 0, 512, 384).data;
+        const frame = texture.get(name);
+        context.clearRect(0, 0, 512, 384);
+        context.drawImage(texture.getSourceImage(), frame.cutX, frame.cutY, 512, 384, 0, 0, 512, 384);
+        const actual = context.getImageData(0, 0, 512, 384).data;
+        return actual.every((value, i) => value === expected[i]);
+      });
+    }));
+    return { count: FACINGS.length, preserved: preserved.every(Boolean) };
+  });
+  ok(castAssets.count === 8 && castAssets.preserved,
+    'Атаки всех восьми направлений загружены 1:1 с NEAREST; вниз — именно принятый исходник v1');
+  const castState = () => page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room'), p = scene.player, v = p.castVisual;
+    return { active: p.casting.active, facing: p.actorState.facing, phase: p.casting.frameIndex,
+      texture: v.texture.key, frame: v.frame.name, visible: v.visible, playerVisible: p.visible,
+      idle: p.frame.name, x: p.x, y: p.y, bodyWidth: p.body.width, bodyHeight: p.body.height,
+      bodyX: p.body.x, bodyY: p.body.y, bodyRight: p.body.right, bodyBottom: p.body.bottom,
+      visualX: v.x, visualY: v.y, alignedFeet: v.y - v.displayOriginY * v.scaleY + 340 * v.scaleY,
+      playerFeet: p.y - p.displayOriginY * p.scaleY + 300 * p.scaleY,
+      depth: v.depth, playerDepth: p.depth, scale: v.scaleX, cameraFilter: v.cameraFilter,
+      hudId: scene.cameras.getCamera('hud').id };
+  });
+  const waitCast = async predicate => {
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline) {
+      const s = await castState(); if (predicate(s)) return s; await delay(20);
+    }
+    throw new Error(`Состояние атаки не достигнуто: ${JSON.stringify(await castState())}`);
+  };
+  const beforeCasts = await castState();
+  await page.keyboard.press('ArrowDown');
+  await waitCast(s => s.active && s.facing === 'down');
+  await waitCast(s => !s.active && s.playerVisible);
+  ok(true, 'Короткое нажатие стрелки тоже запускает полный жест, даже между кадрами игры');
+  for (const [direction, arrows] of [
+    ['down', ['ArrowDown']], ['up', ['ArrowUp']], ['left', ['ArrowLeft']], ['right', ['ArrowRight']],
+    ['down-left', ['ArrowDown', 'ArrowLeft']], ['down-right', ['ArrowDown', 'ArrowRight']],
+    ['up-left', ['ArrowUp', 'ArrowLeft']], ['up-right', ['ArrowUp', 'ArrowRight']],
+  ]) {
+    for (const arrow of arrows) await page.keyboard.down(arrow);
+    const s = await waitCast(s => s.active && s.facing === direction);
+    ok(s.texture === `druid-cast-${direction}` && s.visible && !s.playerVisible &&
+      s.bodyWidth === 20 && s.bodyHeight === 25 && s.visualX === s.x && s.visualY === s.y &&
+      Math.abs(s.alignedFeet - s.playerFeet) < .001 && s.depth === s.playerDepth &&
+      Math.abs(s.scale - 87.5 / 256) < .0001 && (s.cameraFilter & s.hudId) !== 0,
+      `Стрелки: атака ${direction}, прежний масштаб, опора ног, глубина и коллайдер 20×25`);
+    if (direction === 'down') {
+      const phases = await page.evaluate(async () => {
+        const p = window.__smokeGame.scene.getScene('Room').player, seen = new Set(), transitions = [];
+        const end = performance.now() + 1500; let previous = -1;
+        while (performance.now() < end) {
+          const phase = p.casting.frameIndex; seen.add(phase);
+          if (phase !== previous) { transitions.push(phase); previous = phase; }
+          await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+        return { seen: [...seen], transitions, active: p.casting.active };
+      });
+      ok(phases.seen.length === 6 && phases.active && phases.transitions.slice(1).every((phase, i) =>
+        phase === (phases.transitions[i] + 1) % 6),
+        'Удержание стрелки проходит шесть фаз по порядку и повторяет жест, не сбрасывая его каждый кадр');
+      await page.screenshot({ path: fileURLToPath(new URL('../test-results/casting-down.png', import.meta.url)) });
+    }
+    for (const arrow of arrows) await page.keyboard.up(arrow);
+    const idle = await waitCast(s => !s.active && !s.visible && s.playerVisible && s.idle === direction);
+    ok(idle.x === beforeCasts.x && idle.y === beforeCasts.y && idle.bodyX === beforeCasts.bodyX &&
+      idle.bodyY === beforeCasts.bodyY && idle.bodyRight === beforeCasts.bodyRight && idle.bodyBottom === beforeCasts.bodyBottom,
+      `После ${direction}: жест заканчивается, друид остаётся в стойке нужного направления без сдвига тела`);
+  }
+  await page.keyboard.down('ArrowUp');
+  await waitCast(s => s.active && s.phase >= 2);
+  const phaseBeforeTurn = (await castState()).phase;
+  await page.keyboard.down('ArrowRight');
+  const diagonalCast = await waitCast(s => s.active && s.facing === 'up-right');
+  ok(diagonalCast.phase >= phaseBeforeTurn,
+    'Добавление второй стрелки во время жеста переключает диагональ без сброса фазы');
+  await page.keyboard.up('ArrowUp');
+  await waitCast(s => s.active && s.facing === 'right');
+  await page.keyboard.up('ArrowRight');
+  await waitCast(s => !s.active);
+  await page.evaluate(() => {
+    const scene = window.__smokeGame.scene.getScene('Room');
+    const obstacles = scene.world.obstacles.getChildren().map(o => o.body);
+    for (let y = 80; y < scene.layout.height - 200; y += 40) {
+      for (let x = 80; x < scene.layout.width - 80; x += 40) {
+        if (!obstacles.some(o => x - 10 < o.right && x + 10 > o.x && y < o.bottom && y + 180 > o.y)) {
+          scene.player.body.reset(x, y); return;
+        }
+      }
+    }
+    throw new Error('Нет прохода для одновременного движения и атаки');
+  });
+  const beforeMovingCast = await castState();
+  await page.keyboard.down('s'); await page.keyboard.down('ArrowLeft');
+  await delay(220);
+  const movingCast = await castState();
+  ok(movingCast.active && movingCast.facing === 'left' && movingCast.y > beforeMovingCast.y + 10 &&
+    movingCast.x === beforeMovingCast.x && Math.abs(movingCast.visualY - movingCast.y) < .01,
+    'WASD и стрелки независимы: друид движется вниз и выполняет жест влево, без отставания изображения');
+  await page.keyboard.up('s'); await page.keyboard.up('ArrowLeft');
+  await waitCast(s => !s.active);
+  await page.keyboard.down('ArrowUp'); await page.keyboard.down('ArrowDown');
+  // The two real keydown events can land on adjacent rendered frames. Let a
+  // gesture started by the first key finish; the conflicting pair must not
+  // start or repeat another one.
+  await delay(800);
+  ok(!(await castState()).active, 'Противоположные стрелки отменяют друг друга и не запускают новую атаку');
+  await page.keyboard.up('ArrowUp'); await page.keyboard.up('ArrowDown');
+  await page.keyboard.down('ArrowLeft'); await waitCast(s => s.active);
+  await page.evaluate(() => window.__smokeGame.events.emit('blur'));
+  ok(!(await castState()).active && (await castState()).playerVisible, 'Потеря фокуса отменяет жест и сбрасывает ввод');
+  await page.keyboard.up('ArrowLeft');
+  await page.keyboard.down('ArrowDown'); await waitCast(s => s.active);
+  const oldCast = await page.evaluateHandle(() => window.__smokeGame.scene.getScene('Room').player.castVisual);
+  await restart(); await page.keyboard.up('ArrowDown');
+  ok(await page.evaluate(old => !old.scene && window.__smokeGame.scene.getScene('Room').children.list.filter(
+    o => o.name === 'druid-casting').length === 1, oldCast), 'Перезапуск удаляет прежнее изображение атаки, без дубликатов');
+  await oldCast.dispose();
+  await waitCast(s => !s.active);
   await hold('ArrowRight', 350);
   const peaceful = await state();
   ok(!peaceful.combat && peaceful.health === 3, 'В текущей поляне нет жука, стрельбы и контактного урона');

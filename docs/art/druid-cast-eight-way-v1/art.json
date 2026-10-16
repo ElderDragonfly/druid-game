@@ -1,0 +1,247 @@
+{
+  "integrated": true,
+  "reference": "../druid-cast-down-v1/cast-down-preview.gif",
+  "downPixels": "original v1 unchanged; runtime imports its original PNG directly",
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "idleOffset": [
+    128,
+    40
+  ],
+  "feetY": 340,
+  "frameCount": 8,
+  "activeFrames": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "gameDurationsMs": [
+    100,
+    120,
+    80,
+    130,
+    110,
+    130
+  ],
+  "gameDurationMs": 670,
+  "directions": {
+    "down": {
+      "gripCenters": [],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "left": {
+      "gripCenters": [
+        [
+          61.0,
+          118.0
+        ],
+        [
+          63.0,
+          75.0
+        ],
+        [
+          102.0,
+          111.0
+        ],
+        [
+          84.0,
+          102.0
+        ],
+        [
+          52.0,
+          107.0
+        ],
+        [
+          101.0,
+          116.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "right": {
+      "gripCenters": [
+        [
+          201.0,
+          112.0
+        ],
+        [
+          204.0,
+          57.0
+        ],
+        [
+          151.0,
+          107.0
+        ],
+        [
+          136.0,
+          109.0
+        ],
+        [
+          216.0,
+          99.0
+        ],
+        [
+          204.0,
+          109.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "up": {
+      "gripCenters": [
+        [
+          35.0,
+          103.0
+        ],
+        [
+          55.0,
+          56.0
+        ],
+        [
+          118.0,
+          107.5
+        ],
+        [
+          142.0,
+          125.0
+        ],
+        [
+          35.0,
+          103.0
+        ],
+        [
+          44.0,
+          106.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "down-left": {
+      "gripCenters": [
+        [
+          206.0,
+          118.0
+        ],
+        [
+          197.0,
+          67.0
+        ],
+        [
+          129.0,
+          118.0
+        ],
+        [
+          120.0,
+          112.0
+        ],
+        [
+          221.0,
+          113.0
+        ],
+        [
+          206.0,
+          135.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "down-right": {
+      "gripCenters": [
+        [
+          218.0,
+          108.0
+        ],
+        [
+          206.0,
+          59.0
+        ],
+        [
+          126.5,
+          117.0
+        ],
+        [
+          115.0,
+          106.0
+        ],
+        [
+          228.0,
+          99.0
+        ],
+        [
+          218.0,
+          115.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "up-left": {
+      "gripCenters": [
+        [
+          50.0,
+          95.0
+        ],
+        [
+          46.0,
+          63.0
+        ],
+        [
+          77.0,
+          102.0
+        ],
+        [
+          83.0,
+          87.0
+        ],
+        [
+          42.0,
+          88.0
+        ],
+        [
+          50.0,
+          97.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    },
+    "up-right": {
+      "gripCenters": [
+        [
+          212.0,
+          90.0
+        ],
+        [
+          195.0,
+          49.0
+        ],
+        [
+          146.0,
+          114.5
+        ],
+        [
+          204.0,
+          113.0
+        ],
+        [
+          222.0,
+          87.0
+        ],
+        [
+          194.0,
+          81.0
+        ]
+      ],
+      "staffHand": "anatomical-left",
+      "mirrored": false
+    }
+  }
+}

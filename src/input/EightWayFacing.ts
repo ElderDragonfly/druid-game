@@ -6,6 +6,13 @@ export type CardinalFacing = typeof CARDINAL_FACINGS[number];
 export type Facing = typeof FACINGS[number];
 export type MovementKeys = Record<CardinalFacing, Phaser.Input.Keyboard.Key>;
 
+export function facingFromVector(x: number, y: number): Facing | undefined {
+  if (x && y) return `${y < 0 ? 'up' : 'down'}-${x < 0 ? 'left' : 'right'}`;
+  if (x) return x < 0 ? 'left' : 'right';
+  if (y) return y < 0 ? 'up' : 'down';
+  return undefined;
+}
+
 // The same resultant input vector chooses velocity and the eight-way pose.
 // Opposite keys cancel; no input retains the last view for the idle pose.
 export class EightWayFacing {
@@ -16,9 +23,7 @@ export class EightWayFacing {
   read(): Facing {
     const x = Number(this.keys.right.isDown) - Number(this.keys.left.isDown);
     const y = Number(this.keys.down.isDown) - Number(this.keys.up.isDown);
-    if (x && y) this.facing = `${y < 0 ? 'up' : 'down'}-${x < 0 ? 'left' : 'right'}`;
-    else if (x) this.facing = x < 0 ? 'left' : 'right';
-    else if (y) this.facing = y < 0 ? 'up' : 'down';
+    this.facing = facingFromVector(x, y) ?? this.facing;
     return this.facing;
   }
 }

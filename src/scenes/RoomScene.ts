@@ -6,7 +6,7 @@ import { bindSceneKey } from '../ui/sceneHelpers';
 import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
 import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
-import { EightWayFacing, type Facing, type MovementKeys } from '../input/EightWayFacing';
+import { facingFromVector, type Facing, type MovementKeys } from '../input/EightWayFacing';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -16,7 +16,8 @@ export class RoomScene extends Phaser.Scene {
   world!: MeadowWorld;
   private seed = 0;
   private movement!: MovementKeys;
-  private facingInput!: EightWayFacing;
+  private attackKeys!: MovementKeys;
+  private queuedAttack?: Facing;
   facing: Facing = 'down';
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
@@ -38,6 +39,7 @@ export class RoomScene extends Phaser.Scene {
     const appearance = character.game ?? CHARACTERS[0].game!;
     const art = appearance.metrics;
     this.facing = 'down';
+    this.queuedAttack = undefined;
     this.feetOffset = art.bodyCenterY + art.bodyHeight / 2;
     this.player = new Druid(this, character);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
@@ -48,16 +50,30 @@ export class RoomScene extends Phaser.Scene {
       up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D,
     }) as typeof this.movement;
-    this.facingInput = new EightWayFacing(this.movement);
+    this.attackKeys = keyboard.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.UP, down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+      left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    }) as MovementKeys;
+    const captureArrowTap = (event: KeyboardEvent) => {
+      if (!event.code.startsWith('Arrow') || event.repeat) return;
+      const arrows = this.attackKeys;
+      this.queuedAttack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),
+        Number(arrows.down.isDown) - Number(arrows.up.isDown));
+    };
+    keyboard.on('keydown', captureArrowTap);
     // Arcade syncs sprite coordinates in post-update; sample grass after that sync.
     const updateGrass = (_time: number, delta: number) => {
+      this.player.syncCastVisual();
       this.world.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
-    const resetInput = () => { keyboard.resetKeys(); this.player.setVelocity(0, 0); this.player.updateAppearance(true); };
+    const resetInput = () => {
+      keyboard.resetKeys(); this.queuedAttack = undefined; this.player.cancelCast();
+      this.player.setVelocity(0, 0); this.player.updateAppearance(true);
+    };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
     const resize = () => this.resizeCameras();
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
@@ -65,15 +81,23 @@ export class RoomScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
+      keyboard.off('keydown', captureArrowTap);
     });
   }
 
   update(_time: number, delta: number) {
     const keys = this.movement;
-    this.facing = this.facingInput.read();
-    this.player.move(Number(keys.right.isDown) - Number(keys.left.isDown),
-      Number(keys.down.isDown) - Number(keys.up.isDown), this.facing);
+    const x = Number(keys.right.isDown) - Number(keys.left.isDown);
+    const y = Number(keys.down.isDown) - Number(keys.up.isDown);
+    const arrows = this.attackKeys;
+    const attack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),
+      Number(arrows.down.isDown) - Number(arrows.up.isDown)) ?? this.queuedAttack;
+    this.queuedAttack = undefined;
+    this.player.updateCasting(delta, attack);
+    this.player.move(x, y, facingFromVector(x, y) ?? this.player.actorState.facing);
+    this.facing = this.player.actorState.facing;
     this.player.setDepth(this.player.y + 25);
+    this.player.syncCastVisual();
     this.shadow.setPosition(this.player.x, this.player.y + 22).setDepth(this.player.y + 24);
     const center = this.cameraFollow.update(this.player.x, this.player.y, delta);
     this.cameras.main.centerOn(center.x, center.y);
@@ -119,7 +143,7 @@ export class RoomScene extends Phaser.Scene {
       const x = 104 + i * 26;
       hearts.fillStyle(0xd98278).fillCircle(x - 4, 35, 5).fillCircle(x + 4, 35, 5).fillTriangle(x - 9, 36, x + 9, 36, x, 47);
     }
-    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · R — новая поляна · Esc — в лагерь', {
+    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — атака · R — новая поляна · Esc — в лагерь', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
     this.hud.add([panel, label, hearts, this.hint]);
