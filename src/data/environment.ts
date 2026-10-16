@@ -10,6 +10,8 @@ export interface EnvironmentVariant {
   scale: number;
   anchorX: number; anchorY: number;
   bodyWidth: number; bodyHeight: number;
+  /** Trim the lower collision edge only; image, shadow and upper edge stay put. */
+  bodyInsetBottom?: number;
 }
 
 // Archived sprites remain available independently of the active spawn pool.

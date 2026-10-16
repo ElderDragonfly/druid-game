@@ -1471,6 +1471,43 @@ try {
     }
   }
 
+  // Regression: soles can pass just below the visible trunk instead of
+  // colliding with an invisible rectangle extending into the grass.
+  await restart();
+  const pines = await state();
+  const pineIndex = pines.obstacles.findIndex((tree, index) => {
+    const placement = pines.layout.obstacles[index];
+    const corridor = { x: placement.x - 90, right: placement.x + 90,
+      y: placement.y - 25, bottom: placement.y + 50 };
+    return corridor.x >= 0 && corridor.right <= pines.layout.width && corridor.bottom < pines.layout.height &&
+      !pines.obstacles.some((other, i) => i !== index && intersects(corridor, other));
+  });
+  assert.ok(pineIndex >= 0, 'Нет свободного подхода к сосне снизу');
+  const pine = pines.layout.obstacles[pineIndex];
+  for (const [key, sign] of [['d', 1], ['a', -1]]) {
+    await page.evaluate(({ tree, sign }) => {
+      const player = window.__smokeGame.scene.getScene('Room').player;
+      // Keep visible soles 12 world units below the image's ground anchor.
+      player.body.reset(tree.x - sign * 56, tree.y + 12 - 22.5);
+      player.setVelocity(0, 0);
+    }, { tree: pine, sign });
+    const before = await state();
+    await hold(key, 850);
+    const after = await state();
+    ok((after.x - before.x) * sign > 100 && Math.abs(after.body.bottom - (pine.y + 12)) < .1,
+      `Под стволом можно пройти ${sign > 0 ? 'вправо' : 'влево'} без невидимого выступа коллайдера`);
+  }
+  await page.evaluate(tree => {
+    const player = window.__smokeGame.scene.getScene('Room').player;
+    player.body.reset(tree.x, tree.y + 45 - 22.5);
+    player.setVelocity(0, 0);
+  }, pine);
+  await hold('w', 600);
+  const belowPine = await state();
+  const soleGap = belowPine.body.bottom - pine.y;
+  ok(soleGap >= 0 && soleGap <= 12 && Math.abs(belowPine.x - pine.x) < .1,
+    'Подход снизу останавливается у ствола: зазор у сапог не превышает 12 единиц вместо прежних 25');
+
   // Прямой доступ к свободной части края, чтобы деревья не подменяли проверку границы мира.
   for (const [key, side] of [['w', 'top'], ['s', 'bottom'], ['a', 'left'], ['d', 'right']]) {
     await restart();

@@ -7,5 +7,6 @@
   "anchorX": 464,
   "anchorY": 1536,
   "bodyWidth": 32,
-  "bodyHeight": 18
+  "bodyHeight": 18,
+  "bodyInsetBottom": 14
 }

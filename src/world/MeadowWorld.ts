@@ -3,7 +3,7 @@ import { environmentVariant } from '../data/environment';
 import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
 import { drawForestFloor } from '../rendering/forestFloor';
 import { FOREST_FLOOR } from './forestFloor';
-import type { MeadowLayout } from './meadowLayout';
+import { obstacleRect, type MeadowLayout } from './meadowLayout';
 import { GrassForeground } from '../rendering/GrassForeground';
 import { Mouse } from '../entities/Mouse';
 import { generateMousePopulation } from './mousePopulation';
@@ -27,8 +27,10 @@ export class MeadowWorld {
         .setScale(art.scale).setDepth(object.y);
       image.refreshBody();
       const body = image.body as Phaser.Physics.Arcade.StaticBody;
-      body.setSize(art.bodyWidth, art.bodyHeight, false)
-        .setOffset(art.anchorX * art.scale - art.bodyWidth / 2, art.anchorY * art.scale - art.bodyHeight);
+      const bounds = obstacleRect(object), topLeft = image.getTopLeft();
+      // Physics and generation/pathfinding share the same trimmed trunk.
+      body.setSize(bounds.width, bounds.height, false)
+        .setOffset(bounds.x - topLeft.x, bounds.y - topLeft.y);
     });
     this.mice = generateMousePopulation(layout).map((start, index) =>
       new Mouse(scene, layout, this.obstacles, start, index + 1));

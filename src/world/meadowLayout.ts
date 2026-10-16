@@ -36,7 +36,8 @@ export function seededRandom(seed: number) {
 
 export function obstacleRect(object: ObstaclePlacement): Rect {
   const art = environmentVariant(object.kind, object.variant);
-  return { x: object.x - art.bodyWidth / 2, y: object.y - art.bodyHeight, width: art.bodyWidth, height: art.bodyHeight };
+  return { x: object.x - art.bodyWidth / 2, y: object.y - art.bodyHeight,
+    width: art.bodyWidth, height: art.bodyHeight - (art.bodyInsetBottom ?? 0) };
 }
 
 export function obstacleVisualRect(object: ObstaclePlacement): Rect {
