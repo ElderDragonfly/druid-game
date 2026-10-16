@@ -1,0 +1,75 @@
+{
+  "integrated": false,
+  "direction": "down",
+  "action": "spellcasting sweep",
+  "staffHand": "anatomical-left only",
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "frameCount": 8,
+  "frameDurationsMs": [
+    320,
+    100,
+    120,
+    80,
+    130,
+    110,
+    130,
+    440
+  ],
+  "loopDurationMs": 1430,
+  "gestureDurationMs": 670,
+  "staffAnglesDeg": [
+    -8,
+    -25,
+    35,
+    75,
+    25,
+    0
+  ],
+  "gripCenters": [
+    [
+      213.0,
+      123.0
+    ],
+    [
+      203.0,
+      73.0
+    ],
+    [
+      156.0,
+      116.0
+    ],
+    [
+      132.0,
+      115.0
+    ],
+    [
+      223.0,
+      106.5
+    ],
+    [
+      210.0,
+      139.0
+    ]
+  ],
+  "originalIdle": "docs/art/druid-front-refinement-v2/idle-down-256x320.png",
+  "idleOffset": [
+    128,
+    40
+  ],
+  "nativeFigureHeight": 280,
+  "feetY": 340,
+  "nativeDetail": "256x320 figure with padding, not enlarged",
+  "staffSource": "one cutout of approved idle; hidden grip bridged with adjacent original wood",
+  "layers": "drawn body, rigid staff, foreground gripping hand",
+  "phases": [
+    "idle",
+    "lift",
+    "raise",
+    "sweep",
+    "follow-through",
+    "return",
+    "settle",
+    "idle"
+  ]
+}
