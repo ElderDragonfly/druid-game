@@ -5,7 +5,7 @@ import runpy
 
 import numpy as np
 from PIL import Image, ImageDraw
-from scipy.ndimage import label
+from scipy.ndimage import distance_transform_edt, label, map_coordinates
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs/art/druid-back-refinement-v1'
@@ -13,6 +13,7 @@ SIZE = (256, 320)
 BASELINE = 300
 LIFT = (0, 6, 12, 6)
 FRAME_MS = 240
+CLOAK_HEM = ((0, 2), (1, 1), (2, 0), (1, 1))
 BOOT_CENTERS = (115, 147)
 LEG_SPLITS = (134, 130, 130, 130)
 ARM_REGION = (168, 112, 215, 191)
@@ -79,8 +80,46 @@ def staff_cutout(source):
     return Image.fromarray(data)
 
 
+def moving_cloak(base, source, phase):
+    """Animate cloth only: drawn folds and a small downward hem follow-through.
+
+    Keep the hood/shoulder geometry anchored. Downward displacement at the
+    lower edge avoids uncovering any undrawn fabric in the accepted leg layers.
+    """
+    data = np.array(base)
+    drawn = np.array(source)
+    yy, xx = np.indices(data.shape[:2])
+    old_hsv = np.array(base.convert('RGB').convert('HSV'))
+    src_hsv = np.array(source.convert('RGB').convert('HSV'))
+    cloth = (src_hsv[:, :, 0] >= 29) & (src_hsv[:, :, 0] <= 110) & (src_hsv[:, :, 1] > 40)
+    # Fold shadows must move too; a hue test alone leaves dotted remnants
+    # of the old dark folds. Exclude brown legs at the drawn hem instead.
+    cloth |= (src_hsv[:, :, 2] < 70) & (drawn[:, :, 1].astype(float) >= .9 * drawn[:, :, 0])
+    old_cloth = (old_hsv[:, :, 0] >= 32) & (old_hsv[:, :, 0] <= 110) & (old_hsv[:, :, 1] > 40)
+    old_cloth |= (old_hsv[:, :, 2] < 70) & (data[:, :, 1].astype(float) >= .9 * data[:, :, 0])
+    cloth &= old_cloth  # preserve the original warm tan hem trim
+    cloth &= (data[:, :, 3] > 0) & (drawn[:, :, 3] >= 128)
+    interior = np.clip((distance_transform_edt(data[:, :, 3] > 0) - 5) / 7, 0, 1)
+    blend = .8 * np.clip((yy - 112) / 28, 0, 1) * interior * cloth
+    rgb = data[:, :, :3].astype(float)
+    data[:, :, :3] = np.rint(rgb + (drawn[:, :, :3].astype(float) - rgb) * blend[:, :, None]).astype('uint8')
+    colored = np.array(front['match_cloth'](Image.fromarray(data)))
+    # Alternating weight follows the two steps; the center stays at the same
+    # height in every phase. No X displacement or whole-character translation.
+    left, right = CLOAK_HEM[phase]
+    mix = .5 + .5 * np.tanh((xx - 128) / 30)
+    weight = np.clip((yy - 150) / 55, 0, 1) ** 2
+    # The right-arm patch ends at y=191; leave its attachment untouched.
+    weight *= np.where(xx >= ARM_REGION[0], np.clip((yy - 194) / 11, 0, 1), 1)
+    dy = (left * (1 - mix) + right * mix) * weight
+    coords = np.array([yy - dy, xx])
+    # Nearest sampling preserves the native pixel texture and binary alpha.
+    return Image.fromarray(np.stack([map_coordinates(colored[:, :, channel], coords,
+        order=0, mode='constant', cval=0) for channel in range(4)], axis=-1))
+
+
 def corrected_bodies(original_body):
-    """Fixed accepted torso plus drawn arm/legs, registered independently.
+    """Anchored accepted torso with independent cloth, arm and leg layers.
 
     Never align the torso to a swinging boot. Each complete visible leg is
     translated horizontally once to its fixed walking lane, without stretching
@@ -88,10 +127,13 @@ def corrected_bodies(original_body):
     """
     source = Image.open(OUT / 'walk-gait-source.png').convert('RGBA')
     arm_source = Image.open(OUT / 'walk-free-arm-source.png').convert('RGBA')
+    cloak_source = Image.open(OUT / 'walk-cloak-motion-source.png').convert('RGBA')
     if source.size != (512, 640):
         raise ValueError('Gait source must contain four native 256x320 cells, 2x2.')
     if arm_source.size != (188, 79):
         raise ValueError('Arm source must contain four native 47x79 regions.')
+    if cloak_source.size != (512, 640):
+        raise ValueError('Cloak source must contain four native 256x320 cells, 2x2.')
     opening = Image.new('L', SIZE)
     ImageDraw.Draw(opening).polygon(LEG_OPENING, fill=255)
     data = np.array(original_body)
@@ -99,7 +141,7 @@ def corrected_bodies(original_body):
     left, top, right, bottom = ARM_REGION
     data[top:bottom, left:right] = 0
     cloak = Image.fromarray(data)
-    frames, leg_frames, arm_frames, registrations = [], [], [], []
+    frames, leg_frames, arm_frames, cloak_frames, registrations = [], [], [], [], []
     yy, _ = np.indices((SIZE[1], SIZE[0]))
     for i in range(4):
         x, y = (i % 2) * SIZE[0], (i // 2) * SIZE[1]
@@ -158,14 +200,17 @@ def corrected_bodies(original_body):
         pixels[np.isin(components, tiny)] = 0
         patch = Image.fromarray(pixels)
         arm.paste(front['match_cloth'](patch), (left, top))
+        cloth = moving_cloak(cloak, cloak_source.crop((x, y, x + SIZE[0], y + SIZE[1])), i)
         body = legs.copy()
-        body.alpha_composite(cloak)
+        body.alpha_composite(cloth)
         body.alpha_composite(arm)
         frames.append(body)
         leg_frames.append(legs)
         arm_frames.append(arm)
+        cloak_frames.append(cloth)
         registrations.append(registration)
     save(cloak, 'walk-fixed-cloak-256x320.png')
+    save(front['strip'](cloak_frames), 'walk-cloak-motion-256x320.png')
     save(front['strip'](leg_frames), 'walk-legs-256x320.png')
     save(front['strip'](arm_frames), 'walk-right-arm-region-256x320.png')
     return frames, registrations
@@ -201,17 +246,21 @@ def main():
                        duration=FRAME_MS, loop=0, disposal=2, optimize=False)
     metadata = {'integrated': False, 'direction': 'up', 'frameWidth': 256, 'frameHeight': 320,
         'frameCount': 4, 'frameDurationMs': FRAME_MS, 'previewScale': 1, 'baselineY': BASELINE,
-        'scale': scale, 'registration': 'fixed first torso; drawn legs in fixed vertical lanes',
+        'scale': scale, 'registration': 'anchored hood/torso; moving cloth and fixed vertical leg lanes',
         'gait': {'source': 'walk-gait-source.png', 'torsoFixed': True, 'torsoOffsetY': [0, 0, 0, 0],
                  'bootSoleCentersX': list(BOOT_CENTERS), 'legRegistration': leg_registration,
                  'rightArmRegion': list(ARM_REGION), 'armSource': 'walk-free-arm-source.png',
                  'neutralArmForearmForeshorteningPx': 5},
+        'cloak': {'source': 'walk-cloak-motion-source.png', 'hoodAndShouldersAnchored': True,
+                  'foldBlendStartsY': 112, 'maxHemFollowThroughPx': 2,
+                  'hemLeftRightOffsets': [list(pair) for pair in CLOAK_HEM]},
         'anchors': [{k: v for k, v in p.items() if k != 'image'} for p in bodies],
         'staff': {'anatomicalHand': 'left', 'screenSide': 'left', 'rigidMaster': True,
                   'liftPixels': list(LIFT), 'plantedOffsetY': planted_offset,
                   'plantsPerCycle': 1, 'stepsPerCycle': 2},
-        'sources': ['walk-source.png', 'walk-body-source.png', 'walk-gait-source.png', 'walk-free-arm-source.png'],
-        'bodyLayersBackToFront': ['walk-legs-256x320.png', 'walk-fixed-cloak-256x320.png',
+        'sources': ['walk-source.png', 'walk-body-source.png', 'walk-gait-source.png',
+                    'walk-free-arm-source.png', 'walk-cloak-motion-source.png'],
+        'bodyLayersBackToFront': ['walk-legs-256x320.png', 'walk-cloak-motion-256x320.png',
                                   'walk-right-arm-region-256x320.png'],
         'layersBackToFront': ['walk-arm-staff-256x320.png', 'walk-body-256x320.png']}
     (OUT / 'art.json').write_text(json.dumps(metadata, indent=2) + '\n')

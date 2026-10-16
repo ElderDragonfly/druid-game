@@ -8,7 +8,7 @@
   "previewScale": 1,
   "baselineY": 300,
   "scale": 0.611353711790393,
-  "registration": "fixed first torso; drawn legs in fixed vertical lanes",
+  "registration": "anchored hood/torso; moving cloth and fixed vertical leg lanes",
   "gait": {
     "source": "walk-gait-source.png",
     "torsoFixed": true,
@@ -89,6 +89,30 @@
     "armSource": "walk-free-arm-source.png",
     "neutralArmForearmForeshorteningPx": 5
   },
+  "cloak": {
+    "source": "walk-cloak-motion-source.png",
+    "hoodAndShouldersAnchored": true,
+    "foldBlendStartsY": 112,
+    "maxHemFollowThroughPx": 2,
+    "hemLeftRightOffsets": [
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ]
+  },
   "anchors": [
     {
       "top": 26,
@@ -129,11 +153,12 @@
     "walk-source.png",
     "walk-body-source.png",
     "walk-gait-source.png",
-    "walk-free-arm-source.png"
+    "walk-free-arm-source.png",
+    "walk-cloak-motion-source.png"
   ],
   "bodyLayersBackToFront": [
     "walk-legs-256x320.png",
-    "walk-fixed-cloak-256x320.png",
+    "walk-cloak-motion-256x320.png",
     "walk-right-arm-region-256x320.png"
   ],
   "layersBackToFront": [
