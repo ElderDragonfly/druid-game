@@ -1,0 +1,98 @@
+{
+  "integrated": true,
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "idleOffset": [
+    128,
+    40
+  ],
+  "durationMs": 670,
+  "directions": {
+    "down-right": {
+      "previousFolder": "druid-cast-right-v2",
+      "staffAnglesDegrees": [
+        -8,
+        -29,
+        35,
+        45,
+        25,
+        0
+      ],
+      "gripCenters": [
+        [
+          218.0,
+          108.0
+        ],
+        [
+          206.0,
+          59.0
+        ],
+        [
+          219.0,
+          101.0
+        ],
+        [
+          227.0,
+          106.0
+        ],
+        [
+          228.0,
+          99.0
+        ],
+        [
+          218.0,
+          115.0
+        ]
+      ],
+      "preservedFrames": [
+        0,
+        7
+      ],
+      "staffHand": "anatomical-left"
+    },
+    "up-left": {
+      "previousFolder": "druid-cast-eight-way-v1",
+      "staffAnglesDegrees": [
+        8,
+        35,
+        -35,
+        -45,
+        -25,
+        0
+      ],
+      "gripCenters": [
+        [
+          50.0,
+          95.0
+        ],
+        [
+          46.0,
+          63.0
+        ],
+        [
+          77.0,
+          102.0
+        ],
+        [
+          83.0,
+          87.0
+        ],
+        [
+          42.0,
+          88.0
+        ],
+        [
+          50.0,
+          97.0
+        ]
+      ],
+      "preservedFrames": [
+        0,
+        7
+      ],
+      "staffHand": "anatomical-left"
+    }
+  },
+  "bodyAndPalm": "exact accepted layers; only staff rotation changes",
+  "previousAssets": "retained untouched in their original folders"
+}

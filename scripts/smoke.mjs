@@ -1504,8 +1504,10 @@ try {
     const game = window.__smokeGame;
     const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
       const image = new Image();
-      const folder = ['right', 'down-right', 'up-right'].includes(art.direction)
-        ? 'druid-cast-right-v2' : 'druid-cast-eight-way-v1';
+      const folder = ['down-right', 'up-left'].includes(art.direction)
+        ? 'druid-cast-diagonal-v2'
+        : ['right', 'up-right'].includes(art.direction)
+          ? 'druid-cast-right-v2' : 'druid-cast-eight-way-v1';
       image.src = art.direction === 'down' ? '/docs/art/druid-cast-down-v1/cast-down-512x384.png'
         : `/docs/art/${folder}/cast-${art.direction}-512x384.png`;
       await image.decode();
