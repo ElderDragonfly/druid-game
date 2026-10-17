@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { testCampAtmosphere } from './camp-atmosphere-smoke.mjs';
 import { testWolf } from './wolf-smoke.mjs';
 import { testDruidHits } from './druid-hit-smoke.mjs';
 import { spawn } from 'node:child_process';
@@ -210,6 +211,7 @@ try {
   ok(basicPortrait.identical && basicPortrait.height === 94 && basicPortrait.filter === 1,
     'Портрет Basic 04 копирует утверждённые пиксели и помещается в карточку без перекраски');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
+  await testCampAtmosphere(page, ok, clickNamed, waitScene);
   for (const id of ['character-locked-1', 'character-locked-2']) {
     await clickNamed('CharacterSelect', id);
     ok((await selection()).id === 'druid' && (await activeScenes()).join() === 'CharacterSelect', `Закрытую ячейку нельзя выбрать: ${id}`);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CampAtmosphere } from '../rendering/CampAtmosphere';
 import { addSelectionCampPlate } from '../rendering/selectionCampArt';
 import { CHARACTERS } from '../data/characters';
 import { MenuButton } from '../ui/MenuButton';
@@ -23,6 +24,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const layout = MENU_LAYOUT.select;
     addCampBackground(this, 'selection-camp', layout.backgroundPixelScale);
     addSelectionCampPlate(this);
+    new CampAtmosphere(this);
     const p = layout.panel;
     this.add.rectangle(p.x, p.y, p.width, p.height, 0x0d1b14, 0.87).setStrokeStyle(1, 0x44563f);
     this.add.text(70, 125, 'Выбор персонажа', {

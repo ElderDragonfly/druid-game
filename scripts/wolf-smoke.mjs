@@ -139,7 +139,9 @@ export async function testWolf(page, ok) {
   });
   await page.waitForFunction(old => {
     const s = window.__smokeGame.scene.getScene('Room');
-    return s.world.wolf !== old && s.world.wolf?.body?.enable;
+    // Arcade inserts newly created colliders on its next physics update.
+    return s.world.wolf !== old && s.world.wolf?.body?.enable &&
+      s.physics.world.colliders.getActive().length === s.world.mice.length + 3;
   }, oldWolf);
   const clean = await page.evaluate(old => {
     const s = window.__smokeGame.scene.getScene('Room');

@@ -1,0 +1,64 @@
+export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
+  const before = await page.evaluate(async () => {
+    const { CAMP_ATMOSPHERE: config, fireflyPosition } = await import('/src/data/campAtmosphere.ts');
+    const game = window.__smokeGame, scene = game.scene.getScene('CharacterSelect');
+    const hashFrame = (key, frameName) => {
+      const texture = game.textures.get(key), frame = texture.get(frameName);
+      const c = document.createElement('canvas'); c.width = frame.cutWidth; c.height = frame.cutHeight;
+      const ctx = c.getContext('2d'); ctx.drawImage(texture.getSourceImage(), frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight, 0, 0, c.width, c.height);
+      let hash = 2166136261;
+      for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
+      return hash >>> 0;
+    };
+    const fire = scene.children.getByName('camp-fire'), water = scene.children.getByName('camp-water');
+    const flies = scene.children.list.filter(o => o.name.startsWith('camp-firefly-') && o.name !== 'camp-firefly-clean-layer');
+    const loops = config.fireflies.every((f,i) => {
+      const a = fireflyPosition(i, 317), b = fireflyPosition(i, 317 + f.periodMs);
+      return Math.hypot(a.x-b.x,a.y-b.y) < 1e-7;
+    });
+    const body = scene.children.getByName('selected-character-preview'), staff = scene.children.getByName('selected-character-prop-0');
+    const clean = scene.children.getByName('camp-firefly-clean-layer');
+    const ctx = document.createElement('canvas').getContext('2d'); ctx.canvas.width = 960; ctx.canvas.height = 540;
+    ctx.drawImage(game.textures.get('camp-firefly-clean').getSourceImage(),0,0);
+    const cleanup = config.fireflies.every(f => {
+      const pixel = ctx.getImageData(f.x,f.y,1,1).data;
+      return pixel[3] === 255 && pixel[0] < 150 && pixel[1] < 150;
+    });
+    return { count: flies.length, loops, independent: new Set(config.fireflies.map(f=>f.periodMs)).size === 5,
+      positions: flies.map(o=>({x:o.x,y:o.y})), fireFrame: fire.frame.name, waterFrame: water.frame.name,
+      animatedPixels: hashFrame(fire.texture.key,'0') !== hashFrame(fire.texture.key,'7') && hashFrame(water.texture.key,'0') !== hashFrame(water.texture.key,'7'),
+      filters: [fire,water,...flies].every(o=>o.texture.source[0].scaleMode === 1),
+      actor: {x:body.x,y:body.y,texture:body.texture.key,staff:staff.texture.key},
+      cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
+      panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
+      fps: config.fps, frameCount: config.frameCount };
+  });
+  ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
+  ok(before.animatedPixels && before.filters && before.fps === 12 && before.frameCount === 24,
+    'Пламя и вода используют разные пиксельные кадры 12 FPS, с NEAREST и заранее собранными атласами');
+  ok(before.cleanup && before.cleanupAboveWater && before.panelAbove,
+    'Старые статичные огоньки убраны, включая область воды; эффекты остаются позади панели интерфейса');
+  await page.waitForTimeout(580);
+  const after = await page.evaluate(() => {
+    const s = window.__smokeGame.scene.getScene('CharacterSelect'), b = s.children.getByName('selected-character-preview');
+    return { fireFrame:s.children.getByName('camp-fire').frame.name, waterFrame:s.children.getByName('camp-water').frame.name,
+      positions:s.children.list.filter(o=>o.name.startsWith('camp-firefly-') && o.name!=='camp-firefly-clean-layer').map(o=>({x:o.x,y:o.y})),
+      actor:{x:b.x,y:b.y,texture:b.texture.key,staff:s.children.getByName('selected-character-prop-0').texture.key} };
+  });
+  ok(after.fireFrame !== before.fireFrame && after.waterFrame !== before.waterFrame &&
+    after.positions.every((p,i)=>Math.hypot(p.x-before.positions[i].x,p.y-before.positions[i].y) > .2),
+    'В живой сцене сменяются кадры огня/воды и движется каждый светлячок');
+  ok(JSON.stringify(after.actor) === JSON.stringify(before.actor), 'Атмосферные эффекты не меняют слой, размер или положение друида и посоха');
+  await page.keyboard.press('Escape'); await waitScene('MainMenu');
+  ok(await page.evaluate(() => {
+    const g = window.__smokeGame;
+    return ['selection-fire-frames','selection-water-frames','selection-firefly'].every(key=>!g.textures.exists(key)) &&
+      !g.scene.getScene('MainMenu').children.getByName('camp-fire');
+  }), 'Выход из выбора освобождает атласы эффектов; главное меню остаётся прежним');
+  await clickNamed('MainMenu','play'); await waitScene('CharacterSelect');
+  ok(await page.evaluate(() => {
+    const s = window.__smokeGame.scene.getScene('CharacterSelect');
+    return s.children.list.filter(o=>o.name==='camp-fire').length === 1 &&
+      s.children.list.filter(o=>o.name.startsWith('camp-firefly-') && o.name!=='camp-firefly-clean-layer').length === 5;
+  }), 'Повторный вход создаёт один костёр и пять светлячков без дублирования');
+}

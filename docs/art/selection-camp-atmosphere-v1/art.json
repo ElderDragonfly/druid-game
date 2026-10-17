@@ -1,0 +1,33 @@
+{
+  "canvas": [
+    960,
+    540
+  ],
+  "fireflyAnchors": [
+    [
+      229,
+      184
+    ],
+    [
+      437,
+      223
+    ],
+    [
+      490,
+      260
+    ],
+    [
+      741,
+      211
+    ],
+    [
+      868,
+      113
+    ]
+  ],
+  "patchRadius": 16,
+  "opaqueRadius": 12,
+  "source": "firefly-clean-source.png",
+  "outsidePatchesTransparent": true,
+  "originalsUnchanged": true
+}
