@@ -14,7 +14,7 @@
 | Вверх | [GIF](cast-up-preview.gif) |
 | Влево | [GIF](cast-left-preview.gif) |
 | Вправо | [Исправленная GIF](../druid-cast-right-v2/cast-right-preview.gif) |
-| Вниз-влево | [Постоянная фигура](../druid-cast-front-stable-v1/cast-down-left-preview.gif) |
+| Вниз-влево | [Уточнённый контур постоянной фигуры](../druid-facing-fixes-v1/cast-down-left-preview.gif) |
 | Вниз-вправо | [Исправленная GIF](../druid-cast-diagonal-v2/cast-down-right-preview.gif) |
 | Вверх-влево | [Новый вариант GIF](../druid-cast-diagonal-v2/cast-up-left-preview.gif) |
 | Вверх-вправо | [Исправленная GIF](../druid-cast-right-v2/cast-up-right-preview.gif) |

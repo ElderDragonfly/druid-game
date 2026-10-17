@@ -1,0 +1,52 @@
+{
+  "integrated": true,
+  "downLeft": {
+    "trimmedBodyPixels": 40,
+    "bodyWithinIdleContour": true,
+    "gesture": {
+      "gripCenters": [
+        [
+          206.0,
+          118.0
+        ],
+        [
+          197.0,
+          67.0
+        ],
+        [
+          129.0,
+          118.0
+        ],
+        [
+          120.0,
+          112.0
+        ],
+        [
+          221.0,
+          113.0
+        ],
+        [
+          206.0,
+          135.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        -8,
+        -25,
+        35,
+        75,
+        25,
+        0
+      ],
+      "fixedBody": "body-down-left-fixed-256x320.png",
+      "staffHand": "anatomical-left"
+    },
+    "previous": "../druid-cast-front-stable-v1/cast-down-left-512x384.png"
+  },
+  "leftWood": {
+    "reference": "../druid-cast-down-v1/staff-master-256x320.png",
+    "idleWoodPixels": 3234,
+    "walkWoodPixels": 13332,
+    "alphaAndNonWood": "byte-identical to original; one shared wood RGB lookup"
+  }
+}

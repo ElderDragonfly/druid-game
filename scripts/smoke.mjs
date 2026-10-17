@@ -773,7 +773,7 @@ try {
     const atlas = texture.getSourceImage().getContext('2d');
     const sources = ['down', 'up', 'left', 'right', 'down-left', 'down-right', 'up-left', 'up-right'].map(direction => ({
       direction, sourceX: 0, width: 256, height: 320,
-      path: `/docs/art/druid-eight-way-v1/idle-${direction}-256x320.png`,
+      path: `/docs/art/${direction === 'left' ? 'druid-facing-fixes-v1' : 'druid-eight-way-v1'}/idle-${direction}-256x320.png`,
     }));
     return Promise.all(sources.map(async ({ direction, sourceX, width, height, path }) => {
       const image = new Image(); image.src = path; await image.decode();
@@ -990,7 +990,7 @@ try {
   ok(true, 'Остановка в каждой из четырёх фаз W возвращает отдельную стоящую позу');
 
   for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-eight-way-v1' },
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-facing-fixes-v1' },
     { key: 'd', direction: 'right', sign: 1, folder: 'druid-eight-way-v1' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
@@ -1541,7 +1541,7 @@ try {
     const game = window.__smokeGame;
     const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
       const image = new Image();
-      const folders = { down: 'druid-cast-front-stable-v1', 'down-left': 'druid-cast-front-stable-v1',
+      const folders = { down: 'druid-cast-front-stable-v1', 'down-left': 'druid-facing-fixes-v1',
         'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-diagonal-v2',
         right: 'druid-cast-right-v2', 'up-right': 'druid-cast-right-v2' };
       const folder = folders[art.direction] ?? 'druid-cast-eight-way-v1';
@@ -1589,6 +1589,45 @@ try {
   });
   ok(stableFront.legs, 'Касты вниз и вниз-влево: ноги и сапоги во всех шести фазах совпадают со стойкой, без расширения');
   ok(stableFront.head, 'При касте вниз голова смотрит прямо как в принятой ходьбе вниз');
+  const facingFixes = await page.evaluate(async () => {
+    const game = window.__smokeGame;
+    const read = image => {
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+      return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    };
+    const png = async path => { const image = new Image(); image.src = `/docs/art/${path}`; await image.decode(); return read(image); };
+    const reference = await png('druid-cast-down-v1/staff-master-256x320.png');
+    const meanLight = (pixels, selected) => {
+      let sum = 0, count = 0;
+      for (let i = 0; i < pixels.length; i += 4) if (selected(i)) {
+        sum += .2126 * pixels[i] + .7152 * pixels[i + 1] + .0722 * pixels[i + 2]; count++;
+      }
+      return sum / count;
+    };
+    const referenceLight = meanLight(reference, i => reference[i + 3] > 0);
+    let woodOnly = true;
+    for (const [kind, textureKey] of [['idle', 'druid-left-source'], ['walk', 'druid-walk-left-source']]) {
+      const original = await png(`druid-eight-way-v1/${kind}-left-256x320.png`);
+      const mask = await png(`druid-facing-fixes-v1/${kind}-left-wood-mask.png`);
+      const actual = read(game.textures.get(textureKey).getSourceImage());
+      let changed = 0;
+      for (let i = 0; i < actual.length; i += 4) {
+        woodOnly &&= actual[i + 3] === original[i + 3];
+        const different = [0, 1, 2].some(c => actual[i + c] !== original[i + c]);
+        if (mask[i] === 0) woodOnly &&= !different;
+        else if (different) changed++;
+      }
+      woodOnly &&= changed > 1000 && Math.abs(meanLight(actual, i => mask[i] > 0) - referenceLight) < 3;
+    }
+    const idle = read(game.textures.get('druid-down-left-source').getSourceImage());
+    const body = await png('druid-facing-fixes-v1/body-down-left-fixed-256x320.png');
+    let contour = true;
+    for (let i = 3; i < body.length; i += 4) if (body[i] && !idle[i]) contour = false;
+    return { woodOnly, contour };
+  });
+  ok(facingFixes.woodOnly, 'Посох в стойке и ходьбе влево имеет тон основного посоха; прозрачность, руки, одежда и сапоги неизменны');
+  ok(facingFixes.contour, 'Неподвижный корпус каста вниз-влево полностью вписан в силуэт стойки, без добавленной ширины');
   const castState = () => page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room'), p = scene.player, v = p.castVisual;
     return { active: p.casting.active, facing: p.actorState.facing, phase: p.casting.frameIndex,
