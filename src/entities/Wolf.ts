@@ -15,6 +15,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
   private previous: WolfPoint;
   private animation: WolfAnimation = 'idle';
   private clock = 0;
+  private attackConnected = false;
 
   constructor(scene: Phaser.Scene, navigation: WolfNavigation, trees: Phaser.Physics.Arcade.StaticGroup,
     private readonly player: Druid, start: WolfPoint) {
@@ -43,6 +44,12 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
       { x: p.x, y: p.y, width: p.width, height: p.height });
     this.setVelocity(velocity.x, velocity.y).setFlipX(this.actorState.facingLeft).setDepth(this.y);
     const phase = this.actorState.phase;
+    if (phase !== 'attack') this.attackConnected = false;
+    else if (!this.attackConnected && this.actorState.elapsed >= WOLF.behavior.impactMs) {
+      this.attackConnected = true;
+      // Once per swing, at its active frame, and only if the druid is still in reach.
+      if (this.behavior.inAttackRange(position, { x: p.x, y: p.y, width: p.width, height: p.height })) this.player.receiveHit();
+    }
     const moving = distance > .01 && distance < Math.max(30, this.actorState.runSpeed * delta / 1000 * 3);
     const animation: WolfAnimation = phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') :
       moving ? (phase === 'chase' ? 'run' : 'walk') : 'idle';

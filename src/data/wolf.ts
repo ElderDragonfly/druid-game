@@ -8,5 +8,5 @@ export const WOLF = {
   body: { width: 54, height: 18 },
   behavior: { detectionX: 1280 / 2 * 2 / 3, detectionY: 720 / 2 * 2 / 3,
     wanderMin: 70, wanderMax: 160, idleMinMs: 800, idleMaxMs: 1800,
-    attackMs: 660, recoveryMs: 350, attackGap: 5, pathRefreshMs: 450 },
+    attackMs: 660, impactMs: 240, recoveryMs: 350, attackGap: 5, pathRefreshMs: 450 },
 } as const;

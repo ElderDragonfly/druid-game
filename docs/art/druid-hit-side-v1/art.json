@@ -1,0 +1,42 @@
+{
+  "source": "docs/art/druid-hit-side-v1/source-poses.png",
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "offset": [
+    128,
+    40
+  ],
+  "durationsMs": [
+    40,
+    70,
+    120,
+    100,
+    70
+  ],
+  "directions": {
+    "left": {
+      "idle": "docs/art/druid-facing-fixes-v1/idle-left-256x320.png",
+      "registrationScale": [
+        0.6363636363636364,
+        0.717948717948718
+      ],
+      "anchor": [
+        137.03992395437263,
+        299
+      ],
+      "bootPixelsPreserved": 2217
+    },
+    "right": {
+      "idle": "docs/art/druid-eight-way-v1/idle-right-256x320.png",
+      "registrationScale": [
+        0.6075471698113207,
+        0.7272727272727273
+      ],
+      "anchor": [
+        126.58898305084746,
+        299
+      ],
+      "bootPixelsPreserved": 1467
+    }
+  }
+}

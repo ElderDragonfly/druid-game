@@ -3,6 +3,8 @@ import { CHARACTERS, type CharacterDefinition } from '../data/characters';
 import { DruidMovement, type DruidState } from '../behavior/DruidMovement';
 import type { Facing } from '../input/EightWayFacing';
 import { DruidCasting } from '../behavior/DruidCasting';
+import { DruidHitReaction } from '../behavior/DruidHitReaction';
+import { HIT_METRICS } from '../rendering/druidHitArt';
 import { CAST_METRICS } from '../rendering/druidCastArt';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite {
@@ -10,6 +12,8 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly behavior: DruidMovement;
   readonly appearance;
   readonly casting = new DruidCasting();
+  readonly hitReaction = new DruidHitReaction();
+  readonly hitVisual: Phaser.GameObjects.Image;
   readonly castVisual: Phaser.GameObjects.Image;
   private activeWalk?: Facing;
   private nextWalkFrame: Partial<Record<Facing, number>> = {};
@@ -33,10 +37,17 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
     this.castVisual = scene.add.image(0, 0, initialCast?.texture ?? appearance.texture, initialCast?.frames[0])
       .setOrigin(.5, (originY + CAST_METRICS.offsetY) / CAST_METRICS.height)
       .setScale(art.scale).setVisible(false).setName('druid-casting');
-    this.once(Phaser.GameObjects.Events.DESTROY, () => this.castVisual.destroy());
+    const initialHit = appearance.hits?.left;
+    this.hitVisual = scene.add.image(0, 0, initialHit?.texture ?? appearance.texture, initialHit?.frames[0])
+      .setOrigin(.5, (originY + HIT_METRICS.offsetY) / HIT_METRICS.height)
+      .setScale(art.scale).setVisible(false).setName('druid-hit-reaction');
+    this.once(Phaser.GameObjects.Events.DESTROY, () => { this.castVisual.destroy(); this.hitVisual.destroy(); });
   }
 
   move(x: number, y: number, facing: Facing) {
+    if (this.hitReaction.active) {
+      this.setVelocity(0, 0); this.actorState.facing = this.hitReaction.facing; return;
+    }
     const casting = this.casting.active;
     // Casting takes priority over held movement keys, including between
     // repeated casts. The unchanged speed stat is used again when it ends.
@@ -47,7 +58,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   }
 
   updateAppearance(stopped = false) {
-    if (this.casting.active) return;
+    if (this.casting.active || this.hitReaction.active) return;
     const body = this.body as Phaser.Physics.Arcade.Body;
     const speed = stopped ? 0 : this.behavior.travelSpeed(body.velocity, body.blocked);
     const animation = speed > .01 ? this.appearance.walkAnimations?.[this.actorState.facing] : undefined;
@@ -71,7 +82,31 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  receiveHit() {
+    if (this.hitReaction.active) return false;
+    const facing = this.actorState.facing;
+    this.cancelCast(); this.rememberStep(); this.anims.stop();
+    this.updateAppearance(true);
+    this.hitReaction.start(facing); this.setVelocity(0, 0);
+    this.showHit(); this.syncCastVisual();
+    return true;
+  }
+
+  cancelHit() {
+    this.hitReaction.cancel(); this.hitVisual.setVisible(false); this.setVisible(!this.casting.active);
+  }
+
+  private showHit() {
+    const art = this.appearance.hits?.[this.hitReaction.facing];
+    this.castVisual.setVisible(false);
+    this.setVisible(!art); this.hitVisual.setVisible(!!art);
+    if (art) this.hitVisual.setTexture(art.texture, art.frames[this.hitReaction.frameIndex]);
+  }
+
   updateCasting(delta: number, requested?: Facing) {
+    this.hitReaction.update(delta);
+    if (this.hitReaction.active) { this.showHit(); return; }
+    this.hitVisual.setVisible(false);
     this.casting.update(delta, requested && this.appearance.casts?.[requested] ? requested : undefined);
     if (this.casting.active) {
       this.rememberStep();
@@ -86,12 +121,13 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
 
   syncCastVisual() {
     this.castVisual.setPosition(this.x, this.y).setDepth(this.depth);
+    this.hitVisual.setPosition(this.x, this.y).setDepth(this.depth);
   }
 
   cancelCast() {
     this.casting.cancel();
     this.castVisual.setVisible(false);
-    this.setVisible(true);
+    this.setVisible(!this.hitReaction.active || !this.appearance.hits?.[this.hitReaction.facing]);
   }
 
   private rememberStep() {

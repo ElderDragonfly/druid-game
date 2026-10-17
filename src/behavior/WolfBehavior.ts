@@ -43,10 +43,7 @@ export class WolfBehavior {
       this.recoveryMs = WOLF.behavior.recoveryMs; this.enter('chase');
     }
     if (s.alerted) {
-      const dx = Math.max(0, Math.abs(position.x - (playerBody.x + playerBody.width / 2)) - (WOLF.body.width + playerBody.width) / 2);
-      const wolfCenterY = position.y - WOLF.body.height / 2;
-      const dy = Math.max(0, Math.abs(wolfCenterY - (playerBody.y + playerBody.height / 2)) - (WOLF.body.height + playerBody.height) / 2);
-      if (Math.hypot(dx, dy) <= WOLF.behavior.attackGap) {
+      if (this.inAttackRange(position, playerBody)) {
         if (!this.recoveryMs) {
           s.facingLeft = player.x < position.x;
           s.attackUp = player.y < position.y;
@@ -65,6 +62,12 @@ export class WolfBehavior {
       this.enter('idle'); this.idleMs = this.pause(); return { x: 0, y: 0 };
     }
     return this.follow(position, s.target, s.walkSpeed, dt);
+  }
+
+  inAttackRange(position: WolfPoint, playerBody: Rect) {
+    const dx = Math.max(0, Math.abs(position.x - (playerBody.x + playerBody.width / 2)) - (WOLF.body.width + playerBody.width) / 2);
+    const dy = Math.max(0, Math.abs(position.y - WOLF.body.height / 2 - (playerBody.y + playerBody.height / 2)) - (WOLF.body.height + playerBody.height) / 2);
+    return Math.hypot(dx, dy) <= WOLF.behavior.attackGap;
   }
 
   private follow(position: WolfPoint, goal: WolfPoint, speed: number, delta: number): WolfPoint {

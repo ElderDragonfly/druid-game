@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { testWolf } from './wolf-smoke.mjs';
+import { testDruidHits } from './druid-hit-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -1865,6 +1866,7 @@ try {
     ok((await activeScenes()).join() === 'CharacterSelect', `Повторные переходы без лишних сцен: ${run + 1}`);
   }
   await testWolf(page, ok);
+  await testDruidHits(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

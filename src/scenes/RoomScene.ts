@@ -71,7 +71,7 @@ export class RoomScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => {
-      keyboard.resetKeys(); this.queuedAttack = undefined; this.player.cancelCast();
+      keyboard.resetKeys(); this.queuedAttack = undefined; this.player.cancelHit(); this.player.cancelCast();
       this.player.setVelocity(0, 0); this.player.updateAppearance(true);
     };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
