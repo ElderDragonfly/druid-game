@@ -14,15 +14,17 @@ export async function testDruidHits(page, ok) {
   ok(timer, 'Реакция длится 400 мс, не перезапускается попаданиями внутри жеста и имеет независимый таймер');
   const art = await page.evaluate(async () => {
     const { DRUID_HIT_ART } = await import('/src/rendering/druidHitArt.ts');
+    const { DRUID_VIEWS } = await import('/src/rendering/druidArt.ts');
+    const { FACINGS } = await import('/src/input/EightWayFacing.ts');
     const s = window.__smokeGame.scene.getScene('Room');
     const result = [];
-    for (const direction of ['left', 'right']) {
+    for (const direction of FACINGS) {
       const texture = s.textures.get(`druid-hit-${direction}`);
-      const maskImage = new Image(); maskImage.src = `/docs/art/druid-hit-side-v1/boot-mask-${direction}.png`; await maskImage.decode();
+      const maskImage = new Image(); maskImage.src = `/docs/art/${['left', 'right'].includes(direction) ? 'druid-hit-side-v1' : 'druid-hit-eight-way-v1'}/boot-mask-${direction}.png`; await maskImage.decode();
       const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 320;
       const c = canvas.getContext('2d'); c.drawImage(maskImage, 0, 0);
       const mask = c.getImageData(0, 0, 256, 320).data;
-      const idleTexture = s.textures.get(direction === 'left' ? 'druid-left-source' : 'druid-right-source');
+      const idleTexture = s.textures.get(DRUID_VIEWS.find(view => view.direction === direction).sourceKey);
       c.clearRect(0, 0, 256, 320); c.drawImage(idleTexture.getSourceImage(), 0, 0);
       const idle = c.getImageData(0, 0, 256, 320).data;
       let stable = true, endpoints = true, changed = 0, alpha = true;
@@ -35,16 +37,21 @@ export async function testDruidHits(page, ok) {
           alpha &&= pixels[p + 3] === 0 || pixels[p + 3] === 255;
           if (mask[p] && (pixels[p] !== idle[p] || pixels[p + 1] !== idle[p + 1] || pixels[p + 2] !== idle[p + 2] || pixels[p + 3] !== idle[p + 3])) stable = false;
         }
+        if (!['left', 'right'].includes(direction)) stable &&= pixels.slice(246 * 256 * 4).every((v, p) => v === idle[246 * 256 * 4 + p]);
         if (index === 0 || index === 4) endpoints &&= pixels.every((v, p) => v === idle[p]);
         if (index === 2) changed = pixels.reduce((n, v, p) => n + Number(v !== idle[p]), 0);
       }
       result.push(stable && endpoints && alpha && changed > 2000 && texture.source[0].scaleMode === 1);
     }
-    return result.length === DRUID_HIT_ART.length && result.every(Boolean);
+    return result.length === 8 && result.length === DRUID_HIT_ART.length && result.every(Boolean);
   });
-  ok(art, 'Обе реакции: пять кадров 1:1, NEAREST, исходные стойки на концах и неподвижные сапоги');
+  ok(art, 'Все восемь реакций: пять кадров 1:1, NEAREST, исходные стойки на концах и неподвижные сапоги');
 
-  for (const direction of ['left', 'right']) {
+  const { FACINGS } = await page.evaluate(async () => ({ FACINGS: (await import('/src/input/EightWayFacing.ts')).FACINGS }));
+  const moves = { left: ['a'], right: ['d'], up: ['w'], down: ['s'],
+    'up-left': ['w', 'a'], 'up-right': ['w', 'd'], 'down-left': ['s', 'a'], 'down-right': ['s', 'd'] };
+  const arrows = { a: 'ArrowLeft', d: 'ArrowRight', w: 'ArrowUp', s: 'ArrowDown' };
+  for (const direction of FACINGS) {
     const previous = await page.evaluateHandle(direction => {
       const s = window.__smokeGame.scene.getScene('Room'), old = s.player;
       s.scene.restart({ seed: 0 }); return old;
@@ -60,30 +67,30 @@ export async function testDruidHits(page, ok) {
       p.updateCasting(0, direction); p.receiveHit();
       return result;
     }, direction);
-    await page.keyboard.down(direction === 'left' ? 'a' : 'd');
-    await page.keyboard.down(direction === 'left' ? 'ArrowLeft' : 'ArrowRight');
+    for (const key of moves[direction]) await page.keyboard.down(key);
+    for (const key of moves[direction]) await page.keyboard.down(arrows[key]);
     await page.waitForTimeout(130);
     const during = await page.evaluate(() => {
       const s = window.__smokeGame.scene.getScene('Room'), p = s.player;
       return { active: p.hitReaction.active, cast: p.casting.active, bodyVisible: p.visible,
-        castVisible: p.castVisual.visible, hitVisible: p.hitVisual.visible, frame: p.hitVisual.frame.name,
+        castVisible: p.castVisual.visible, hitVisible: p.hitVisual.visible, frame: p.hitVisual.frame.name, texture: p.hitVisual.texture.key, facing: p.actorState.facing,
         x: p.x, y: p.y, health: s.playerHealth, width: p.body.width, height: p.body.height,
         filter: !!(p.hitVisual.cameraFilter & s.cameras.getCamera('hud').id),
         depth: p.hitVisual.depth === p.depth, sync: p.hitVisual.x === p.x && p.hitVisual.y === p.y };
     });
     ok(during.active && !during.cast && !during.bodyVisible && !during.castVisible && during.hitVisible &&
-      during.frame !== '0' && during.filter && during.depth && during.sync &&
+      during.texture === `druid-hit-${direction}` && during.facing === direction && during.frame !== '0' && during.filter && during.depth && during.sync &&
       during.x === setup.x && during.y === setup.y && during.health === setup.health &&
       during.width === setup.width && during.height === setup.height,
       `Попадание ${direction}: единственный визуальный слой, каст и движение прерваны, HP/позиция/коллайдер прежние`);
-    await page.keyboard.up(direction === 'left' ? 'ArrowLeft' : 'ArrowRight');
+    for (const key of moves[direction]) await page.keyboard.up(arrows[key]);
     await page.waitForFunction(() => !window.__smokeGame.scene.getScene('Room').player.hitReaction.active);
     await page.waitForTimeout(100);
     const resumed = await page.evaluate(() => {
       const p = window.__smokeGame.scene.getScene('Room').player;
       return { visible: p.visible, hitVisible: p.hitVisual.visible, speed: Math.hypot(p.body.velocity.x, p.body.velocity.y) };
     });
-    await page.keyboard.up(direction === 'left' ? 'a' : 'd');
+    for (const key of moves[direction]) await page.keyboard.up(key);
     ok(resumed.visible && !resumed.hitVisible && resumed.speed > 100, `После ${direction}-реакции удерживаемая WASD снова двигает друида`);
   }
 
@@ -135,13 +142,13 @@ export async function testDruidHits(page, ok) {
     const s = window.__smokeGame.scene.getScene('Room'); s.events.off('postupdate', window.__hitObserver);
     const p = s.player, w = s.world.wolf;
     p.cancelHit(); p.cancelCast(); p.actorState.facing = 'up'; p.updateAppearance(true); p.receiveHit();
-    window.__fallbackHit = { active: p.hitReaction.active, facing: p.actorState.facing,
+    window.__upHit = { active: p.hitReaction.active, facing: p.actorState.facing,
       visible: p.visible, hitVisible: p.hitVisual.visible };
     w.setActive(false).setVelocity(0, 0); w.body.enable = false;
   });
   ok(await page.evaluate(() => {
-    const f = window.__fallbackHit; return f.active && f.facing === 'up' && f.visible && !f.hitVisible;
-  }), 'Ненарисованный ракурс сохраняет свою стойку и короткую паузу, без разворота вбок');
+    const f = window.__upHit; return f.active && f.facing === 'up' && !f.visible && f.hitVisible;
+  }), 'Реакция вверх использует собственную анимацию без разворота вбок');
   await page.waitForTimeout(420);
   const oldPlayer = await page.evaluateHandle(() => {
     const s = window.__smokeGame.scene.getScene('Room'), old = s.player;

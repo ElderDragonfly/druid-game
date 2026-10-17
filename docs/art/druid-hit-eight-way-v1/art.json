@@ -1,0 +1,106 @@
+{
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "offset": [
+    128,
+    40
+  ],
+  "durationsMs": [
+    40,
+    70,
+    120,
+    100,
+    70
+  ],
+  "fixedLowerRowsFrom": 246,
+  "stanceTransitionRows": [
+    185,
+    245
+  ],
+  "directions": {
+    "down": {
+      "idle": "docs/art/druid-eight-way-v1/idle-down-256x320.png",
+      "source": "source-front-back.png",
+      "registrationScale": [
+        0.6275862068965518,
+        0.6896551724137931
+      ],
+      "anchor": [
+        127.14679802955665,
+        299
+      ],
+      "bootPixelsPreserved": 594,
+      "correctedPeakSource": null
+    },
+    "up": {
+      "idle": "docs/art/druid-eight-way-v1/idle-up-256x320.png",
+      "source": "source-front-back.png",
+      "registrationScale": [
+        0.6254826254826255,
+        0.6587112171837709
+      ],
+      "anchor": [
+        117.68669219722355,
+        299
+      ],
+      "bootPixelsPreserved": 1458,
+      "correctedPeakSource": null
+    },
+    "down-left": {
+      "idle": "docs/art/druid-eight-way-v1/idle-down-left-256x320.png",
+      "source": "source-front-diagonals.png",
+      "registrationScale": [
+        0.6026058631921825,
+        0.6619385342789598
+      ],
+      "anchor": [
+        124.36454038321611,
+        299
+      ],
+      "bootPixelsPreserved": 961,
+      "correctedPeakSource": "source-front-diagonals-corrected.png"
+    },
+    "down-right": {
+      "idle": "docs/art/druid-eight-way-v1/idle-down-right-256x320.png",
+      "source": "source-front-diagonals.png",
+      "registrationScale": [
+        0.6756756756756757,
+        0.691358024691358
+      ],
+      "anchor": [
+        128.62982782689622,
+        299
+      ],
+      "bootPixelsPreserved": 1200,
+      "correctedPeakSource": null
+    },
+    "up-left": {
+      "idle": "docs/art/druid-eight-way-v1/idle-up-left-256x320.png",
+      "source": "source-rear-diagonals.png",
+      "registrationScale": [
+        0.6379928315412187,
+        0.6682577565632458
+      ],
+      "anchor": [
+        121.8525,
+        299
+      ],
+      "bootPixelsPreserved": 1467,
+      "correctedPeakSource": null
+    },
+    "up-right": {
+      "idle": "docs/art/druid-eight-way-v1/idle-up-right-256x320.png",
+      "source": "source-rear-diagonals.png",
+      "registrationScale": [
+        0.6151079136690647,
+        0.6746987951807228
+      ],
+      "anchor": [
+        140.02544087886673,
+        299
+      ],
+      "bootPixelsPreserved": 1311,
+      "correctedPeakSource": null
+    }
+  }
+}

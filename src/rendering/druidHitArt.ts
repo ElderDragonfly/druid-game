@@ -1,14 +1,21 @@
 import Phaser from 'phaser';
 import left from '../../docs/art/druid-hit-side-v1/hit-left-512x384.png';
 import right from '../../docs/art/druid-hit-side-v1/hit-right-512x384.png';
-import type { Facing } from '../input/EightWayFacing';
+import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { HIT_FRAME_DURATIONS } from '../behavior/DruidHitReaction';
 
 export const HIT_METRICS = { width: 512, height: 384, offsetX: 128, offsetY: 40 } as const;
-export const DRUID_HIT_ART = [ { key: 'druid-hit-left', url: left }, { key: 'druid-hit-right', url: right } ];
-export const DRUID_HIT_APPEARANCE = Object.fromEntries(['left', 'right'].map(direction => [direction,
+const newSources = import.meta.glob<string>('../../docs/art/druid-hit-eight-way-v1/hit-*-512x384.png',
+  { eager: true, query: '?url', import: 'default' });
+export const DRUID_HIT_ART = FACINGS.map(direction => {
+  const url = direction === 'left' ? left : direction === 'right' ? right
+    : newSources[`../../docs/art/druid-hit-eight-way-v1/hit-${direction}-512x384.png`];
+  if (!url) throw new Error(`Missing druid hit art: ${direction}`);
+  return { key: `druid-hit-${direction}`, url };
+});
+export const DRUID_HIT_APPEARANCE = Object.fromEntries(FACINGS.map(direction => [direction,
   { texture: `druid-hit-${direction}`, frames: HIT_FRAME_DURATIONS.map((_, index) => String(index)) },
-])) as Partial<Record<Facing, { texture: string; frames: string[] }>>;
+])) as Record<Facing, { texture: string; frames: string[] }>;
 
 export function prepareDruidHitTextures(scene: Phaser.Scene) {
   for (const art of DRUID_HIT_ART) {
