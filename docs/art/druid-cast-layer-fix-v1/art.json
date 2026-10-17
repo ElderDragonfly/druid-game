@@ -1,0 +1,170 @@
+{
+  "integrated": true,
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "idleOffset": [
+    128,
+    40
+  ],
+  "durationMs": 670,
+  "layers": [
+    "moving staff",
+    "moving left arm",
+    "single stationary body"
+  ],
+  "acceptedDown": "not read or regenerated; runtime source unchanged",
+  "directions": {
+    "up": {
+      "gripCenters": [
+        [
+          35.0,
+          103.0
+        ],
+        [
+          55.0,
+          56.0
+        ],
+        [
+          118.0,
+          107.5
+        ],
+        [
+          142.0,
+          125.0
+        ],
+        [
+          35.0,
+          103.0
+        ],
+        [
+          44.0,
+          106.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        8,
+        43,
+        -35,
+        -75,
+        -25,
+        0
+      ],
+      "body": "body-up-fixed-256x320.png",
+      "oneBodyOnly": true
+    },
+    "up-left": {
+      "gripCenters": [
+        [
+          50.0,
+          95.0
+        ],
+        [
+          46.0,
+          63.0
+        ],
+        [
+          77.0,
+          102.0
+        ],
+        [
+          83.0,
+          87.0
+        ],
+        [
+          42.0,
+          88.0
+        ],
+        [
+          50.0,
+          97.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        8,
+        35,
+        -35,
+        -45,
+        -25,
+        0
+      ],
+      "body": "body-up-left-fixed-256x320.png",
+      "oneBodyOnly": true
+    },
+    "up-right": {
+      "gripCenters": [
+        [
+          212.0,
+          90.0
+        ],
+        [
+          195.0,
+          49.0
+        ],
+        [
+          207.0,
+          91.0
+        ],
+        [
+          218.0,
+          102.0
+        ],
+        [
+          222.0,
+          87.0
+        ],
+        [
+          194.0,
+          81.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        8,
+        51,
+        -35,
+        -75,
+        -25,
+        0
+      ],
+      "body": "body-up-right-fixed-256x320.png",
+      "oneBodyOnly": true
+    },
+    "right": {
+      "gripCenters": [
+        [
+          183.0,
+          112.0
+        ],
+        [
+          186.0,
+          57.0
+        ],
+        [
+          205.0,
+          98.0
+        ],
+        [
+          209.0,
+          101.0
+        ],
+        [
+          198.0,
+          99.0
+        ],
+        [
+          186.0,
+          109.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        8,
+        41,
+        -35,
+        -75,
+        -25,
+        0
+      ],
+      "body": "body-right-fixed-256x320.png",
+      "oneBodyOnly": true
+    }
+  }
+}

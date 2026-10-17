@@ -2,14 +2,14 @@ import Phaser from 'phaser';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { CAST_FRAME_DURATIONS } from '../behavior/DruidCasting';
 
-const sources = import.meta.glob<string>('../../docs/art/{druid-cast-eight-way-v1,druid-cast-right-v2,druid-cast-diagonal-v2,druid-cast-front-stable-v1,druid-facing-fixes-v1}/cast-*-512x384.png',
+const sources = import.meta.glob<string>('../../docs/art/{druid-cast-eight-way-v1,druid-cast-right-v2,druid-cast-diagonal-v2,druid-cast-front-stable-v1,druid-facing-fixes-v1,druid-cast-layer-fix-v1}/cast-*-512x384.png',
   { eager: true, query: '?url', import: 'default' });
 
 const folders: Record<Facing, string> = {
   down: 'druid-cast-front-stable-v1', 'down-left': 'druid-facing-fixes-v1',
-  up: 'druid-cast-eight-way-v1', left: 'druid-cast-eight-way-v1',
-  right: 'druid-cast-right-v2', 'up-right': 'druid-cast-right-v2',
-  'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-diagonal-v2',
+  up: 'druid-cast-layer-fix-v1', left: 'druid-cast-eight-way-v1',
+  right: 'druid-cast-layer-fix-v1', 'up-right': 'druid-cast-layer-fix-v1',
+  'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-layer-fix-v1',
 };
 
 export const CAST_METRICS = { width: 512, height: 384, offsetX: 128, offsetY: 40 } as const;

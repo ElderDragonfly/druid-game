@@ -1542,8 +1542,8 @@ try {
     const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
       const image = new Image();
       const folders = { down: 'druid-cast-front-stable-v1', 'down-left': 'druid-facing-fixes-v1',
-        'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-diagonal-v2',
-        right: 'druid-cast-right-v2', 'up-right': 'druid-cast-right-v2' };
+        'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-layer-fix-v1',
+        up: 'druid-cast-layer-fix-v1', right: 'druid-cast-layer-fix-v1', 'up-right': 'druid-cast-layer-fix-v1' };
       const folder = folders[art.direction] ?? 'druid-cast-eight-way-v1';
       image.src = `/docs/art/${folder}/cast-${art.direction}-512x384.png`;
       await image.decode();
@@ -1628,6 +1628,40 @@ try {
   });
   ok(facingFixes.woodOnly, 'Посох в стойке и ходьбе влево имеет тон основного посоха; прозрачность, руки, одежда и сапоги неизменны');
   ok(facingFixes.contour, 'Неподвижный корпус каста вниз-влево полностью вписан в силуэт стойки, без добавленной ширины');
+  const layeredCasts = await page.evaluate(async () => {
+    const game = window.__smokeGame;
+    const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 384;
+    const ctx = canvas.getContext('2d');
+    const png = async file => { const image = new Image(); image.src = `/docs/art/druid-cast-layer-fix-v1/${file}`; await image.decode(); return image; };
+    const read = (image, x, y, width = 512, height = 384, targetX = 0, targetY = 0) => {
+      ctx.clearRect(0, 0, 512, 384); ctx.drawImage(image, x, y, width, height, targetX, targetY, width, height);
+      return ctx.getImageData(0, 0, 512, 384).data;
+    };
+    const result = {};
+    for (const direction of ['up', 'up-left', 'up-right', 'right']) {
+      const [bodyImage, armImage, staffImage] = await Promise.all([
+        png(`body-${direction}-fixed-256x320.png`), png(`arm-${direction}-poses-512x384.png`),
+        png(`staff-${direction}-poses-512x384.png`)]);
+      const fixed = read(bodyImage, 0, 0, 256, 320, 128, 40);
+      const texture = game.textures.get(`druid-cast-${direction}`);
+      let valid = true;
+      for (let phase = 0; phase < 6; phase++) {
+        const arm = read(armImage, phase * 512, 0), staff = read(staffImage, phase * 512, 0);
+        const frame = texture.get(`cast-${direction}-${phase}`);
+        const actual = read(texture.getSourceImage(), frame.cutX, frame.cutY);
+        for (let i = 0; i < actual.length; i += 4) {
+          if (fixed[i + 3]) valid &&= [0, 1, 2, 3].every(c => actual[i + c] === fixed[i + c]);
+          if (actual[i + 3]) valid &&= !!(fixed[i + 3] || arm[i + 3] || staff[i + 3]);
+          // A moving-arm layer must not contain a second hem, legs or body.
+          if (Math.floor(i / 4 / 512) >= 210) valid &&= arm[i + 3] === 0;
+        }
+      }
+      result[direction] = valid;
+    }
+    return result;
+  });
+  for (const [direction, valid] of Object.entries(layeredCasts))
+    ok(valid, `${direction}: один неизменный корпус, отдельная движущаяся рука; нет второго подола, ног или свободной руки`);
   const castState = () => page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room'), p = scene.player, v = p.castVisual;
     return { active: p.casting.active, facing: p.actorState.facing, phase: p.casting.frameIndex,
