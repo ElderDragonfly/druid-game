@@ -143,24 +143,51 @@ try {
     'На бревне сидит пиксельная версия выбранного друида');
   ok(slots.seatedWidth === 435 && slots.seatedHeight === 540 && slots.seatedX === 525 && slots.seatedY === 50 &&
     slots.seatedPixelScale === 0.625,
-    'Правый лагерь из выбранного эскиза стоит в исходной композиции, за пределами панели кнопок');
+    'Отдельная сидящая фигура сохраняет координаты и масштаб лагеря, за пределами панели кнопок');
   const campPixels = await page.evaluate(async () => {
     const canvas = window.__smokeGame.textures.get('druid-camp').getSourceImage();
     const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
     // Phaser загружает текстуры через blob URL; эталон читаем независимо по выбранному пути.
     const source = new Image();
-    source.src = '/docs/art/druid-detail-preview-v1/character-selection-preview.png';
+    source.src = '/docs/art/druid-basic-seated-v1/druid-seated.png';
     await source.decode();
     const reference = document.createElement('canvas');
-    reference.width = 1536; reference.height = 1024;
+    reference.width = 696; reference.height = 864;
     const context = reference.getContext('2d');
     context.drawImage(source, 0, 0);
-    const approvedPixels = context.getImageData(840, 80, 696, 864).data;
-    return { width: canvas.width, height: canvas.height,
+    const approvedPixels = context.getImageData(0, 0, 696, 864).data;
+    let transparent = 0; for (let i = 3; i < data.length; i += 4) if (!data[i]) transparent++;
+    const scene = window.__smokeGame.scene.getScene('CharacterSelect');
+    const staff = scene.children.getByName('selected-character-prop-0');
+    return { width: canvas.width, height: canvas.height, transparent: transparent / (canvas.width * canvas.height),
+      separate: !!scene.children.getByName('selection-camp-plate') && staff?.texture.key === 'druid-camp-staff' &&
+        staff.getData('characterId') === 'druid' && staff.depth < scene.children.getByName('selected-character-preview').depth,
       identical: data.length === approvedPixels.length && data.every((value, index) => value === approvedPixels[index]) };
   });
-  ok(campPixels.width === 696 && campPixels.height === 864 && campPixels.identical,
-    `Каждый пиксель лагеря совпадает с явно указанным PNG: без генерации, упрощения и изменения цветов (${JSON.stringify(campPixels)})`);
+  ok(campPixels.width === 696 && campPixels.height === 864 && campPixels.identical && campPixels.transparent > .65 && campPixels.separate,
+    `Basic 04 сидит отдельным прозрачным слоем; фон и лежащий посох отдельны (${JSON.stringify(campPixels)})`);
+  const campLayers = await page.evaluate(async () => {
+    const game = window.__smokeGame;
+    const canvas = document.createElement('canvas'); canvas.width = 696; canvas.height = 864;
+    const context = canvas.getContext('2d');
+    const read = image => { context.clearRect(0, 0, 696, 864); context.drawImage(image, 0, 0); return context.getImageData(0, 0, 696, 864).data; };
+    const reference = new Image(); reference.src = '/docs/art/druid-basic-seated-v1/camp-reference.png'; await reference.decode();
+    const maskImage = new Image(); maskImage.src = '/docs/art/druid-basic-seated-v1/camp-edit-mask.png'; await maskImage.decode();
+    const old = read(reference), mask = read(maskImage), plate = read(game.textures.get('selection-camp-plate').getSourceImage());
+    const body = read(game.textures.get('druid-camp').getSourceImage()), staff = read(game.textures.get('druid-camp-staff').getSourceImage());
+    let sameOutside = true, disjoint = true, outside = 0, staffPixels = 0;
+    for (let p = 0; p < mask.length; p += 4) {
+      if (!mask[p]) {
+        outside++;
+        for (let channel = 0; channel < 4; channel++) sameOutside &&= old[p + channel] === plate[p + channel];
+      }
+      if (body[p + 3] && staff[p + 3]) disjoint = false;
+      if (staff[p + 3]) staffPixels++;
+    }
+    return sameOutside && outside > 300000 && disjoint && staffPixels > 1000 &&
+      game.textures.get('druid-camp-staff').source[0].scaleMode === 1;
+  });
+  ok(campLayers, 'Фон за пределами старой фигуры/посоха сохранён; новая фигура и лежащий посох независимы и не пересекаются');
   ok(slots.portrait === 'druid-basic-detail', 'Ячейка доступного персонажа использует утверждённый Basic 04');
   const basicPortrait = await page.evaluate(async () => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');
@@ -209,7 +236,7 @@ try {
     gameTexture.context.fillRect(8, 4, 12, 30);
     gameTexture.refresh();
     Object.assign(record, { available: true, name: 'Проверочный друид',
-      camp: { ...CHARACTERS[0].camp, texture: '_test-camp-variant', scale: 2, position: { x: 806, y: 400 } },
+      camp: { ...CHARACTERS[0].camp, props: [], texture: '_test-camp-variant', scale: 2, position: { x: 806, y: 400 } },
       game: { texture: '_test-game-variant', metrics: { ...CHARACTERS[0].game.metrics, width: 32, height: 40, feetY: 34, scale: 1.5 } } });
     const card = scene.children.getByName('character-locked-1');
     scene.scene.restart();
@@ -223,6 +250,8 @@ try {
   ok(switched.id === 'locked-1' && switched.preview === '_test-camp-variant' && switched.seatedCharacterId === 'locked-1' &&
     switched.name === 'Проверочный друид' && switched.seatedHeight === 112 && switched.seatedX === 806 && switched.seatedY === 400,
     'Клик по другому доступному персонажу меняет фигуру, её масштаб и подпись из данных');
+  ok(await page.evaluate(() => !window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('selected-character-prop-0')),
+    'Выбор персонажа без посоха удаляет прежний слой экипировки');
   await clickNamed('CharacterSelect', 'start-run');
   await waitScene('Room');
   ok(await page.evaluate(() => {

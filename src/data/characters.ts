@@ -11,7 +11,8 @@ export interface CharacterDefinition {
   description: string;
   stats?: { health: number; speed: number; walkReferenceSpeed: number };
   portrait: { texture: string; frame?: string };
-  camp?: { texture: string; originX: number; originY: number; scale: number; position?: { x: number; y: number } };
+  camp?: { props?: readonly { texture: string; position?: { x: number; y: number };
+    originX?: number; originY?: number; scale?: number }[]; texture: string; originX: number; originY: number; scale: number; position?: { x: number; y: number } };
   game?: { texture: string; metrics: GameSpriteMetrics; frames?: Record<Facing, string>;
     walkAnimations?: Partial<Record<Facing, string>>;
     hits?: Partial<Record<Facing, { texture: string; frames: string[] }>>;
@@ -24,7 +25,8 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
     stats: { health: 3, speed: BASE_MOVEMENT_SPEED, walkReferenceSpeed: 220 },
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
-    camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position },
+    camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position,
+      props: [{ texture: DRUID_TEXTURES.campStaff }] },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID,
       frames: { up: 'up', down: 'down', left: 'left', right: 'right',
         'down-left': 'down-left', 'down-right': 'down-right', 'up-left': 'up-left', 'up-right': 'up-right' },

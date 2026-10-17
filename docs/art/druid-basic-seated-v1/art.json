@@ -1,0 +1,33 @@
+{
+  "canvas": [
+    696,
+    864
+  ],
+  "worldPosition": [
+    525,
+    50
+  ],
+  "worldScale": 0.625,
+  "characterBounds": [
+    279,
+    310,
+    591,
+    670
+  ],
+  "staffBounds": [
+    270,
+    690,
+    670,
+    814
+  ],
+  "nativePixelGrid": 2,
+  "backgroundRepairedPixels": 125598,
+  "outsideMaskExact": true,
+  "bodyAndStaffDisjoint": true,
+  "identityReference": "docs/art/druid-sprites-v1/druid-04-basic.png",
+  "layers": [
+    "camp-clean-plate.png",
+    "staff-lying.png",
+    "druid-seated.png"
+  ]
+}

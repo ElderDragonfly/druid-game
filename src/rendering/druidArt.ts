@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import standing from '../assets/characters/druid-standing-detail.png';
 import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
-import campSource from '../../docs/art/druid-detail-preview-v1/character-selection-preview.png';
+import campSource from '../../docs/art/druid-basic-seated-v1/druid-seated.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 
 const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v3,druid-rear-diagonal-walk-v4,druid-facing-fixes-v1}/{idle,walk}-*-256x320.png',
@@ -18,7 +18,7 @@ function sourceUrl(kind: 'idle' | 'walk', direction: Facing) {
 
 export const DRUID_TEXTURES = {
   standing: 'druid-standing-detail', basic: 'druid-basic-detail',
-  campSource: 'druid-camp-source', camp: 'druid-camp',
+  campSource: 'druid-camp-source', camp: 'druid-camp', campStaff: 'druid-camp-staff',
   gameSource: 'druid-game-source', game: 'druid-game',
   leftSource: 'druid-left-source', rightSource: 'druid-right-source', backSource: 'druid-back-source',
   walkDown: 'druid-walk-down-source', walkUp: 'druid-walk-up-source',
@@ -35,7 +35,7 @@ const idleKeys: Record<Facing, string> = {
 export const DRUID_ART = [
   { key: DRUID_TEXTURES.standing, url: standing, frame: { x: 275, y: 49, width: 745, height: 1129 } },
   { key: DRUID_TEXTURES.basic, url: basic, frame: { x: 270, y: 80, width: 725, height: 1105 } },
-  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 840, y: 80, width: 696, height: 864 } },
+  { key: DRUID_TEXTURES.campSource, url: campSource, frame: { x: 0, y: 0, width: 696, height: 864 } },
   ...FACINGS.flatMap(direction => [
     { key: idleKeys[direction], url: sourceUrl('idle', direction), frame: { x: 0, y: 0, width: 256, height: 320 } },
     { key: `druid-walk-${direction}-source`, url: sourceUrl('walk', direction), frame: { x: 0, y: 0, width: 256, height: 320 } },

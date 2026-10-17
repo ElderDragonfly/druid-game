@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { addSelectionCampPlate } from '../rendering/selectionCampArt';
 import { CHARACTERS } from '../data/characters';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
@@ -8,6 +9,7 @@ import { SCENES } from './keys';
 export class CharacterSelectScene extends Phaser.Scene {
   selectedId = CHARACTERS[0].id;
   private cards: MenuButton[] = [];
+  private campProps: Phaser.GameObjects.Image[] = [];
   private campPreview!: Phaser.GameObjects.Image;
   private nameLabel!: Phaser.GameObjects.Text;
   private descriptionLabel!: Phaser.GameObjects.Text;
@@ -17,8 +19,10 @@ export class CharacterSelectScene extends Phaser.Scene {
   create() {
     this.selectedId = CHARACTERS[0].id;
     this.cards = [];
+    this.campProps = [];
     const layout = MENU_LAYOUT.select;
     addCampBackground(this, 'selection-camp', layout.backgroundPixelScale);
+    addSelectionCampPlate(this);
     const p = layout.panel;
     this.add.rectangle(p.x, p.y, p.width, p.height, 0x0d1b14, 0.87).setStrokeStyle(1, 0x44563f);
     this.add.text(70, 125, 'Выбор персонажа', {
@@ -51,7 +55,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.descriptionLabel = this.add.text(70, 435, '', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' });
     const preview = layout.preview;
     this.campPreview = this.add.image(preview.x, preview.seatY, CHARACTERS[0].camp!.texture)
-      .setName('selected-character-preview');
+      .setName('selected-character-preview').setDepth(2);
     this.chooseCharacter(this.selectedId);
     const back = () => this.scene.start(SCENES.mainMenu);
     const start = () => {
@@ -73,6 +77,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     const position = character.camp.position ?? { x: MENU_LAYOUT.select.preview.x, y: MENU_LAYOUT.select.preview.seatY };
     this.campPreview.setTexture(character.camp.texture).setOrigin(character.camp.originX, character.camp.originY)
       .setScale(character.camp.scale).setPosition(position.x, position.y).setData('characterId', character.id);
+    this.campProps.forEach(prop => prop.destroy());
+    this.campProps = (character.camp.props ?? []).map((prop, index) => this.add.image(
+      prop.position?.x ?? position.x, prop.position?.y ?? position.y, prop.texture)
+      .setOrigin(prop.originX ?? character.camp!.originX, prop.originY ?? character.camp!.originY)
+      .setScale(prop.scale ?? character.camp!.scale).setDepth(1)
+      .setName(`selected-character-prop-${index}`).setData('characterId', character.id));
     this.nameLabel.setText(character.name);
     this.descriptionLabel.setText(character.description);
     return true;
