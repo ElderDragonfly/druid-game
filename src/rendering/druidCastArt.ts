@@ -1,20 +1,21 @@
 import Phaser from 'phaser';
-import down from '../../docs/art/druid-cast-down-v1/cast-down-512x384.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { CAST_FRAME_DURATIONS } from '../behavior/DruidCasting';
 
-const sources = import.meta.glob<string>('../../docs/art/{druid-cast-eight-way-v1,druid-cast-right-v2,druid-cast-diagonal-v2}/cast-*-512x384.png',
+const sources = import.meta.glob<string>('../../docs/art/{druid-cast-eight-way-v1,druid-cast-right-v2,druid-cast-diagonal-v2,druid-cast-front-stable-v1}/cast-*-512x384.png',
   { eager: true, query: '?url', import: 'default' });
+
+const folders: Record<Facing, string> = {
+  down: 'druid-cast-front-stable-v1', 'down-left': 'druid-cast-front-stable-v1',
+  up: 'druid-cast-eight-way-v1', left: 'druid-cast-eight-way-v1',
+  right: 'druid-cast-right-v2', 'up-right': 'druid-cast-right-v2',
+  'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-diagonal-v2',
+};
 
 export const CAST_METRICS = { width: 512, height: 384, offsetX: 128, offsetY: 40 } as const;
 
 export const DRUID_CAST_ART = FACINGS.map(direction => {
-  const folder = direction === 'down-right' || direction === 'up-left'
-    ? 'druid-cast-diagonal-v2'
-    : direction === 'right' || direction === 'up-right'
-      ? 'druid-cast-right-v2' : 'druid-cast-eight-way-v1';
-  const url = direction === 'down' ? down
-    : sources[`../../docs/art/${folder}/cast-${direction}-512x384.png`];
+  const url = sources[`../../docs/art/${folders[direction]}/cast-${direction}-512x384.png`];
   if (!url) throw new Error(`Missing druid cast: ${direction}`);
   return { direction, key: `druid-cast-${direction}`, url };
 });

@@ -1,0 +1,91 @@
+{
+  "integrated": true,
+  "frameWidth": 512,
+  "frameHeight": 384,
+  "idleOffset": [
+    128,
+    40
+  ],
+  "durationMs": 670,
+  "directions": {
+    "down": {
+      "gripCenters": [
+        [
+          213.0,
+          123.0
+        ],
+        [
+          203.0,
+          73.0
+        ],
+        [
+          156.0,
+          116.0
+        ],
+        [
+          132.0,
+          115.0
+        ],
+        [
+          223.0,
+          106.5
+        ],
+        [
+          210.0,
+          139.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        -8,
+        -25,
+        35,
+        75,
+        25,
+        0
+      ],
+      "fixedBody": "body-down-fixed-256x320.png",
+      "staffHand": "anatomical-left"
+    },
+    "down-left": {
+      "gripCenters": [
+        [
+          206.0,
+          118.0
+        ],
+        [
+          197.0,
+          67.0
+        ],
+        [
+          129.0,
+          118.0
+        ],
+        [
+          120.0,
+          112.0
+        ],
+        [
+          221.0,
+          113.0
+        ],
+        [
+          206.0,
+          135.0
+        ]
+      ],
+      "staffAnglesDegrees": [
+        -8,
+        -25,
+        35,
+        75,
+        25,
+        0
+      ],
+      "fixedBody": "body-down-left-fixed-256x320.png",
+      "staffHand": "anatomical-left"
+    }
+  },
+  "headDownSource": "../druid-eight-way-v1/walk-down-256x320.png, first pose",
+  "previousAssets": "all earlier PNG/GIF sources retained unchanged",
+  "body": "one constant plate per view, no width/scale/leg changes between phases"
+}

@@ -1541,12 +1541,11 @@ try {
     const game = window.__smokeGame;
     const preserved = await Promise.all(DRUID_CAST_ART.map(async art => {
       const image = new Image();
-      const folder = ['down-right', 'up-left'].includes(art.direction)
-        ? 'druid-cast-diagonal-v2'
-        : ['right', 'up-right'].includes(art.direction)
-          ? 'druid-cast-right-v2' : 'druid-cast-eight-way-v1';
-      image.src = art.direction === 'down' ? '/docs/art/druid-cast-down-v1/cast-down-512x384.png'
-        : `/docs/art/${folder}/cast-${art.direction}-512x384.png`;
+      const folders = { down: 'druid-cast-front-stable-v1', 'down-left': 'druid-cast-front-stable-v1',
+        'down-right': 'druid-cast-diagonal-v2', 'up-left': 'druid-cast-diagonal-v2',
+        right: 'druid-cast-right-v2', 'up-right': 'druid-cast-right-v2' };
+      const folder = folders[art.direction] ?? 'druid-cast-eight-way-v1';
+      image.src = `/docs/art/${folder}/cast-${art.direction}-512x384.png`;
       await image.decode();
       const texture = game.textures.get(art.key), frames = DRUID_CAST_APPEARANCE[art.direction].frames;
       const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 384;
@@ -1564,7 +1563,32 @@ try {
     return { count: FACINGS.length, preserved: preserved.every(Boolean) };
   });
   ok(castAssets.count === 8 && castAssets.preserved,
-    'Атаки всех восьми направлений загружены 1:1 с NEAREST; вниз — именно принятый исходник v1');
+    'Атаки всех восьми направлений загружены из выбранных PNG 1:1 с NEAREST');
+  const stableFront = await page.evaluate(() => {
+    const game = window.__smokeGame;
+    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 320;
+    const ctx = canvas.getContext('2d');
+    const sample = (texture, frame, x, y, width, height) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(texture.getSourceImage(), frame.cutX + x, frame.cutY + y, width, height, 0, 0, width, height);
+      return ctx.getImageData(0, 0, width, height).data;
+    };
+    const same = (a, b) => a.every((value, i) => value === b[i]);
+    const standing = game.textures.get('druid-game');
+    const legs = ['down', 'down-left'].every(direction => {
+      const expected = sample(standing, standing.get(direction), 60, 235, 110, 65);
+      const cast = game.textures.get(`druid-cast-${direction}`);
+      return Array.from({ length: 6 }, (_, i) => cast.get(`cast-${direction}-${i}`))
+        .every(frame => same(sample(cast, frame, 128 + 60, 40 + 235, 110, 65), expected));
+    });
+    const walk = game.textures.get('druid-walk-down-source');
+    const cast = game.textures.get('druid-cast-down');
+    const head = same(sample(walk, walk.get(), 110, 55, 35, 32),
+      sample(cast, cast.get('cast-down-0'), 128 + 110, 40 + 55, 35, 32));
+    return { legs, head };
+  });
+  ok(stableFront.legs, 'Касты вниз и вниз-влево: ноги и сапоги во всех шести фазах совпадают со стойкой, без расширения');
+  ok(stableFront.head, 'При касте вниз голова смотрит прямо как в принятой ходьбе вниз');
   const castState = () => page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room'), p = scene.player, v = p.castVisual;
     return { active: p.casting.active, facing: p.actorState.facing, phase: p.casting.frameIndex,
