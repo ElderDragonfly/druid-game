@@ -1,3 +1,4 @@
+import { BASE_MOVEMENT_SPEED } from './movement';
 import { CAMP_DRUID, DRUID_TEXTURES, DRUID_WALK_ANIMATIONS, GAME_DRUID, type GameSpriteMetrics } from '../rendering/druidArt';
 import type { Facing } from '../input/EightWayFacing';
 import { DRUID_CAST_APPEARANCE } from '../rendering/druidCastArt';
@@ -18,7 +19,7 @@ export interface CharacterDefinition {
 // Порядок массива определяет порядок ячеек; новые персонажи добавляются здесь.
 export const CHARACTERS: readonly CharacterDefinition[] = [
   {
-    stats: { health: 3, speed: 220 * 2 / 3, walkReferenceSpeed: 220 },
+    stats: { health: 3, speed: BASE_MOVEMENT_SPEED, walkReferenceSpeed: 220 },
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position },

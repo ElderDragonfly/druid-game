@@ -27,7 +27,7 @@
 
 [Загруженный исходник](../2146238c373cba499284aaad3f0af0f5.jpg) сохранён без изменения. На нём видна подпись `ripped by Maxim`. Рисунок не генерировался заново: кадры вырезаны из JPEG, сохранённые непрозрачные RGB-пиксели совпадают с исходником. Шахматка уже впечатана в JPEG; прозрачность подготовлена маской внешнего фона и удалением отделённых нейтральных фоновых пятен. Это восстановленная прозрачность, а не исходный альфа-канал художника. PNG сохраняют RGB без GIF-квантизации; в GIF палитра ограничена форматом.
 
-Подготовка: `python scripts/prepare-wolf-art.py` (Python 3 + Pillow); только бег — `python scripts/prepare-wolf-art.py --only run`, только ходьба — `python scripts/prepare-wolf-art.py --only walk`. Волк пока **не подключён к игре**; персонаж, мышь и окружение не менялись.
+Подготовка: `python scripts/prepare-wolf-art.py` (Python 3 + Pillow); только бег — `python scripts/prepare-wolf-art.py --only run`, только ходьба — `python scripts/prepare-wolf-art.py --only walk`. Волк **подключён к игре**: ходьба, стояние, бег и обе атаки используют эти PNG без перерисовки; смерть пока хранится для будущего боя. Загрузчик и нарезка — `src/rendering/wolfArt.ts`, характеристики — `src/data/wolf.ts`. GIF остаются только предпросмотрами; игровые кадры выбираются из прозрачных PNG.
 
 Новые атаки можно пересобрать отдельно: `python scripts/prepare-wolf-art.py --only attack-up` и `python scripts/prepare-wolf-art.py --only attack-down`.
 

@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import { Wolf } from '../entities/Wolf';
+import type { Druid } from '../entities/Druid';
+import { WolfNavigation } from './WolfNavigation';
+import { wolfSpawn } from './wolfSpawn';
 import { environmentVariant } from '../data/environment';
 import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
 import { drawForestFloor } from '../rendering/forestFloor';
@@ -11,6 +15,7 @@ import { generateMousePopulation } from './mousePopulation';
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
+  wolf!: Wolf;
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
@@ -36,17 +41,23 @@ export class MeadowWorld {
       new Mouse(scene, layout, this.obstacles, start, index + 1));
   }
 
-  bindPlayer(player: Phaser.Physics.Arcade.Image | Phaser.Physics.Arcade.Sprite) {
+  bindPlayer(player: Druid) {
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
+    const navigation = new WolfNavigation(this.layout);
+    this.wolf = new Wolf(this.scene, navigation, this.obstacles, player, wolfSpawn(navigation));
   }
 
   updateGrass(footX: number, footY: number, depth: number) {
     this.grass.update(footX, footY, depth);
   }
 
-  update(delta: number) { this.mice.forEach(mouse => mouse.updateBehavior(delta)); }
+  update(delta: number) {
+    this.mice.forEach(mouse => mouse.updateBehavior(delta));
+    this.wolf?.updateBehavior(delta);
+  }
 
   destroy() {
+    this.wolf?.destroy();
     this.mice.forEach(mouse => mouse.destroy());
     this.collider?.destroy();
     this.obstacles.clear(true, true);

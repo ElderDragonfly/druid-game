@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { testWolf } from './wolf-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -34,12 +35,17 @@ try {
     window.__smokeGame = game;
   });
   // Предикат ожидания синхронный: Promise сам по себе является truthy.
-  const waitScene = key => page.waitForFunction(sceneKey => {
+  // Legacy druid/camera fixtures isolate the new enemy; wolf scenarios below enable it explicitly.
+  const isolateWolf = () => page.evaluate(() => {
+    const wolf = window.__smokeGame.scene.getScene('Room')?.world?.wolf;
+    if (wolf?.scene) { wolf.setActive(false).setVisible(false).setVelocity(0, 0); wolf.body.enable = false; wolf.shadow.setVisible(false); }
+  });
+  const waitScene = async key => { await page.waitForFunction(sceneKey => {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1);
-  }, key);
+      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 3);
+  }, key); if (key === 'Room') await isolateWolf(); };
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
     return game.scene.getScenes(true).map(scene => scene.sys.settings.key);
@@ -619,6 +625,7 @@ try {
       return scene.player !== previous && scene.player.body;
     }, previousPlayer);
     await previousPlayer.dispose();
+    await isolateWolf();
     await delay(60);
   };
   const hold = async (key, ms) => {
@@ -658,8 +665,8 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === current.mouseCount + 1 && current.mouseCount >= 0 && current.mouseCount <= 9,
-      `0–9 мышей; по одному столкновению с деревьями на существо: ${current.mouseCount}, ${current.colliders}`);
+    ok(current.colliders === current.mouseCount + 3 && current.mouseCount >= 0 && current.mouseCount <= 9,
+      `0–9 мышей; деревья и два столкновения волка: ${current.mouseCount}, ${current.colliders}`);
   };
 
   const generation = await page.evaluate(async () => {
@@ -1348,7 +1355,7 @@ try {
         speedReset: scene.player.actorState.speed === scene.player.definition.stats.speed };
     });
     ok(lifecycle.count === (seed === populationSeeds[0] ? 0 : 9) && lifecycle.sprites === lifecycle.count &&
-      lifecycle.colliders === lifecycle.count + 1 && lifecycle.cleared && lifecycle.speedReset,
+      lifecycle.colliders === lifecycle.count + 3 && lifecycle.cleared && lifecycle.speedReset,
       `Перезапуск с ${lifecycle.count} мышами: нет старых спрайтов/коллайдеров, характеристики героя восстановлены`);
   }
 
@@ -1420,7 +1427,7 @@ try {
   for (const archived of [false, true]) {
     const kind = 'tree';
     await restart();
-    if (archived) await installArchivedWorld();
+    if (archived) { await installArchivedWorld(); await isolateWolf(); }
     assertMeadow(await state());
     for (const [key, axis, sign] of [['d', 'x', 1], ['a', 'x', -1], ['s', 'y', 1], ['w', 'y', -1]]) {
       const current = await state();
@@ -1857,6 +1864,7 @@ try {
     await waitScene('CharacterSelect');
     ok((await activeScenes()).join() === 'CharacterSelect', `Повторные переходы без лишних сцен: ${run + 1}`);
   }
+  await testWolf(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { WOLF_ART, prepareWolfTextures } from '../rendering/wolfArt';
 import mainCamp from '../assets/main-camp.png';
 import selectionCamp from '../assets/selection-camp.png';
 import { DRUID_ART, prepareDruidTextures } from '../rendering/druidArt';
@@ -31,6 +32,7 @@ export class BootScene extends Phaser.Scene {
     DRUID_ART.forEach(art => this.load.image(art.key, art.url));
     DRUID_CAST_ART.forEach(art => this.load.image(art.key, art.url));
     FOREST_ART.forEach(art => this.load.image(art.key, art.url));
+    WOLF_ART.forEach(art => this.load.image(art.key, art.url));
     MOUSE_ART.forEach(art => this.load.image(art.key, art.url));
   }
 
@@ -44,6 +46,7 @@ export class BootScene extends Phaser.Scene {
     prepareDruidCastTextures(this);
     prepareForestTextures(this);
     prepareMouseTextures(this);
+    prepareWolfTextures(this);
     this.scene.start(SCENES.mainMenu);
   }
 }
