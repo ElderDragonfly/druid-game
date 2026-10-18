@@ -10,7 +10,7 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
       return hash >>> 0;
     };
-    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true, visibleWaterPixels = 0;
+    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true, visibleWaterPixels = 0, onlyFlameChanges = true;
     const readImage = async path => {
       const image = new Image(); image.src = `/docs/art/${path}`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
@@ -18,12 +18,16 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       return { canvas, context, data:context.getImageData(0,0,image.width,image.height).data };
     };
     for (const kind of ['fire','water']) {
-      const folder = kind === 'fire' ? 'selection-camp-frames-v1' : 'selection-water-flow-v2';
+      const folder = kind === 'fire' ? 'selection-camp-uploaded-flame-v1' : 'selection-water-flow-v2';
       const read = name => readImage(`${folder}/${name}`);
       const expected = await read(`${kind}-frames.png`), reference = await read(`${kind}-reference.png`);
       const change = await read(`${kind}-change-mask.png`);
       const motion = await read(kind === 'fire' ? 'fire-motion-mask.png' : 'water-change-mask.png');
       const base = kind === 'fire' ? await read('fire-base.png') : reference;
+      if (kind === 'fire') {
+        const acceptedBase=await readImage('selection-camp-frames-v1/fire-base.png');
+        onlyFlameChanges &&= base.data.every((v,i)=>v===acceptedBase.data[i]);
+      }
       const previousMask = kind === 'water' ? await readImage('selection-camp-frames-v1/water-change-mask.png') : null;
       const texture = game.textures.get(`selection-${kind}-frames`), area = config[kind];
       const actual = document.createElement('canvas'); actual.width = expected.canvas.width; actual.height = expected.canvas.height;
@@ -37,6 +41,11 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
         for(let p=0;p<pixels.length;p+=4) for(let c=0;c<4;c++) {
           if(!motion.data[p]) fixedSurroundings &&= pixels[p+c]===base.data[p+c];
           if(!change.data[p]) fixedSurroundings &&= pixels[p+c]===reference.data[p+c];
+        }
+        if (kind === 'fire') for(let p=0;p<pixels.length;p+=4) {
+          if (p/4>=125*area.width) for(let c=0;c<4;c++) onlyFlameChanges &&= pixels[p+c]===base.data[p+c];
+          if ([0,1,2].some(c=>pixels[p+c]!==base.data[p+c]))
+            onlyFlameChanges &&= pixels[p]>95 && pixels[p+1]>35 && pixels[p+2]<40 && pixels[p+3]===255;
         }
         if (kind === 'water') {
           if (!waterMin) { waterMin = pixels.slice(); waterMax = pixels.slice(); }
@@ -84,11 +93,12 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
       panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
       fireFps: config.fire.fps, waterFps: config.water.fps, fireCount: config.fire.frameCount, waterCount: config.water.frameCount,
-      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels };
+      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels, onlyFlameChanges };
   });
   ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fireFps === 125 / 24 && before.waterFps === 24 && before.fireCount === 8 && before.waterCount === 144 && before.drawnFrames,
-    'Огонь ускорен на 25%; вода имеет плавный шестисекундный цикл; готовые PNG проигрываются 1:1 с NEAREST');
+  ok(before.animatedPixels && before.filters && before.fireFps === 25 && before.waterFps === 24 && before.fireCount === 37 && before.waterCount === 144 && before.drawnFrames,
+    'Все 37 кадров загруженного огня проигрываются при 25 FPS; вода прежняя; готовые PNG используются 1:1 с NEAREST');
+  ok(before.onlyFlameChanges, 'Заменено только тёплое пламя: подложка костра, камни и угли побайтно сохранены, фон GIF и чужие поленья отсутствуют');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');
   ok(before.visibleWaterPixels >= 500, 'Течение заметно в открытой части реки: не менее 500 пикселей меняют оттенок минимум на 24/255');
