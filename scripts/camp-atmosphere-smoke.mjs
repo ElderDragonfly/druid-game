@@ -77,15 +77,21 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       const a = fireflyPosition(i, 317), b = fireflyPosition(i, 317 + f.periodMs);
       return Math.hypot(a.x-b.x,a.y-b.y) < 1e-7;
     });
+    const area = index => {
+      const period=config.fireflies[index].periodMs;
+      const points=Array.from({length:64},(_,i)=>fireflyPosition(index,i*period/64));
+      return points.reduce((sum,a,i)=>{const b=points[(i+1)%points.length];return sum+a.x*b.y-b.x*a.y;},0);
+    };
+    const oppositeFlight=area(3)>0 && area(4)>0 && area(5)<0;
     const body = scene.children.getByName('selected-character-preview'), staff = scene.children.getByName('selected-character-prop-0');
     const clean = scene.children.getByName('camp-firefly-clean-layer');
     const ctx = document.createElement('canvas').getContext('2d'); ctx.canvas.width = 960; ctx.canvas.height = 540;
     ctx.drawImage(game.textures.get('camp-firefly-clean').getSourceImage(),0,0);
-    const cleanup = config.fireflies.every(f => {
+    const cleanup = config.fireflies.slice(0,config.backgroundFireflyCount).every(f => {
       const pixel = ctx.getImageData(f.x,f.y,1,1).data;
       return pixel[3] === 255 && pixel[0] < 150 && pixel[1] < 150;
     });
-    return { count: flies.length, loops, independent: new Set(config.fireflies.map(f=>f.periodMs)).size === 5,
+    return { count: flies.length, loops, oppositeFlight, independent: new Set(config.fireflies.map(f=>f.periodMs)).size === 6,
       positions: flies.map(o=>({x:o.x,y:o.y})), fireFrame: fire.frame.name, waterFrame: water.frame.name,
       animatedPixels: hashFrame(fire.texture.key,'0') !== hashFrame(fire.texture.key,'7') && hashFrame(water.texture.key,'0') !== hashFrame(water.texture.key,'7'),
       filters: [fire,water,...flies].every(o=>o.texture.source[0].scaleMode === 1),
@@ -95,9 +101,10 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       fireFps: config.fire.fps, waterFps: config.water.fps, fireCount: config.fire.frameCount, waterCount: config.water.frameCount,
       drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels, onlyFlameChanges };
   });
-  ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fireFps === 25 && before.waterFps === 24 && before.fireCount === 37 && before.waterCount === 144 && before.drawnFrames,
-    'Все 37 кадров загруженного огня проигрываются при 25 FPS; вода прежняя; готовые PNG используются 1:1 с NEAREST');
+  ok(before.count === 6 && before.loops && before.independent, 'Шесть светлячков имеют независимые периоды и действительно замкнутые траектории');
+  ok(before.animatedPixels && before.filters && before.fireFps === 18.75 && before.waterFps === 24 && before.fireCount === 37 && before.waterCount === 144 && before.drawnFrames,
+    'Все 37 кадров загруженного огня проигрываются при 18,75 FPS (на 25% медленнее); вода прежняя; готовые PNG используются 1:1 с NEAREST');
+  ok(before.oppositeFlight, 'Новый огонёк справа летит против часовой стрелки, два прежних видимых огонька — по часовой');
   ok(before.onlyFlameChanges, 'Заменено только тёплое пламя: подложка костра, камни и угли побайтно сохранены, фон GIF и чужие поленья отсутствуют');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');
@@ -125,6 +132,6 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('CharacterSelect');
     return s.children.list.filter(o=>o.name==='camp-fire').length === 1 &&
-      s.children.list.filter(o=>o.name.startsWith('camp-firefly-') && o.name!=='camp-firefly-clean-layer').length === 5;
-  }), 'Повторный вход создаёт один костёр и пять светлячков без дублирования');
+      s.children.list.filter(o=>o.name.startsWith('camp-firefly-') && o.name!=='camp-firefly-clean-layer').length === 6;
+  }), 'Повторный вход создаёт один костёр и шесть светлячков без дублирования');
 }

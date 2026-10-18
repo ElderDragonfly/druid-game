@@ -14,6 +14,7 @@ SOURCE=ROOT/'5b8606e6d60a88955aeda65edbd5a0fa62386d21.gif'
 OLD=ROOT/'docs/art/selection-camp-frames-v1'
 OUT=ROOT/'docs/art/selection-camp-uploaded-flame-v1'
 COLS=8
+PLAYBACK_FPS=18.75
 
 
 def prepare():
@@ -68,9 +69,11 @@ def prepare():
     Image.fromarray((change*255).astype('uint8')).save(OUT/'fire-change-mask.png')
     palette=atlas.convert('RGB').quantize(colors=256,dither=Image.Dither.NONE)
     previews=[f.convert('RGB').quantize(palette=palette,dither=Image.Dither.NONE) for f in frames]
-    previews[0].save(OUT/'fire-preview.gif',save_all=True,append_images=previews[1:],duration=durations,loop=0,disposal=2,optimize=False)
-    metadata={'source':SOURCE.name,'frames':len(frames),'durationsMs':durations,'fps':1000/durations[0],
-      'cycleMs':sum(durations),'frameSize':[128,148],'atlasColumns':COLS,'sourceScale':.25,
+    preview_durations=[(round((i+1)*100/PLAYBACK_FPS)-round(i*100/PLAYBACK_FPS))*10 for i in range(len(frames))]
+    previews[0].save(OUT/'fire-preview.gif',save_all=True,append_images=previews[1:],duration=preview_durations,loop=0,disposal=2,optimize=False)
+    metadata={'source':SOURCE.name,'frames':len(frames),'sourceDurationsMs':durations,'sourceFps':1000/durations[0],
+      'durationsMs':[1000/PLAYBACK_FPS]*len(frames),'fps':PLAYBACK_FPS,
+      'cycleMs':len(frames)*1000/PLAYBACK_FPS,'frameSize':[128,148],'atlasColumns':COLS,'sourceScale':.25,
       'sourceRegistration':[6,22],'acceptedBaseUnchanged':True,'coalsAndLogsBelowY125Unchanged':True,
       'extraction':'Warm source pixels only; periodic grid strokes sampled from adjacent flame pixels; backdrop/source logs excluded; original palette and frame order retained'}
     (OUT/'art.json').write_text(json.dumps(metadata,indent=2)+'\n')

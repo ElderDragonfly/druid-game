@@ -2,6 +2,60 @@
   "source": "5b8606e6d60a88955aeda65edbd5a0fa62386d21.gif",
   "frames": 37,
   "durationsMs": [
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336,
+    53.333333333333336
+  ],
+  "fps": 18.75,
+  "cycleMs": 1973.3333333333333,
+  "frameSize": [
+    128,
+    148
+  ],
+  "atlasColumns": 8,
+  "sourceScale": 0.25,
+  "sourceRegistration": [
+    6,
+    22
+  ],
+  "acceptedBaseUnchanged": true,
+  "coalsAndLogsBelowY125Unchanged": true,
+  "extraction": "Warm source pixels only; periodic grid strokes sampled from adjacent flame pixels; backdrop/source logs excluded; original palette and frame order retained",
+  "sourceDurationsMs": [
     40,
     40,
     40,
@@ -40,19 +94,5 @@
     40,
     40
   ],
-  "fps": 25.0,
-  "cycleMs": 1480,
-  "frameSize": [
-    128,
-    148
-  ],
-  "atlasColumns": 8,
-  "sourceScale": 0.25,
-  "sourceRegistration": [
-    6,
-    22
-  ],
-  "acceptedBaseUnchanged": true,
-  "coalsAndLogsBelowY125Unchanged": true,
-  "extraction": "Warm source pixels only; periodic grid strokes sampled from adjacent flame pixels; backdrop/source logs excluded; original palette and frame order retained"
+  "sourceFps": 25
 }

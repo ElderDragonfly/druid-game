@@ -202,11 +202,15 @@ try {
     let minX=696,minY=864,maxX=0,maxY=0,logContact=false;
     for(let y=0;y<864;y++) for(let x=0;x<696;x++) if(data[(y*696+x)*4+3]) {
       minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
-      if(x>=600 && x<=650 && y>=550 && y<=610) logContact=true;
+      if(x>=575 && x<=640 && y>=550 && y<=610) logContact=true;
     }
-    return minX>390 && minX<430 && minY>450 && minY<500 && maxY>740 && maxY<780 && maxX<696 &&
-      Math.abs(prop.angle+32)<1e-6 && logContact;
-  }), 'Посох расположен по красной отметке: основание сдвинуто вправо, развилка выше у бревна и целиком внутри экрана');
+    context.setTransform(1,0,0,1,0,0); context.clearRect(0,0,696,864);
+    context.drawImage(window.__smokeGame.textures.get('druid-camp').getSourceImage(),0,0);
+    const body=context.getImageData(0,0,696,864).data;
+    const disjoint=data.every((v,i)=>i%4!==3 || !v || !body[i]);
+    return minX>540 && minX<580 && minY>280 && minY<340 && maxY>680 && maxY<725 && maxX<696 &&
+      maxY-minY>2*(maxX-minX) && Math.abs(prop.angle+60)<1e-6 && logContact && disjoint;
+  }), 'Прежний посох стоит справа как в главном меню, полностью в кадре и без пересечения с плащом');
   ok(slots.portrait === 'druid-basic-detail', 'Ячейка доступного персонажа использует утверждённый Basic 04');
   const basicPortrait = await page.evaluate(async () => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');

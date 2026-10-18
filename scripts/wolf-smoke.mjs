@@ -1,3 +1,4 @@
+import { testWolfCloak } from './wolf-cloak-smoke.mjs';
 /** Real browser scenarios for wolf AI, physics and distance-driven art. */
 export async function testWolf(page, ok) {
   const pure = await page.evaluate(async () => {
@@ -150,4 +151,5 @@ export async function testWolf(page, ok) {
   }, oldWolf);
   await oldWolf.dispose();
   ok(clean, 'Перезапуск удаляет старого волка, его тень и коллайдеры; новый волк спокоен');
+  await testWolfCloak(page,ok);
 }

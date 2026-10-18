@@ -6,6 +6,7 @@ import { DruidCasting } from '../behavior/DruidCasting';
 import { DruidHitReaction } from '../behavior/DruidHitReaction';
 import { HIT_METRICS } from '../rendering/druidHitArt';
 import { CAST_METRICS } from '../rendering/druidCastArt';
+import { wolfContactBounds } from '../physics/wolfContact';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly actorState: DruidState;
@@ -17,6 +18,10 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly castVisual: Phaser.GameObjects.Image;
   private activeWalk?: Facing;
   private nextWalkFrame: Partial<Record<Facing, number>> = {};
+
+  get wolfContactBounds() {
+    return wolfContactBounds(this.body as Phaser.Physics.Arcade.Body, this.appearance.wolfContactPadding);
+  }
 
   constructor(scene: Phaser.Scene, readonly definition: CharacterDefinition) {
     const appearance = definition.game ?? CHARACTERS[0].game!;

@@ -4,6 +4,7 @@ import { WolfBehavior } from '../behavior/WolfBehavior';
 import { WolfNavigation, type WolfPoint } from '../world/WolfNavigation';
 import { wolfDurations, type WolfAnimation } from '../rendering/wolfArt';
 import type { Druid } from './Druid';
+import { createDruidWolfCollider } from '../physics/wolfContact';
 
 export class Wolf extends Phaser.Physics.Arcade.Sprite {
   readonly definition = WOLF;
@@ -30,25 +31,26 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
     this.shadow = scene.add.image(start.x, start.y, 'wolf-idle-shadow', '0').setName('wolf-shadow')
       .setOrigin(this.originX, this.originY).setScale(a.scale);
     this.treeCollider = scene.physics.add.collider(this, trees);
-    this.playerCollider = scene.physics.add.collider(player, this);
+    this.playerCollider = createDruidWolfCollider(scene, player, this);
   }
 
   updateBehavior(delta: number) {
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (!this.active || !body.enable) return;
     const p = this.player.body as Phaser.Physics.Arcade.Body;
+    const contact = this.player.wolfContactBounds;
     const position = { x: this.x, y: this.y };
     const distance = Math.hypot(this.x - this.previous.x, this.y - this.previous.y);
     this.previous = position;
     const velocity = this.behavior.step(delta, position, { x: p.center.x, y: p.bottom },
-      { x: p.x, y: p.y, width: p.width, height: p.height });
+      contact);
     this.setVelocity(velocity.x, velocity.y).setFlipX(this.actorState.facingLeft).setDepth(this.y);
     const phase = this.actorState.phase;
     if (phase !== 'attack') this.attackConnected = false;
     else if (!this.attackConnected && this.actorState.elapsed >= WOLF.behavior.impactMs) {
       this.attackConnected = true;
       // Once per swing, at its active frame, and only if the druid is still in reach.
-      if (this.behavior.inAttackRange(position, { x: p.x, y: p.y, width: p.width, height: p.height })) this.player.receiveHit();
+      if (this.behavior.inAttackRange(position, this.player.wolfContactBounds)) this.player.receiveHit();
     }
     const moving = distance > .01 && distance < Math.max(30, this.actorState.runSpeed * delta / 1000 * 3);
     const animation: WolfAnimation = phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') :
