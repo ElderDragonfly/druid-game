@@ -10,14 +10,25 @@ export class DruidCasting {
   facing: Facing = 'down';
   active = false;
   private elapsed = 0;
+  private released = false;
+  private pendingRelease?: Facing;
+
+  constructor(readonly releaseAtMs = 580) {}
 
   update(delta: number, requested?: Facing) {
     if (this.active) {
+      if (requested) this.facing = requested;
       this.elapsed += Math.max(0, delta);
-      if (this.elapsed >= CAST_DURATION) this.cancel();
+      if (!this.released && this.elapsed >= this.releaseAtMs) {
+        this.pendingRelease = this.facing; this.released = true;
+      }
+      // A normally completed gesture keeps its release until the world consumes
+      // it, including a long frame crossing both release and end. Interruptions
+      // use cancel(), which clears it before the post-physics release phase.
+      if (this.elapsed >= CAST_DURATION) { this.active = false; this.elapsed = 0; }
     }
     if (requested) {
-      if (!this.active) this.elapsed = 0;
+      if (!this.active) { this.elapsed = 0; this.released = false; }
       this.active = true;
       // Adding a second arrow switches view at the current phase instead of
       // restarting: diagonals also work when keys arrive on adjacent frames.
@@ -36,6 +47,10 @@ export class DruidCasting {
 
   cancel() {
     this.active = false;
-    this.elapsed = 0;
+    this.elapsed = 0; this.released = false; this.pendingRelease = undefined;
+  }
+
+  consumeRelease() {
+    const facing = this.pendingRelease; this.pendingRelease = undefined; return facing;
   }
 }

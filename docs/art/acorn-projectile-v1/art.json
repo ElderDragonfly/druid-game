@@ -1,0 +1,19 @@
+{
+  "acornSource": "b0471cf9c8dc3eb7b35d9a87be4f3108.jpg",
+  "leavesSource": "f1f06bf5b8e7b1ba529cc56edb76e50d.jpg",
+  "airReferenceNotUsed": "dfe996a6fca1d0c3904369d92fea5cc3.jpg",
+  "acornFrame": [
+    48,
+    48
+  ],
+  "acornPivot": [
+    24,
+    24
+  ],
+  "leafFrames": 5,
+  "leafFrame": [
+    24,
+    24
+  ],
+  "method": "Connected components remove white backdrop; NEAREST normalization, no palette changes"
+}

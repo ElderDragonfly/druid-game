@@ -26,15 +26,15 @@ export async function testWolfCloak(page, ok) {
     const body={x:390,y:275,width:20,height:25};
     const rect=wolfContactBounds(body,CHARACTERS[0].game.wolfContactPadding);
     const ai=new WolfBehavior(nav,fixture);
-    return rect.x===372 && rect.width===44 && rect.y===275 && rect.height===25 &&
-      ai.inAttackRange({x:340,y:300},rect) && !ai.inAttackRange({x:339.8,y:300},rect) &&
+    return rect.x===380 && rect.width===36 && rect.y===275 && rect.height===25 &&
+      ai.inAttackRange({x:348,y:300},rect) && !ai.inAttackRange({x:347.8,y:300},rect) &&
       ai.inAttackRange({x:448,y:300},rect) && !ai.inAttackRange({x:448.2,y:300},rect) &&
       ai.inAttackRange({x:400,y:270},rect) && !ai.inAttackRange({x:400,y:269.8},rect) &&
       ai.inAttackRange({x:400,y:323},rect) && !ai.inAttackRange({x:400,y:323.2},rect);
   });
-  ok(bounds,'Граница плаща 44×25: +18 слева, +6 справа; верх/низ и пределы удара по вертикали прежние');
+  ok(bounds,'Граница плаща 36×25: +10 слева, +6 справа; верх/низ и пределы удара по вертикали прежние');
   for(const [side,key,dx,dy,expected] of [
-    ['left','a',-100,0,18],['right','d',100,0,6],['up','w',0,-100,0],['down','s',0,100,0],
+    ['left','a',-100,0,10],['right','d',100,0,6],['up','w',0,-100,0],['down','s',0,100,0],
   ]){
     await page.evaluate(({dx,dy})=>{
       const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__cloakFixture;
@@ -54,11 +54,29 @@ export async function testWolfCloak(page, ok) {
   await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__cloakFixture;
     p.cancelHit();p.setVelocity(0,0);p.body.reset(f.x,f.y-22.5);
-    // At x-55 the wolf touches the cloak but is outside the old x-42 hit range.
-    w.body.reset(f.x-55,f.y);w.setActive(true);w.actorState.alerted=true;
+    // Let the wolf approach naturally so the visible nose/staff gap can be checked.
+    p.actorState.facing='left';p.updateAppearance(true);
+    w.body.reset(f.x-160,f.y);w.setActive(true);w.actorState.alerted=true;
     w.actorState.phase='chase';w.actorState.elapsed=0;
     window.__cloakPlayerX=p.x;
   });
+  await page.waitForFunction(()=>{const w=window.__smokeGame.scene.getScene('Room').world.wolf;return w.actorState.phase==='attack'&&w.actorState.elapsed<160;},null,{timeout:2500});
+  const nose = await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf;
+    const c=document.createElement('canvas').getContext('2d');c.canvas.width=256;c.canvas.height=320;
+    const f=w.frame;c.drawImage(w.texture.getSourceImage(),f.cutX,f.cutY,128,112,0,0,128,112);
+    const pixels=c.getImageData(0,0,128,112).data;let noseX=0,noseY=0;
+    for(let y=0;y<112;y++)for(let x=80;x<128;x++)if(pixels[(y*128+x)*4+3]>128&&x>=noseX){noseX=x;noseY=y;}
+    const worldY=w.y+(noseY-w.displayOriginY)*w.scaleY;
+    const sy=Math.round((worldY-p.y)/p.scaleY+p.displayOriginY);
+    c.clearRect(0,0,256,320);c.drawImage(p.texture.getSourceImage(),p.frame.cutX,p.frame.cutY,256,320,0,0,256,320);
+    const actor=c.getImageData(0,0,256,320).data;let staff=128;
+    for(let y=sy-2;y<=sy+2;y++)for(let x=0;x<128;x++)if(actor[(y*256+x)*4+3]>128)staff=Math.min(staff,x);
+    const gap=p.x+(staff-p.displayOriginX)*p.scaleX-(w.x+(noseX-w.displayOriginX)*w.scaleX);
+    return {gap,noseX,noseY,staff,sy,texture:w.texture.key,frame:w.frame.name,px:p.x,wx:w.x};
+  });
+  await page.screenshot({path:'test-results/wolf-staff-contact.png'});
+  ok(nose.gap>=0&&nose.gap<=6,`При естественном подходе слева нос атакующего волка находится в 0–6 игровых пикселях от посоха на той же высоте: ${JSON.stringify(nose)}`);
   await page.waitForFunction(()=>window.__smokeGame.scene.getScene('Room').player.hitReaction.active,null,{timeout:2500});
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf;

@@ -33,7 +33,7 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
         scale: CAMP_DRUID.scale * .97,
         position: { x: CAMP_DRUID.position.x + 564 * CAMP_DRUID.scale,
           y: CAMP_DRUID.position.y + 690 * CAMP_DRUID.scale } }] },
-    game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID, wolfContactPadding: { left: 18, right: 6 },
+    game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID, wolfContactPadding: { left: 10, right: 6 },
       frames: { up: 'up', down: 'down', left: 'left', right: 'right',
         'down-left': 'down-left', 'down-right': 'down-right', 'up-left': 'up-left', 'up-right': 'up-right' },
       walkAnimations: DRUID_WALK_ANIMATIONS, hits: DRUID_HIT_APPEARANCE, casts: DRUID_CAST_APPEARANCE },

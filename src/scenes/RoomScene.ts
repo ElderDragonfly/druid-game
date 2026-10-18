@@ -7,6 +7,7 @@ import { MeadowWorld } from '../world/MeadowWorld';
 import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } from '../world/meadowLayout';
 import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
 import { facingFromVector, type Facing, type MovementKeys } from '../input/EightWayFacing';
+import { AcornAttack } from '../world/AcornAttack';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -14,6 +15,7 @@ export class RoomScene extends Phaser.Scene {
   characterId = CHARACTERS[0].id;
   layout!: MeadowLayout;
   world!: MeadowWorld;
+  acorns!: AcornAttack;
   private seed = 0;
   private movement!: MovementKeys;
   private attackKeys!: MovementKeys;
@@ -44,6 +46,7 @@ export class RoomScene extends Phaser.Scene {
     this.player = new Druid(this, character);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
+    this.acorns = new AcornAttack(this,this.player);
 
     const keyboard = this.input.keyboard!;
     this.movement = keyboard.addKeys({
@@ -65,6 +68,7 @@ export class RoomScene extends Phaser.Scene {
     const updateGrass = (_time: number, delta: number) => {
       this.player.syncCastVisual();
       this.world.update(delta);
+      this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
@@ -78,6 +82,7 @@ export class RoomScene extends Phaser.Scene {
     const resize = () => this.resizeCameras();
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.acorns.destroy();
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
@@ -143,7 +148,7 @@ export class RoomScene extends Phaser.Scene {
       const x = 104 + i * 26;
       hearts.fillStyle(0xd98278).fillCircle(x - 4, 35, 5).fillCircle(x + 4, 35, 5).fillTriangle(x - 9, 36, x + 9, 36, x, 47);
     }
-    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — атака · R — новая поляна · Esc — в лагерь', {
+    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — атака · → — жёлудь · R — новая поляна · Esc — в лагерь', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
     this.hud.add([panel, label, hearts, this.hint]);

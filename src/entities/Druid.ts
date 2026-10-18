@@ -7,12 +7,13 @@ import { DruidHitReaction } from '../behavior/DruidHitReaction';
 import { HIT_METRICS } from '../rendering/druidHitArt';
 import { CAST_METRICS } from '../rendering/druidCastArt';
 import { wolfContactBounds } from '../physics/wolfContact';
+import { ACORN } from '../data/acorn';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly actorState: DruidState;
   readonly behavior: DruidMovement;
   readonly appearance;
-  readonly casting = new DruidCasting();
+  readonly casting = new DruidCasting(ACORN.releaseMs);
   readonly hitReaction = new DruidHitReaction();
   readonly hitVisual: Phaser.GameObjects.Image;
   readonly castVisual: Phaser.GameObjects.Image;

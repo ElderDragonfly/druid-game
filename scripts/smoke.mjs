@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { testCampAtmosphere } from './camp-atmosphere-smoke.mjs';
 import { testWolf } from './wolf-smoke.mjs';
 import { testDruidHits } from './druid-hit-smoke.mjs';
+import { testAcornAttack } from './acorn-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -668,7 +669,7 @@ try {
       cameraCenter: { x: scene.cameras.main.midPoint.x, y: scene.cameras.main.midPoint.y },
       canvas: { x: canvas.x, y: canvas.y, width: canvas.width, height: canvas.height },
       viewport: { width: innerWidth, height: innerHeight },
-      combat: !!scene.enemy || !!scene.projectiles,
+      combat: !!scene.enemy || !!scene.projectiles, acornEnabled: !!scene.acorns,
     };
   });
   const restart = async () => {
@@ -1870,7 +1871,7 @@ try {
   await waitCast(s => !s.active);
   await hold('ArrowRight', 350);
   const peaceful = await state();
-  ok(!peaceful.combat && peaceful.health === 3, 'В текущей поляне нет жука, стрельбы и контактного урона');
+  ok(!peaceful.combat && peaceful.acornEnabled && peaceful.health === 3, 'Старый бой с жуком отключён; пробная атака желудем подключена без потери HP');
   const oldSeed = peaceful.layout.seed;
   const floorSignature = () => page.evaluate(() => {
     const floor = window.__smokeGame.scene.getScene('Room').children.getByName('forest-floor');
@@ -1920,6 +1921,7 @@ try {
   }
   await testWolf(page, ok);
   await testDruidHits(page, ok);
+  await testAcornAttack(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

@@ -11,6 +11,7 @@ import { SCENES } from './keys';
 import { fitMenuCamera } from '../ui/sceneHelpers';
 import { MOUSE_ART, prepareMouseTextures } from '../rendering/mouseArt';
 import { DRUID_CAST_ART, prepareDruidCastTextures } from '../rendering/druidCastArt';
+import { ACORN_ART, prepareAcornTextures } from '../rendering/acornArt';
 
 export class BootScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
@@ -31,6 +32,7 @@ export class BootScene extends Phaser.Scene {
     });
     this.load.once('loaderror', () => { this.failed = true; });
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));
+    ACORN_ART.forEach(art => this.load.image(art.key, art.url));
     SELECTION_CAMP_ART.forEach(art => this.load.image(art.key, art.url));
     this.load.image('main-camp', mainCamp);
     this.load.image('selection-camp', selectionCamp);
@@ -55,6 +57,7 @@ export class BootScene extends Phaser.Scene {
     prepareForestTextures(this);
     prepareMouseTextures(this);
     prepareWolfTextures(this);
+    prepareAcornTextures(this);
     this.scene.start(SCENES.mainMenu);
   }
 }
