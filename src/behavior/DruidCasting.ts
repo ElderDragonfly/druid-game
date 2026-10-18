@@ -1,10 +1,9 @@
 import type { Facing } from '../input/EightWayFacing';
-import { BASE_ATTACK_RATE, BASE_CAST_DURATION_SCALE } from '../data/attack';
+import { BASE_ATTACK_RATE, BASE_CAST_DURATION_SCALE, CAST_DURATION, CAST_FRAME_DURATIONS, CAST_RELEASE_MS } from '../data/attack';
 
 // The six moving phases of the accepted cast-down-v1. Preview-only pauses
 // before/after the gesture are not part of gameplay.
-export const CAST_FRAME_DURATIONS = [100, 120, 80, 130, 110, 130] as const;
-export const CAST_DURATION = CAST_FRAME_DURATIONS.reduce((sum, duration) => sum + duration, 0);
+export { CAST_FRAME_DURATIONS, CAST_DURATION } from '../data/attack';
 
 /** Casting has its own clock, independent of walking speed and key repeat. */
 export class DruidCasting {
@@ -14,7 +13,7 @@ export class DruidCasting {
   private released = false;
   private pendingRelease?: Facing;
 
-  constructor(readonly releaseAtMs = 580, private readonly attackRate: () => number = () => BASE_ATTACK_RATE) {}
+  constructor(readonly releaseAtMs = CAST_RELEASE_MS, private readonly attackRate: () => number = () => BASE_ATTACK_RATE) {}
 
   update(delta: number, requested?: Facing) {
     if (this.active) {

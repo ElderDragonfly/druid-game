@@ -51,7 +51,7 @@ export async function testWolf(page, ok) {
   });
   ok(pure.detection, 'Волк замечает друида внутри овала 426,67×240, а за границей и в углах — нет');
   ok(pure.sticky, 'После обнаружения погоня сохраняется за пределами зоны видимости');
-  ok(pure.base && pure.ratio === 1.25 && pure.speed && pure.walk, 'Скорость друида 1, бега волка 1,25, ходьбы 0,45; диагональ нормализована');
+  ok(pure.base && pure.ratio === 1 && pure.speed && pure.walk, 'Скорость друида и бега волка 1, ходьбы волка 0,45; диагональ нормализована');
   ok(pure.startedAttack && pure.locked && pure.resumed, 'У контакта волк выполняет полный жест атаки и затем возобновляет погоню');
   ok(pure.wander, 'Без друида волк чередует спокойную ходьбу и остановки');
   ok(pure.routed, 'Маршрут огибает ствол с учётом всей ширины волка, без срезания углов');
@@ -110,7 +110,7 @@ export async function testWolf(page, ok) {
     const overlap = Math.min(p.right, b.right) - Math.max(p.x, b.x) > .1 && Math.min(p.bottom, b.bottom) - Math.max(p.y, b.y) > .1;
     const o = window.__wolfObservation;
     return { overlap, phase: w.actorState.phase, health: s.playerHealth, frames: o.frames.size,
-      synced: o.ratios.length > 2 && o.ratios.every(r => Math.abs(r - 1000 / w.actorState.runSpeed) < .001),
+      synced: o.ratios.length > 2 && o.ratios.every(r => Math.abs(r - 1000 / w.definition.appearance.runReferenceSpeed) < .001),
       matchingShadow: w.shadow.texture.key === `${w.texture.key}-shadow` && w.shadow.frame.name === w.frame.name };
   });
   ok(contact.phase === 'attack' && !contact.overlap && contact.health === initial.health,

@@ -4,28 +4,29 @@ export async function testAcornAttack(page,ok) {
     const{DruidCasting}=await import('/src/behavior/DruidCasting.ts');
     const{ACORN}=await import('/src/data/acorn.ts');
     const cast=new DruidCasting(ACORN.releaseMs);
-    cast.update(0,'right');cast.update(869);
+    cast.update(0,'right');cast.update(753);
     const early=cast.consumeRelease()===undefined;
-    cast.update(1);const late=cast.consumeRelease()==='right'&&cast.consumeRelease()===undefined;
+    cast.update(.75);const late=cast.active&&cast.consumeRelease()==='right'&&cast.consumeRelease()===undefined;
     cast.update(40);const once=cast.consumeRelease()===undefined;
-    cast.cancel();cast.update(0,'right');cast.update(869);cast.cancel();cast.update(100);
+    cast.cancel();cast.update(0,'right');cast.update(753);cast.cancel();cast.update(100);
     const interrupted=cast.consumeRelease()===undefined;
-    cast.update(0,'right');cast.update(870);cast.cancel();
+    cast.update(0,'right');cast.update(753.75);cast.cancel();
     const sameFrame=cast.consumeRelease()===undefined;
     cast.update(0,'right');cast.update(1100);
     return early&&late&&once&&interrupted&&sameFrame&&cast.consumeRelease()==='right'&&!cast.active;
   });
-  ok(timing,'Жёлудь выпускается один раз после 870 мс при скорострельности 1; отмена, включая тот же кадр, убирает ожидающий выстрел');
+  ok(timing,'Жёлудь выпускается один раз на 75% жеста (753,75 из 1005 мс), пока каст ещё активен; отмена, включая тот же кадр, убирает ожидающий выстрел');
   ok(await page.evaluate(async()=>{
     const{DruidCasting}=await import('/src/behavior/DruidCasting.ts');
-    let rate=1;const cast=new DruidCasting(580,()=>rate);
+    const{ACORN}=await import('/src/data/acorn.ts');
+    let rate=1;const cast=new DruidCasting(ACORN.releaseMs,()=>rate);
     cast.update(0,'down');cast.update(1004,'down');
     const baseline=cast.active&&cast.frameIndex===5;
     cast.consumeRelease();cast.update(1,'down');
     const repeated=cast.active&&cast.frameIndex===0;
-    cast.cancel();rate=2;cast.update(0,'down');cast.update(434);
+    cast.cancel();rate=2;cast.update(0,'down');cast.update(376);
     const early=cast.consumeRelease()===undefined;
-    cast.update(1);const faster=cast.consumeRelease()==='down';
+    cast.update(.875);const faster=cast.active&&cast.consumeRelease()==='down';
     rate=0;const frame=cast.frameIndex;cast.update(5000);
     return baseline&&repeated&&early&&faster&&cast.frameIndex===frame;
   }),'Базовая скорострельность 1: цикл 1005 мс; значение 2 удваивает темп жеста и выпуска, 0 приостанавливает таймер');
@@ -140,7 +141,7 @@ export async function testAcornAttack(page,ok) {
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__acornFixture;
     p.cancelHit();p.cancelCast();p.body.reset(f.x,f.y);p.body.updateFromGameObject();const count=s.acorns.emittedCount;
-    p.updateCasting(0,'right');p.updateCasting(870);
+    p.updateCasting(0,'right');p.updateCasting(753.75);
     w.setActive(true);w.body.enable=true;w.body.reset(p.x-47,p.body.bottom);
     w.body.updateFromGameObject();
     w.actorState.alerted=true;w.actorState.phase='attack';w.actorState.elapsed=230;
