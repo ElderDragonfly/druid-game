@@ -1,0 +1,38 @@
+{
+  "atlasColumns": 4,
+  "fire": {
+    "frameSize": [
+      128,
+      148
+    ],
+    "fps": 10,
+    "frames": 8,
+    "fixedRoot": [
+      64,
+      120
+    ],
+    "sourceGrid": [
+      4,
+      2
+    ],
+    "registrationScale": [
+      0.24784853700516352,
+      0.27167630057803466
+    ],
+    "outsideMaskExact": true
+  },
+  "water": {
+    "frameSize": [
+      204,
+      142
+    ],
+    "fps": 8,
+    "frames": 8,
+    "sourceGrid": [
+      2,
+      4
+    ],
+    "outsideMaskExact": true
+  },
+  "runtime": "PNG frame switching only; no deformation"
+}

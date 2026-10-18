@@ -10,6 +10,31 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
       return hash >>> 0;
     };
+    let drawnFrames = true, fixedSurroundings = true;
+    const readImage = async path => {
+      const image = new Image(); image.src = `/docs/art/selection-camp-frames-v1/${path}`; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const context = canvas.getContext('2d'); context.drawImage(image,0,0);
+      return { canvas, context, data:context.getImageData(0,0,image.width,image.height).data };
+    };
+    for (const kind of ['fire','water']) {
+      const expected = await readImage(`${kind}-frames.png`), reference = await readImage(`${kind}-reference.png`);
+      const change = await readImage(`${kind}-change-mask.png`);
+      const motion = await readImage(kind === 'fire' ? 'fire-motion-mask.png' : 'water-change-mask.png');
+      const base = kind === 'fire' ? await readImage('fire-base.png') : reference;
+      const texture = game.textures.get(`selection-${kind}-frames`), area = config[kind];
+      const actual = document.createElement('canvas'); actual.width = expected.canvas.width; actual.height = expected.canvas.height;
+      actual.getContext('2d').drawImage(texture.getSourceImage(),0,0);
+      drawnFrames &&= actual.getContext('2d').getImageData(0,0,actual.width,actual.height).data.every((v,i)=>v===expected.data[i]);
+      for (let frameIndex=0;frameIndex<8;frameIndex++) {
+        const frame = texture.get(String(frameIndex));
+        const pixels = actual.getContext('2d').getImageData(frame.cutX,frame.cutY,area.width,area.height).data;
+        for(let p=0;p<pixels.length;p+=4) for(let c=0;c<4;c++) {
+          if(!motion.data[p]) fixedSurroundings &&= pixels[p+c]===base.data[p+c];
+          if(!change.data[p]) fixedSurroundings &&= pixels[p+c]===reference.data[p+c];
+        }
+      }
+    }
     const fire = scene.children.getByName('camp-fire'), water = scene.children.getByName('camp-water');
     const flies = scene.children.list.filter(o => o.name.startsWith('camp-firefly-') && o.name !== 'camp-firefly-clean-layer');
     const loops = config.fireflies.every((f,i) => {
@@ -31,11 +56,12 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       actor: {x:body.x,y:body.y,texture:body.texture.key,staff:staff.texture.key},
       cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
       panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
-      fps: config.fps, frameCount: config.frameCount };
+      fireFps: config.fire.fps, waterFps: config.water.fps, frameCount: config.frameCount, drawnFrames, fixedSurroundings };
   });
   ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fps === 12 && before.frameCount === 24,
-    'Пламя и вода используют разные пиксельные кадры 12 FPS, с NEAREST и заранее собранными атласами');
+  ok(before.animatedPixels && before.filters && before.fireFps === 10 && before.waterFps === 8 && before.frameCount === 8 && before.drawnFrames,
+    'Огонь и вода переключают восемь нарисованных PNG-кадров 1:1 без деформации, с NEAREST');
+  ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.cleanup && before.cleanupAboveWater && before.panelAbove,
     'Старые статичные огоньки убраны, включая область воды; эффекты остаются позади панели интерфейса');
   await page.waitForTimeout(580);
