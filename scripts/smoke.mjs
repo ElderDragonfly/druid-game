@@ -202,11 +202,11 @@ try {
     let minX=696,minY=864,maxX=0,maxY=0,logContact=false;
     for(let y=0;y<864;y++) for(let x=0;x<696;x++) if(data[(y*696+x)*4+3]) {
       minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
-      if(x>=620 && x<=680 && y>=600 && y<=650) logContact=true;
+      if(x>=600 && x<=650 && y>=550 && y<=610) logContact=true;
     }
-    return minY>580 && minY<650 && maxY>770 && maxY<820 &&
-      maxX-minX>1.7*(maxY-minY) && prop.angle===-10 && logContact;
-  }), 'Прежний лежащий посох слегка приподнят: основание слева у земли, развилка справа на бревне, наклон близок к горизонтальному');
+    return minX>390 && minX<430 && minY>450 && minY<500 && maxY>740 && maxY<780 && maxX<696 &&
+      Math.abs(prop.angle+32)<1e-6 && logContact;
+  }), 'Посох расположен по красной отметке: основание сдвинуто вправо, развилка выше у бревна и целиком внутри экрана');
   ok(slots.portrait === 'druid-basic-detail', 'Ячейка доступного персонажа использует утверждённый Basic 04');
   const basicPortrait = await page.evaluate(async () => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');

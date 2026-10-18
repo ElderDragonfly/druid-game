@@ -26,11 +26,12 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position,
-      // Keep the original lying branch. Pivot at its lower left end; raise only
-      // the forked right end onto the log with a small additional tilt.
-      props: [{ texture: DRUID_TEXTURES.campStaff, originX: 280 / 696, originY: 800 / 864, angle: -10,
-        position: { x: CAMP_DRUID.position.x + 300 * CAMP_DRUID.scale,
-          y: CAMP_DRUID.position.y + 790 * CAMP_DRUID.scale } }] },
+      // Align the original branch with the user's red placement guide.
+      // Pivot at the lower end; a small size adjustment keeps the fork on screen.
+      props: [{ texture: DRUID_TEXTURES.campStaff, originX: 280 / 696, originY: 800 / 864, angle: -32,
+        scale: CAMP_DRUID.scale * .94,
+        position: { x: CAMP_DRUID.position.x + 420 * CAMP_DRUID.scale,
+          y: CAMP_DRUID.position.y + 746 * CAMP_DRUID.scale } }] },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID,
       frames: { up: 'up', down: 'down', left: 'left', right: 'right',
         'down-left': 'down-left', 'down-right': 'down-right', 'up-left': 'up-left', 'up-right': 'up-right' },
