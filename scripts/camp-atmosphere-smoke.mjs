@@ -10,28 +10,47 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
       return hash >>> 0;
     };
-    let drawnFrames = true, fixedSurroundings = true;
+    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true;
     const readImage = async path => {
-      const image = new Image(); image.src = `/docs/art/selection-camp-frames-v1/${path}`; await image.decode();
+      const image = new Image(); image.src = `/docs/art/${path}`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
       const context = canvas.getContext('2d'); context.drawImage(image,0,0);
       return { canvas, context, data:context.getImageData(0,0,image.width,image.height).data };
     };
     for (const kind of ['fire','water']) {
-      const expected = await readImage(`${kind}-frames.png`), reference = await readImage(`${kind}-reference.png`);
-      const change = await readImage(`${kind}-change-mask.png`);
-      const motion = await readImage(kind === 'fire' ? 'fire-motion-mask.png' : 'water-change-mask.png');
-      const base = kind === 'fire' ? await readImage('fire-base.png') : reference;
+      const folder = kind === 'fire' ? 'selection-camp-frames-v1' : 'selection-water-flow-v2';
+      const read = name => readImage(`${folder}/${name}`);
+      const expected = await read(`${kind}-frames.png`), reference = await read(`${kind}-reference.png`);
+      const change = await read(`${kind}-change-mask.png`);
+      const motion = await read(kind === 'fire' ? 'fire-motion-mask.png' : 'water-change-mask.png');
+      const base = kind === 'fire' ? await read('fire-base.png') : reference;
+      const previousMask = kind === 'water' ? await readImage('selection-camp-frames-v1/water-change-mask.png') : null;
       const texture = game.textures.get(`selection-${kind}-frames`), area = config[kind];
       const actual = document.createElement('canvas'); actual.width = expected.canvas.width; actual.height = expected.canvas.height;
       actual.getContext('2d').drawImage(texture.getSourceImage(),0,0);
       drawnFrames &&= actual.getContext('2d').getImageData(0,0,actual.width,actual.height).data.every((v,i)=>v===expected.data[i]);
-      for (let frameIndex=0;frameIndex<8;frameIndex++) {
+      let previous, first;
+      const gentle = (a,b) => a.every((v,i)=>Math.abs(v-b[i])<=8);
+      for (let frameIndex=0;frameIndex<config[kind].frameCount;frameIndex++) {
         const frame = texture.get(String(frameIndex));
         const pixels = actual.getContext('2d').getImageData(frame.cutX,frame.cutY,area.width,area.height).data;
         for(let p=0;p<pixels.length;p+=4) for(let c=0;c<4;c++) {
           if(!motion.data[p]) fixedSurroundings &&= pixels[p+c]===base.data[p+c];
           if(!change.data[p]) fixedSurroundings &&= pixels[p+c]===reference.data[p+c];
+        }
+        if (kind === 'water') {
+          if (previous) smoothWater &&= gentle(pixels,previous);
+          else first = pixels;
+          smoothWater &&= pixels.every((v,i)=>Math.abs(v-reference.data[i])<=20);
+          previous = pixels;
+        }
+      }
+      if (kind === 'water') {
+        smoothWater &&= gentle(first,previous); // Includes the last-to-first seam.
+        for (let y=1;y<area.height-1;y++) for(let x=1;x<area.width-1;x++) {
+          if (!change.data[(y*area.width+x)*4]) continue;
+          for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++)
+            protectedWaterEdges &&= previousMask.data[((y+dy)*area.width+x+dx)*4]>0;
         }
       }
     }
@@ -56,12 +75,14 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       actor: {x:body.x,y:body.y,texture:body.texture.key,staff:staff.texture.key},
       cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
       panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
-      fireFps: config.fire.fps, waterFps: config.water.fps, frameCount: config.frameCount, drawnFrames, fixedSurroundings };
+      fireFps: config.fire.fps, waterFps: config.water.fps, fireCount: config.fire.frameCount, waterCount: config.water.frameCount,
+      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges };
   });
   ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fireFps === 10 && before.waterFps === 8 && before.frameCount === 8 && before.drawnFrames,
-    'Огонь и вода переключают восемь нарисованных PNG-кадров 1:1 без деформации, с NEAREST');
+  ok(before.animatedPixels && before.filters && before.fireFps === 10 / 3 && before.waterFps === 12 && before.fireCount === 8 && before.waterCount === 72 && before.drawnFrames,
+    'Огонь замедлен втрое; вода имеет плавный шестисекундный цикл; готовые PNG проигрываются 1:1 с NEAREST');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
+  ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');
   ok(before.cleanup && before.cleanupAboveWater && before.panelAbove,
     'Старые статичные огоньки убраны, включая область воды; эффекты остаются позади панели интерфейса');
   await page.waitForTimeout(580);

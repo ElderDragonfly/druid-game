@@ -78,8 +78,8 @@ def fire():
     Image.fromarray((union*255).astype('uint8')).save(OUT/'fire-change-mask.png')
     Image.fromarray((motion*255).astype('uint8')).save(OUT/'fire-motion-mask.png')
     for frame in frames: assert np.array_equal(np.array(frame)[~union],original[~union])
-    pack(frames,'fire',10)
-    return {'frameSize':list(reference.size),'fps':10,'frames':8,'fixedRoot':[64,120],
+    pack(frames,'fire',10/3)
+    return {'frameSize':list(reference.size),'fps':10/3,'frames':8,'fixedRoot':[64,120],
             'sourceGrid':[4,2],'registrationScale':[sx,sy],'outsideMaskExact':True}
 
 

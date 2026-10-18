@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import fireUrl from '../../docs/art/selection-camp-frames-v1/fire-frames.png';
-import waterUrl from '../../docs/art/selection-camp-frames-v1/water-frames.png';
+import waterUrl from '../../docs/art/selection-water-flow-v2/water-frames.png';
 import cleanUrl from '../../docs/art/selection-camp-atmosphere-v1/firefly-clean-patches.png';
 import { CAMP_ATMOSPHERE as CONFIG, fireflyPosition } from '../data/campAtmosphere';
 
@@ -8,7 +8,7 @@ export const CAMP_ATMOSPHERE_ART = [
   { key: 'camp-fire-drawn-source', url: fireUrl }, { key: 'camp-water-drawn-source', url: waterUrl }, { key: 'camp-firefly-clean', url: cleanUrl },
 ];
 const FIRE_KEY = 'selection-fire-frames', WATER_KEY = 'selection-water-frames', FLY_KEY = 'selection-firefly';
-/** Separately drawn PNG frames; the engine only switches frames, never warps pixels. */
+/** Prepared PNG frames; the engine only switches frames, never warps the background. */
 export class CampAtmosphere {
   readonly fire: Phaser.GameObjects.Image;
   readonly water: Phaser.GameObjects.Image;
@@ -38,8 +38,8 @@ export class CampAtmosphere {
 
   private update(_time: number, delta: number) {
     this.elapsedMs += Math.max(0, delta);
-    const fire = Math.floor(this.elapsedMs / 1000 * CONFIG.fire.fps) % CONFIG.frameCount;
-    const water = Math.floor(this.elapsedMs / 1000 * CONFIG.water.fps) % CONFIG.frameCount;
+    const fire = Math.floor(this.elapsedMs / 1000 * CONFIG.fire.fps) % CONFIG.fire.frameCount;
+    const water = Math.floor(this.elapsedMs / 1000 * CONFIG.water.fps) % CONFIG.water.frameCount;
     if (fire !== this.lastFireFrame) { this.fire.setFrame(String(fire)); this.lastFireFrame = fire; }
     if (water !== this.lastWaterFrame) { this.water.setFrame(String(water)); this.lastWaterFrame = water; }
     this.fireflies.forEach((image, index) => {
@@ -51,9 +51,9 @@ export class CampAtmosphere {
   private registerFrames(key: string, sourceKey: string, area: typeof CONFIG.fire | typeof CONFIG.water) {
     const image = this.scene.textures.get(sourceKey).getSourceImage() as HTMLImageElement;
     const texture = this.scene.textures.addImage(key, image)!;
-    for (let index = 0; index < CONFIG.frameCount; index++) {
-      texture.add(String(index), 0, index % CONFIG.framesPerRow * area.width,
-        Math.floor(index / CONFIG.framesPerRow) * area.height, area.width, area.height);
+    for (let index = 0; index < area.frameCount; index++) {
+      texture.add(String(index), 0, index % area.framesPerRow * area.width,
+        Math.floor(index / area.framesPerRow) * area.height, area.width, area.height);
     }
     texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
