@@ -12,7 +12,7 @@ export interface CharacterDefinition {
   stats?: { health: number; speed: number; walkReferenceSpeed: number };
   portrait: { texture: string; frame?: string };
   camp?: { props?: readonly { texture: string; position?: { x: number; y: number };
-    originX?: number; originY?: number; scale?: number }[]; texture: string; originX: number; originY: number; scale: number; position?: { x: number; y: number } };
+    originX?: number; originY?: number; scale?: number; angle?: number }[]; texture: string; originX: number; originY: number; scale: number; position?: { x: number; y: number } };
   game?: { texture: string; metrics: GameSpriteMetrics; frames?: Record<Facing, string>;
     walkAnimations?: Partial<Record<Facing, string>>;
     hits?: Partial<Record<Facing, { texture: string; frames: string[] }>>;
@@ -26,7 +26,11 @@ export const CHARACTERS: readonly CharacterDefinition[] = [
     id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position,
-      props: [{ texture: DRUID_TEXTURES.campStaff }] },
+      // Keep the original lying branch. Pivot at its lower left end; raise only
+      // the forked right end onto the log with a small additional tilt.
+      props: [{ texture: DRUID_TEXTURES.campStaff, originX: 280 / 696, originY: 800 / 864, angle: -10,
+        position: { x: CAMP_DRUID.position.x + 300 * CAMP_DRUID.scale,
+          y: CAMP_DRUID.position.y + 790 * CAMP_DRUID.scale } }] },
     game: { texture: DRUID_TEXTURES.game, metrics: GAME_DRUID,
       frames: { up: 'up', down: 'down', left: 'left', right: 'right',
         'down-left': 'down-left', 'down-right': 'down-right', 'up-left': 'up-left', 'up-right': 'up-right' },

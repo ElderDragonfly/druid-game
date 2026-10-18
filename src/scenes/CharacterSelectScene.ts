@@ -83,7 +83,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.campProps = (character.camp.props ?? []).map((prop, index) => this.add.image(
       prop.position?.x ?? position.x, prop.position?.y ?? position.y, prop.texture)
       .setOrigin(prop.originX ?? character.camp!.originX, prop.originY ?? character.camp!.originY)
-      .setScale(prop.scale ?? character.camp!.scale).setDepth(1)
+      .setScale(prop.scale ?? character.camp!.scale).setAngle(prop.angle ?? 0).setDepth(1)
       .setName(`selected-character-prop-${index}`).setData('characterId', character.id));
     this.nameLabel.setText(character.name);
     this.descriptionLabel.setText(character.description);

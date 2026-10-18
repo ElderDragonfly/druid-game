@@ -190,17 +190,23 @@ try {
   });
   ok(campLayers, 'Фон за пределами старой фигуры/посоха сохранён; новая фигура и лежащий посох независимы и не пересекаются');
   ok(await page.evaluate(() => {
-    const image=window.__smokeGame.textures.get('druid-camp-staff').getSourceImage();
+    const scene=window.__smokeGame.scene.getScene('CharacterSelect');
+    const prop=scene.children.getByName('selected-character-prop-0');
+    const image=prop.texture.getSourceImage();
     const canvas=document.createElement('canvas'); canvas.width=696; canvas.height=864;
-    const context=canvas.getContext('2d'); context.drawImage(image,0,0);
+    const context=canvas.getContext('2d');
+    context.translate((prop.x-525)/.625,(prop.y-50)/.625);
+    context.rotate(prop.rotation); context.scale(prop.scaleX/.625,prop.scaleY/.625);
+    context.drawImage(image,-prop.displayOriginX,-prop.displayOriginY);
     const data=context.getImageData(0,0,696,864).data;
     let minX=696,minY=864,maxX=0,maxY=0,logContact=false;
     for(let y=0;y<864;y++) for(let x=0;x<696;x++) if(data[(y*696+x)*4+3]) {
       minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y);
-      if(x>=615 && x<=640 && y>=575 && y<=620) logContact=true;
+      if(x>=620 && x<=680 && y>=600 && y<=650) logContact=true;
     }
-    return minY<430 && maxY>740 && maxY-minY>2*(maxX-minX) && minX>520 && logContact;
-  }), 'Отдельный посох стоит под наклоном рядом с друидом: низ на земле, древко касается правого края бревна');
+    return minY>580 && minY<650 && maxY>770 && maxY<820 &&
+      maxX-minX>1.7*(maxY-minY) && prop.angle===-10 && logContact;
+  }), 'Прежний лежащий посох слегка приподнят: основание слева у земли, развилка справа на бревне, наклон близок к горизонтальному');
   ok(slots.portrait === 'druid-basic-detail', 'Ячейка доступного персонажа использует утверждённый Basic 04');
   const basicPortrait = await page.evaluate(async () => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');

@@ -87,7 +87,7 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels };
   });
   ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fireFps === 25 / 6 && before.waterFps === 24 && before.fireCount === 8 && before.waterCount === 144 && before.drawnFrames,
+  ok(before.animatedPixels && before.filters && before.fireFps === 125 / 24 && before.waterFps === 24 && before.fireCount === 8 && before.waterCount === 144 && before.drawnFrames,
     'Огонь ускорен на 25%; вода имеет плавный шестисекундный цикл; готовые PNG проигрываются 1:1 с NEAREST');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');

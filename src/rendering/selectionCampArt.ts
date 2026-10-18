@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import cleanPlate from '../../docs/art/druid-basic-seated-v1/camp-clean-plate.png';
-import staff from '../../docs/art/druid-camp-staff-leaning-v1/staff-leaning.png';
+import staff from '../../docs/art/druid-basic-seated-v1/staff-lying.png';
 import { CAMP_DRUID, DRUID_TEXTURES } from './druidArt';
 
 export const SELECTION_CAMP_ART = [

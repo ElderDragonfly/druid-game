@@ -38,7 +38,7 @@ def pack(frames, name, fps):
     atlas.save(OUT / f'{name}-keyframes.png', optimize=True)
     palette = atlas.convert('RGB').quantize(colors=256, dither=Image.Dither.NONE)
     gifs = [f.convert('RGB').quantize(palette=palette,dither=Image.Dither.NONE) for f in frames]
-    gifs[0].save(OUT / f'{name}-preview.gif',save_all=True,append_images=gifs[1:],duration=round(1000/fps),loop=0,disposal=2,optimize=False)
+    gifs[0].save(OUT / f'{name}-preview.gif',save_all=True,append_images=gifs[1:],duration=[(round((i+1)*100/fps)-round(i*100/fps))*10 for i in range(len(frames))],loop=0,disposal=2,optimize=False)
 
 
 def fire():
@@ -78,8 +78,8 @@ def fire():
     Image.fromarray((union*255).astype('uint8')).save(OUT/'fire-change-mask.png')
     Image.fromarray((motion*255).astype('uint8')).save(OUT/'fire-motion-mask.png')
     for frame in frames: assert np.array_equal(np.array(frame)[~union],original[~union])
-    pack(frames,'fire',25/6)
-    return {'frameSize':list(reference.size),'fps':25/6,'frames':8,'fixedRoot':[64,120],
+    pack(frames,'fire',125/24)
+    return {'frameSize':list(reference.size),'fps':125/24,'frames':8,'fixedRoot':[64,120],
             'sourceGrid':[4,2],'registrationScale':[sx,sy],'outsideMaskExact':True}
 
 
