@@ -24,8 +24,8 @@ export class WolfBehavior {
   private wanderMs = 0;
   private recoveryMs = 0;
 
-  constructor(readonly navigation: WolfNavigation, start: WolfPoint) {
-    this.random = seededRandom(navigation.layout.seed ^ 0x574f4c46);
+  constructor(readonly navigation: WolfNavigation, start: WolfPoint, identity = 0) {
+    this.random = seededRandom(navigation.layout.seed ^ 0x574f4c46 ^ identity);
     this.actorState = { phase: 'idle', alerted: false, elapsed: 0, ...WOLF.stats, maxHealth: WOLF.stats.health,
       target: { ...start }, facingLeft: false, attackUp: false };
     this.idleMs = this.pause();
@@ -36,10 +36,15 @@ export class WolfBehavior {
       ((position.y - player.y) / WOLF.behavior.detectionY) ** 2 <= 1;
   }
 
+  alert() {
+    this.actorState.alerted = true;
+    if (this.actorState.phase === 'idle' || this.actorState.phase === 'wander') this.enter('chase');
+  }
+
   step(delta: number, position: WolfPoint, player: WolfPoint, playerBody: Rect): WolfPoint {
     const s = this.actorState, dt = Math.max(0, delta);
     s.elapsed += dt; this.pathAge += dt; this.recoveryMs = Math.max(0, this.recoveryMs - dt);
-    if (!s.alerted && this.detects(position, player)) { s.alerted = true; this.enter('chase'); }
+    if (!s.alerted && this.detects(position, player)) this.alert();
     if (s.phase === 'attack') {
       if (s.elapsed < WOLF.behavior.attackMs) return { x: 0, y: 0 };
       this.recoveryMs = WOLF.behavior.recoveryMs; this.enter('chase');

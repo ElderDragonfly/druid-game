@@ -1,3 +1,4 @@
+import { isolateSingleWolf } from './wolf-fixture.mjs';
 /** Hit reactions: independent clock, sprite integrity and actual wolf impact. */
 export async function testDruidHits(page, ok) {
   const timer = await page.evaluate(async () => {
@@ -57,10 +58,10 @@ export async function testDruidHits(page, ok) {
       s.scene.restart({ seed: 0 }); return old;
     }, direction);
     await page.waitForFunction(old => {
-      const s = window.__smokeGame.scene.getScene('Room'); return s.player !== old && s.world?.wolf?.body;
-    }, previous); await previous.dispose();
+      const s = window.__smokeGame.scene.getScene('Room'); return s.player !== old && s.world?.wolves?.[0]?.body;
+    }, previous); await previous.dispose();await isolateSingleWolf(page);
     const setup = await page.evaluate(direction => {
-      const s = window.__smokeGame.scene.getScene('Room'), p = s.player, w = s.world.wolf;
+      const s = window.__smokeGame.scene.getScene('Room'), p = s.player, w = s.world.wolves[0];
       w.setActive(false).setVelocity(0, 0); w.body.enable = false;
       p.actorState.facing = direction; p.updateAppearance(true);
       const result = { x: p.x, y: p.y, health: s.playerHealth, width: p.body.width, height: p.body.height };
@@ -96,7 +97,7 @@ export async function testDruidHits(page, ok) {
 
   // Real wolf attack, observed at its active frame, rather than manually calling receiveHit.
   await page.evaluate(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), p = s.player, w = s.world.wolf;
+    const s = window.__smokeGame.scene.getScene('Room'), p = s.player, w = s.world.wolves[0];
     p.cancelHit(); p.cancelCast(); p.actorState.facing = 'right'; p.updateAppearance(true);
     const x = s.layout.spawn.x, y = s.layout.spawn.y + 22.5;
     p.body.reset(x, y - 22.5);
@@ -115,19 +116,19 @@ export async function testDruidHits(page, ok) {
   await page.waitForTimeout(410);
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), o = window.__hitObservation;
-    return o.count === 1 && o.late && s.playerHealth === o.health;
-  }), 'Атака настоящего волка запускает одну реакцию на активном кадре, без потери HP');
+    return o.count === 1 && o.late && s.playerHealth === o.health - 1;
+  }), 'Атака настоящего волка запускает одну реакцию на активном кадре и снимает 1 HP');
   await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room');
     s.player.cancelHit(); s.player.body.reset(s.layout.spawn.x + 600, s.layout.spawn.y);
   });
-  await page.waitForFunction(() => window.__smokeGame.scene.getScene('Room').world.wolf.actorState.phase === 'chase');
+  await page.waitForFunction(() => window.__smokeGame.scene.getScene('Room').world.wolves[0].actorState.phase === 'chase');
   await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), x = s.layout.spawn.x, y = s.layout.spawn.y + 22.5;
-    s.player.body.reset(x, y - 22.5); s.world.wolf.body.reset(x + 40, y);
+    s.player.body.reset(x, y - 22.5); s.world.wolves[0].body.reset(x + 40, y);
   });
   await page.waitForFunction(() => {
-    const w = window.__smokeGame.scene.getScene('Room').world.wolf;
+    const w = window.__smokeGame.scene.getScene('Room').world.wolves[0];
     return w.actorState.phase === 'attack' && w.actorState.elapsed < 180;
   });
   const beforeMiss = await page.evaluate(() => {
@@ -140,7 +141,7 @@ export async function testDruidHits(page, ok) {
     'Уход до активного кадра атаки не вызывает ложного попадания');
   await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'); s.events.off('postupdate', window.__hitObserver);
-    const p = s.player, w = s.world.wolf;
+    const p = s.player, w = s.world.wolves[0];
     p.cancelHit(); p.cancelCast(); p.actorState.facing = 'up'; p.updateAppearance(true); p.receiveHit();
     window.__upHit = { active: p.hitReaction.active, facing: p.actorState.facing,
       visible: p.visible, hitVisible: p.hitVisual.visible };

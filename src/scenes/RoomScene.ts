@@ -8,6 +8,8 @@ import { generateMeadow, MEADOW_WORLD, MEADOW_PIXEL_SCALE, type MeadowLayout } f
 import { EllipticalFollowCamera } from '../camera/EllipticalFollowCamera';
 import { facingFromVector, type Facing, type MovementKeys } from '../input/EightWayFacing';
 import { AcornAttack } from '../world/AcornAttack';
+import { COMBAT_EVENTS } from '../combat/events';
+import { DeathOverlay } from '../ui/DeathOverlay';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -16,6 +18,7 @@ export class RoomScene extends Phaser.Scene {
   layout!: MeadowLayout;
   world!: MeadowWorld;
   acorns!: AcornAttack;
+  gameOver = false;
   private seed = 0;
   private movement!: MovementKeys;
   private attackKeys!: MovementKeys;
@@ -27,6 +30,9 @@ export class RoomScene extends Phaser.Scene {
   private hint!: Phaser.GameObjects.Text;
   private cameraFollow!: EllipticalFollowCamera;
   private feetOffset = 0;
+  private healthLabel!: Phaser.GameObjects.Text;
+  private hearts!: Phaser.GameObjects.Graphics;
+  private deathOverlay!: DeathOverlay;
 
   constructor() { super(SCENES.room); }
 
@@ -37,6 +43,7 @@ export class RoomScene extends Phaser.Scene {
 
   create() {
     this.physics.resume();
+    this.gameOver = false;
     const character = CHARACTERS.find(item => item.id === this.characterId)!;
     const appearance = character.game ?? CHARACTERS[0].game!;
     const art = appearance.metrics;
@@ -46,7 +53,9 @@ export class RoomScene extends Phaser.Scene {
     this.player = new Druid(this, character);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
-    this.acorns = new AcornAttack(this,this.player);
+    this.acorns = new AcornAttack(this,this.player,Math.random,(from,to)=>this.world.noticeProjectile(from,to));
+    this.player.on(COMBAT_EVENTS.healthChanged,this.updateHealth,this);
+    this.player.once(COMBAT_EVENTS.died,this.endGame,this);
 
     const keyboard = this.input.keyboard!;
     this.movement = keyboard.addKeys({
@@ -58,6 +67,7 @@ export class RoomScene extends Phaser.Scene {
       left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
     }) as MovementKeys;
     const captureArrowTap = (event: KeyboardEvent) => {
+      if(this.gameOver)return;
       if (!event.code.startsWith('Arrow') || event.repeat) return;
       const arrows = this.attackKeys;
       this.queuedAttack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),
@@ -66,8 +76,10 @@ export class RoomScene extends Phaser.Scene {
     keyboard.on('keydown', captureArrowTap);
     // Arcade syncs sprite coordinates in post-update; sample grass after that sync.
     const updateGrass = (_time: number, delta: number) => {
+      if(this.gameOver)return;
       this.player.syncCastVisual();
       this.world.update(delta);
+      if(this.gameOver)return;
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
@@ -75,7 +87,9 @@ export class RoomScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => {
-      keyboard.resetKeys(); this.queuedAttack = undefined; this.player.cancelHit(); this.player.cancelCast();
+      keyboard.resetKeys(); this.queuedAttack = undefined;
+      if(this.gameOver)return;
+      this.player.cancelHit(); this.player.cancelCast();
       this.player.setVelocity(0, 0); this.player.updateAppearance(true);
     };
     this.game.events.on(Phaser.Core.Events.BLUR, resetInput);
@@ -91,6 +105,7 @@ export class RoomScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if(this.gameOver)return;
     const keys = this.movement;
     const x = Number(keys.right.isDown) - Number(keys.left.isDown);
     const y = Number(keys.down.isDown) - Number(keys.up.isDown);
@@ -135,22 +150,39 @@ export class RoomScene extends Phaser.Scene {
     this.cameras.main.centerOn(x, y);
     this.hudCamera.setSize(width, height);
     this.hint.setY(height - 22);
+    this.deathOverlay.resize(width,height);
   }
 
   private drawHud() {
     this.hud = this.add.container(0, 0).setDepth(100000);
     const panel = this.add.rectangle(16, 16, 176, 44, 0x132419, 0.85).setOrigin(0);
-    const label = this.add.text(28, 30, `HP ${this.playerHealth}/${this.player.actorState.maxHealth}`, {
+    this.healthLabel = this.add.text(28, 30, '', {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#dfdfbd',
     }).setName('health-label');
-    const hearts = this.add.graphics();
-    for (let i = 0; i < this.playerHealth; i++) {
-      const x = 104 + i * 26;
-      hearts.fillStyle(0xd98278).fillCircle(x - 4, 35, 5).fillCircle(x + 4, 35, 5).fillTriangle(x - 9, 36, x + 9, 36, x, 47);
-    }
+    this.hearts = this.add.graphics();this.updateHealth();
     this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — жёлудь (8 направлений) · R — новая поляна · Esc — в лагерь', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
-    this.hud.add([panel, label, hearts, this.hint]);
+    this.deathOverlay = new DeathOverlay(this);
+    this.hud.add([panel, this.healthLabel, this.hearts, this.hint, this.deathOverlay]);
+  }
+
+  private updateHealth() {
+    this.healthLabel.setText(`HP ${this.playerHealth}/${this.player.actorState.maxHealth}`);
+    this.hearts.clear();
+    for(let i=0;i<this.player.actorState.maxHealth;i++) {
+      const x=104+i*26;
+      this.hearts.fillStyle(i<this.playerHealth?0xd98278:0x465140)
+        .fillCircle(x-4,35,5).fillCircle(x+4,35,5).fillTriangle(x-9,36,x+9,36,x,47);
+    }
+  }
+
+  private endGame() {
+    if(this.gameOver)return;
+    this.gameOver=true;this.queuedAttack=undefined;
+    this.player.cancelCast();this.player.setVelocity(0,0);
+    for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
+    for(const mouse of this.world.mice)mouse.setVelocity(0,0);
+    this.physics.pause();this.deathOverlay.show();
   }
 }

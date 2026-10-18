@@ -20,10 +20,11 @@ export class AcornAttack {
   private destroyed = false;
 
   constructor(private readonly scene: Phaser.Scene, private readonly player: Druid,
-    private readonly random: () => number = Math.random) {}
+    private readonly random: () => number = Math.random,
+    private readonly onFlight: (from: Point,to: Point) => void = () => {}) {}
 
   update(delta: number) {
-    if(this.destroyed)return;
+    if(this.destroyed||this.player.dead)return;
     const dt=Math.max(0,delta),facing=this.player.casting.consumeRelease();
     // Wolf hits run before this update, so a same-frame interruption wins.
     if(facing&&!this.player.hitReaction.active&&this.shots.length<ACORN.maxProjectiles) {
@@ -46,6 +47,10 @@ export class AcornAttack {
         const t=sweptRect(shot.previous,next,target,ACORN.radius);
         if(t!==undefined&&(impact===undefined||t<impact)) {impact=t;hitBody=target;}
       }
+      // Only the travelled segment up to the nearest impact can alert wolves.
+      const t=impact??1;
+      this.onFlight(shot.previous,{x:shot.previous.x+(next.x-shot.previous.x)*t,
+        y:shot.previous.y+(next.y-shot.previous.y)*t});
       if(impact!==undefined||shot.ageMs+dt>=ACORN.lifetimeMs) {
         const target=hitBody?.gameObject;
         if(isDamageable(target))target.takeDamage(ACORN.damage);

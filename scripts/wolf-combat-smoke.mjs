@@ -1,13 +1,14 @@
+import { isolateSingleWolf } from './wolf-fixture.mjs';
 /** Real projectile hits, retained leaves, paused attacks, death and replacement. */
 export async function testWolfCombat(page, ok) {
   const previous=await page.evaluateHandle(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),old=s.player;s.scene.restart({seed:0});return old;
   });
   await page.waitForFunction(old=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.player!==old&&s.world?.wolf?.body?.enable;
-  },previous);await previous.dispose();
+    const s=window.__smokeGame.scene.getScene('Room');return s.player!==old&&s.world?.wolves?.[0]?.body?.enable;
+  },previous);await previous.dispose();await isolateSingleWolf(page);
   await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf,nav=w.behavior.navigation;
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0],nav=w.behavior.navigation;
     for(const mouse of s.world.mice){mouse.setActive(false).setVelocity(0,0);mouse.body.enable=false;}
     let f;
     for(let y=250;y<1800&&!f;y+=100)for(let x=250;x<3200&&!f;x+=100){
@@ -31,11 +32,11 @@ export async function testWolfCombat(page, ok) {
   });
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.world.wolf.actorState.health===2&&s.world.wolf.actorState.maxHealth===2&&s.player.actorState.attackRate===1;
+    return s.world.wolves[0].actorState.health===2&&s.world.wolves[0].actorState.maxHealth===2&&s.player.actorState.attackRate===1;
   }),'У каждого нового волка 2 скрытых HP, у друида скорострельность 1');
   await page.keyboard.press('ArrowRight');
   await page.waitForFunction(()=>{
-    const w=window.__smokeGame.scene.getScene('Room').world.wolf;
+    const w=window.__smokeGame.scene.getScene('Room').world.wolves[0];
     return w.actorState.health===1&&w.reactingToHit&&w.texture.key==='wolf-death';
   });
   const impact=await page.evaluate(()=>{
@@ -45,26 +46,26 @@ export async function testWolfCombat(page, ok) {
   });
   ok(impact,'Настоящий жёлудь наносит ровно 1 HP и исчезает; листочки остаются, HP друида прежние');
   await page.screenshot({path:'test-results/wolf-hit.png'});
-  await page.waitForFunction(()=>!window.__smokeGame.scene.getScene('Room').world.wolf.reactingToHit);
+  await page.waitForFunction(()=>!window.__smokeGame.scene.getScene('Room').world.wolves[0].reactingToHit);
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),o=window.__wolfCombat,w=s.world.wolf;
+    const s=window.__smokeGame.scene.getScene('Room'),o=window.__wolfCombat,w=s.world.wolves[0];
     return w.actorState.health===1&&w.actorState.phase==='chase'&&o.hitFrames.size>=3&&
       o.positions.size===1&&o.elapsed.size===1&&o.zero&&
       window.__impactLeaves.some(l=>l.image.scene&&(l.image.x!==l.x||l.image.y!==l.y));
   }),'Реакция меняет кадры и останавливает тело/таймер ИИ на 260 мс; погоня возобновляется, листья продолжают лететь');
 
-  const oldWolf=await page.evaluateHandle(()=>window.__smokeGame.scene.getScene('Room').world.wolf);
+  const oldWolf=await page.evaluateHandle(()=>window.__smokeGame.scene.getScene('Room').world.wolves[0]);
   await page.keyboard.press('ArrowRight');
   await page.waitForFunction(old=>old.dying&&old.scene,oldWolf);
   ok(await page.evaluate(old=>old.actorState.health===0&&!old.body.enable&&old.body.velocity.length()===0&&
     !old.takeDamage(1)&&old.texture.key==='wolf-death',oldWolf),
   'Второй жёлудь запускает смерть: HP 0, нет движения/коллизии и повторного урона');
-  await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.wolf!==old,oldWolf);
+  await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.wolves[0]!==old,oldWolf);
   await page.waitForFunction(()=>{
     const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+3;
   });
   ok(await page.evaluate(old=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf,p={x:s.player.body.center.x,y:s.player.body.bottom};
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0],p={x:s.player.body.center.x,y:s.player.body.bottom};
     const nav=w.behavior.navigation;
     s.events.off('postupdate',window.__combatObserver);
     const normalized=Math.hypot((w.x-p.x)/(1280/3),(w.y-p.y)/240);
@@ -76,7 +77,7 @@ export async function testWolfCombat(page, ok) {
   await oldWolf.dispose();
 
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf;
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0];
     p.cancelHit();p.cancelCast();w.body.reset(p.x-47,p.body.bottom);w.body.updateFromGameObject();
     w.actorState.alerted=true;w.actorState.phase='attack';w.actorState.elapsed=100;
     w.takeDamage(1);w.updateBehavior(259);
@@ -84,11 +85,11 @@ export async function testWolfCombat(page, ok) {
     w.updateBehavior(1);const resumed=!w.reactingToHit&&w.actorState.elapsed===100;
     w.updateBehavior(140);const connected=p.hitReaction.active;
     p.cancelHit();w.updateBehavior(1);
-    return paused&&resumed&&connected&&!p.hitReaction.active&&s.playerHealth===3;
+    return paused&&resumed&&connected&&!p.hitReaction.active&&s.playerHealth===2;
   }),'Попадание посреди атаки сохраняет её фазу: после паузы волк завершает удар без повторного попадания');
 
   ok(await page.evaluate(async()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf,p=s.player,f=window.__combatFixture;
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0],p=s.player,f=window.__combatFixture;
     const{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
     w.setActive(false).setVelocity(0,0);w.body.reset(f.x+300,f.y);w.body.updateFromGameObject();
     const health=w.actorState.health;
@@ -100,15 +101,16 @@ export async function testWolfCombat(page, ok) {
   }),'На длинном кадре стена перед волком поглощает жёлудь: урон не проходит сквозь ближайшее препятствие');
 
   const dying=await page.evaluateHandle(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf;w.setActive(true);w.takeDamage(1);
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0];w.setActive(true);w.takeDamage(1);
     s.scene.restart({seed:0});return w;
   });
   await page.waitForFunction(old=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.world.wolf!==old&&s.world.wolf?.body?.enable;
+    const s=window.__smokeGame.scene.getScene('Room');return s.world.wolves[0]!==old&&s.world.wolves[0]?.body?.enable;
   },dying);
+  await isolateSingleWolf(page);
   ok(await page.evaluate(old=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return !old.scene&&!old.shadow.scene&&s.world.wolf.actorState.health===2&&
+    return !old.scene&&!old.shadow.scene&&s.world.wolves[0].actorState.health===2&&
       s.children.list.filter(o=>o.name==='wolf').length===1;
   },dying),'Перезапуск во время смерти удаляет старого волка и не оставляет отложенное появление дубликата');
   await dying.dispose();

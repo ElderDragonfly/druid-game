@@ -1,3 +1,4 @@
+import { isolateSingleWolf } from './wolf-fixture.mjs';
 /** Check the asymmetric cloak through actual Arcade collisions and wolf impacts. */
 export async function testWolfCloak(page, ok) {
   const old = await page.evaluateHandle(() => {
@@ -6,14 +7,14 @@ export async function testWolfCloak(page, ok) {
   });
   await page.waitForFunction(old=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.player!==old && s.world?.wolf?.body?.enable &&
-      s.physics.world.colliders.getActive().length===s.world.mice.length+3;
-  },old);await old.dispose();
+    return s.player!==old && s.world?.wolves?.[0]?.body?.enable &&
+      s.physics.world.colliders.getActive().length===s.world.mice.length+1+s.world.wolves.length*2;
+  },old);await old.dispose();await isolateSingleWolf(page);
   const bounds = await page.evaluate(async()=>{
     const {wolfContactBounds}=await import('/src/physics/wolfContact.ts');
     const {CHARACTERS}=await import('/src/data/characters.ts');
     const {WolfBehavior}=await import('/src/behavior/WolfBehavior.ts');
-    const s=window.__smokeGame.scene.getScene('Room'),nav=s.world.wolf.behavior.navigation;
+    const s=window.__smokeGame.scene.getScene('Room'),nav=s.world.wolves[0].behavior.navigation;
     let fixture;
     for(let y=250;y<1900&&!fixture;y+=100)for(let x=250;x<3500&&!fixture;x+=100){
       let free=true;
@@ -37,13 +38,13 @@ export async function testWolfCloak(page, ok) {
     ['left','a',-100,0,10],['right','d',100,0,6],['up','w',0,-100,0],['down','s',0,100,0],
   ]){
     await page.evaluate(({dx,dy})=>{
-      const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__cloakFixture;
+      const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0],f=window.__cloakFixture;
       p.cancelHit();p.cancelCast();p.setVelocity(0,0);p.body.reset(f.x,f.y-22.5);
       w.setActive(false).setVelocity(0,0);w.body.enable=true;w.body.reset(f.x+dx,f.y+dy);
     },{dx,dy});
     await page.keyboard.down(key);await page.waitForTimeout(760);await page.keyboard.up(key);
     const result=await page.evaluate(side=>{
-      const s=window.__smokeGame.scene.getScene('Room'),p=s.player.body,w=s.world.wolf.body,f=window.__cloakFixture;
+      const s=window.__smokeGame.scene.getScene('Room'),p=s.player.body,w=s.world.wolves[0].body,f=window.__cloakFixture;
       const gaps={left:p.x-w.right,right:w.x-p.right,up:p.y-w.bottom,down:w.y-p.bottom};
       return {gap:gaps[side],base:p.width===20&&p.height===25,
         perpendicular:Math.abs(['left','right'].includes(side)?p.bottom-f.y:p.center.x-f.x),health:s.playerHealth};
@@ -52,7 +53,7 @@ export async function testWolfCloak(page, ok) {
       `Реальная коллизия ${side}: волк не пропускает друида, зазор ${expected}, базовое тело 20×25 и HP сохранены`);
   }
   await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__cloakFixture;
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0],f=window.__cloakFixture;
     p.cancelHit();p.setVelocity(0,0);p.body.reset(f.x,f.y-22.5);
     // Let the wolf approach naturally so the visible nose/staff gap can be checked.
     p.actorState.facing='left';p.updateAppearance(true);
@@ -60,9 +61,9 @@ export async function testWolfCloak(page, ok) {
     w.actorState.phase='chase';w.actorState.elapsed=0;
     window.__cloakPlayerX=p.x;
   });
-  await page.waitForFunction(()=>{const w=window.__smokeGame.scene.getScene('Room').world.wolf;return w.actorState.phase==='attack'&&w.actorState.elapsed<160;},null,{timeout:2500});
+  await page.waitForFunction(()=>{const w=window.__smokeGame.scene.getScene('Room').world.wolves[0];return w.actorState.phase==='attack'&&w.actorState.elapsed<160;},null,{timeout:2500});
   const nose = await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf;
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0];
     const c=document.createElement('canvas').getContext('2d');c.canvas.width=256;c.canvas.height=320;
     const f=w.frame;c.drawImage(w.texture.getSourceImage(),f.cutX,f.cutY,128,112,0,0,128,112);
     const pixels=c.getImageData(0,0,128,112).data;let noseX=0,noseY=0;
@@ -79,8 +80,8 @@ export async function testWolfCloak(page, ok) {
   ok(nose.gap>=0&&nose.gap<=6,`При естественном подходе слева нос атакующего волка находится в 0–6 игровых пикселях от посоха на той же высоте: ${JSON.stringify(nose)}`);
   await page.waitForFunction(()=>window.__smokeGame.scene.getScene('Room').player.hitReaction.active,null,{timeout:2500});
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolf;
-    return s.playerHealth===3 && Math.abs(s.player.x-window.__cloakPlayerX)<.25 &&
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0];
+    return s.playerHealth===2 && Math.abs(s.player.x-window.__cloakPlayerX)<.25 &&
       w.actorState.phase==='attack' && w.actorState.elapsed>=240 && w.actorState.elapsed<500;
-  }),'Волк попадает по левому краю плаща за пределами прежнего тела, в активной фазе, без урона и отбрасывания');
+  }),'Волк попадает по левому краю плаща за пределами прежнего тела, в активной фазе, снимает 1 HP без отбрасывания');
 }

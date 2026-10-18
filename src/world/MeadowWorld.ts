@@ -3,6 +3,10 @@ import { Wolf } from '../entities/Wolf';
 import type { Druid } from '../entities/Druid';
 import { WolfNavigation } from './WolfNavigation';
 import { wolfSpawn } from './wolfSpawn';
+import { generateWolfPopulation } from './wolfPopulation';
+import { segmentTouchesEllipse } from '../physics/ellipse';
+import type { Point } from '../physics/projectileSweep';
+import { WOLF } from '../data/wolf';
 import { environmentVariant } from '../data/environment';
 import { MEADOW_PALETTE, PixelArt } from '../rendering/pixelArt';
 import { drawForestFloor } from '../rendering/forestFloor';
@@ -15,7 +19,7 @@ import { generateMousePopulation } from './mousePopulation';
 export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
-  wolf!: Wolf;
+  readonly wolves: Wolf[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
@@ -48,16 +52,16 @@ export class MeadowWorld {
     this.player = player;
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
     this.navigation = new WolfNavigation(this.layout);
-    this.spawnWolf();
+    generateWolfPopulation(this.navigation).forEach((start,index)=>
+      this.wolves.push(new Wolf(this.scene,this.navigation!,this.obstacles,player,start,index+1)));
   }
 
-  private spawnWolf() {
-    const player = this.player!, navigation = this.navigation!;
-    const body = player.body as Phaser.Physics.Arcade.Body;
-    // Before the initial reset, layout.spawn supplies the starting position.
-    const center = this.wolfGeneration ? { x: body.center.x, y: body.bottom } : undefined;
-    this.wolf = new Wolf(this.scene, navigation, this.obstacles, player,
-      wolfSpawn(navigation, this.wolfGeneration, center));
+  noticeProjectile(from: Point,to: Point) {
+    for(const wolf of this.wolves) {
+      if(!wolf.active||wolf.dying||!wolf.body?.enable||wolf.actorState.alerted)continue;
+      if(segmentTouchesEllipse(from,to,(wolf.body as Phaser.Physics.Arcade.Body).center,
+        WOLF.behavior.projectileDetectionX,WOLF.behavior.projectileDetectionY))wolf.behavior.alert();
+    }
   }
 
   updateGrass(footX: number, footY: number, depth: number) {
@@ -65,15 +69,24 @@ export class MeadowWorld {
   }
 
   update(delta: number) {
+    if(this.player?.dead)return;
     this.mice.forEach(mouse => mouse.updateBehavior(delta));
-    this.wolf?.updateBehavior(delta);
-    if (this.wolf?.deathFinished) {
-      this.wolf.destroy(); this.wolfGeneration++; this.spawnWolf();
+    for(let index=0;index<this.wolves.length;index++) {
+      if(this.player?.dead)break;
+      const wolf=this.wolves[index];wolf.updateBehavior(delta);
+      if(wolf.deathFinished) {
+        const body=this.player!.body as Phaser.Physics.Arcade.Body;
+        const start=wolfSpawn(this.navigation!,++this.wolfGeneration,{x:body.center.x,y:body.bottom},
+          this.wolves.filter(other=>other!==wolf&&!other.dying));
+        wolf.destroy();
+        this.wolves[index]=new Wolf(this.scene,this.navigation!,this.obstacles,this.player!,start,
+          this.wolfGeneration+index+1);
+      }
     }
   }
 
   destroy() {
-    this.wolf?.destroy();
+    this.wolves.forEach(wolf=>wolf.destroy());this.wolves.length=0;
     this.mice.forEach(mouse => mouse.destroy());
     this.collider?.destroy();
     this.obstacles.clear(true, true);

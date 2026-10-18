@@ -4,6 +4,7 @@ import { testWolf } from './wolf-smoke.mjs';
 import { testDruidHits } from './druid-hit-smoke.mjs';
 import { testAcornAttack } from './acorn-smoke.mjs';
 import { testWolfCombat } from './wolf-combat-smoke.mjs';
+import { testWolfPack } from './wolf-pack-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -41,14 +42,15 @@ try {
   // Предикат ожидания синхронный: Promise сам по себе является truthy.
   // Legacy druid/camera fixtures isolate the new enemy; wolf scenarios below enable it explicitly.
   const isolateWolf = () => page.evaluate(() => {
-    const wolf = window.__smokeGame.scene.getScene('Room')?.world?.wolf;
+    const wolves = window.__smokeGame.scene.getScene('Room')?.world?.wolves ?? [];
+    for (const wolf of wolves)
     if (wolf?.scene) { wolf.setActive(false).setVisible(false).setVelocity(0, 0); wolf.body.enable = false; wolf.shadow.setVisible(false); }
   });
   const waitScene = async key => { await page.waitForFunction(sceneKey => {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 3);
+      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1 + active[0].world.wolves.length * 2);
   }, key); if (key === 'Room') await isolateWolf(); };
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -661,7 +663,7 @@ try {
       obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body),
         texture: object.texture.key, frame: object.frame.name, imageBounds: { x: object.getBounds().x, y: object.getBounds().y,
           width: object.displayWidth, height: object.displayHeight } })),
-      colliders: scene.physics.world.colliders.getActive().length,
+      colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,
       mouseCount: scene.children.list.filter(object => object.name === 'wandering-mouse').length,
       view: { x: view.x, y: view.y, width: view.width, height: view.height },
       hudView: { x: scene.hudCamera.worldView.x, y: scene.hudCamera.worldView.y, zoom: scene.hudCamera.zoom,
@@ -721,8 +723,8 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === current.mouseCount + 3 && current.mouseCount >= 0 && current.mouseCount <= 9,
-      `0–9 мышей; деревья и два столкновения волка: ${current.mouseCount}, ${current.colliders}`);
+    ok(current.colliders === current.mouseCount + 1 + current.wolfCount * 2 && current.mouseCount >= 0 && current.mouseCount <= 9,
+      `0–9 мышей; деревья и столкновения всех волков: ${current.mouseCount}, ${current.colliders}`);
   };
 
   const generation = await page.evaluate(async () => {
@@ -1407,11 +1409,11 @@ try {
       const scene = window.__smokeGame.scene.getScene('Room');
       return { count: scene.world.mice.length, cleared: window.__oldMice.every(m => !m.scene),
         sprites: scene.children.list.filter(o => o.name === 'wandering-mouse').length,
-        colliders: scene.physics.world.colliders.getActive().length,
+        colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,
         speedReset: scene.player.actorState.speed === scene.player.definition.stats.speed };
     });
     ok(lifecycle.count === (seed === populationSeeds[0] ? 0 : 9) && lifecycle.sprites === lifecycle.count &&
-      lifecycle.colliders === lifecycle.count + 3 && lifecycle.cleared && lifecycle.speedReset,
+      lifecycle.colliders === lifecycle.count + 1 + lifecycle.wolfCount * 2 && lifecycle.cleared && lifecycle.speedReset,
       `Перезапуск с ${lifecycle.count} мышами: нет старых спрайтов/коллайдеров, характеристики героя восстановлены`);
   }
 
@@ -1924,6 +1926,7 @@ try {
   await testDruidHits(page, ok);
   await testAcornAttack(page, ok);
   await testWolfCombat(page, ok);
+  await testWolfPack(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

@@ -29,7 +29,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
   get deathFinished() { return this.dying && this.deathElapsed >= DEATH_DURATION; }
 
   constructor(scene: Phaser.Scene, navigation: WolfNavigation, trees: Phaser.Physics.Arcade.StaticGroup,
-    private readonly player: Druid, start: WolfPoint) {
+    private readonly player: Druid, start: WolfPoint, identity = 0) {
     super(scene, start.x, start.y, 'wolf-idle', '0');
     scene.add.existing(this); scene.physics.add.existing(this);
     const a = WOLF.appearance, b = WOLF.body;
@@ -37,7 +37,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
       .setSize(b.width / a.scale, b.height / a.scale)
       .setOffset(a.feetX - b.width / a.scale / 2, a.feetY - b.height / a.scale)
       .setCollideWorldBounds(true).setPushable(false);
-    this.behavior = new WolfBehavior(navigation, start); this.previous = { ...start };
+    this.behavior = new WolfBehavior(navigation, start, identity); this.previous = { ...start };
     this.shadow = scene.add.image(start.x, start.y, 'wolf-idle-shadow', '0').setName('wolf-shadow')
       .setOrigin(this.originX, this.originY).setScale(a.scale);
     this.treeCollider = scene.physics.add.collider(this, trees);
@@ -48,10 +48,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
   takeDamage(amount: number) {
     if (this.dying || !this.scene || !Number.isFinite(amount) || amount <= 0) return false;
     this.actorState.health = Math.max(0, this.actorState.health - amount);
-    this.actorState.alerted = true;
-    if (this.actorState.phase === 'idle' || this.actorState.phase === 'wander') {
-      this.actorState.phase = 'chase'; this.actorState.elapsed = 0;
-    }
+    this.behavior.alert();
     this.setVelocity(0, 0);
     this.previous = { x: this.x, y: this.y };
     if (this.dying) {
@@ -100,7 +97,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
     else if (!this.attackConnected && this.actorState.elapsed >= WOLF.behavior.impactMs) {
       this.attackConnected = true;
       // Once per swing, at its active frame, and only if the druid is still in reach.
-      if (this.behavior.inAttackRange(position, this.player.wolfContactBounds)) this.player.receiveHit();
+      if (this.behavior.inAttackRange(position, this.player.wolfContactBounds)) this.player.takeDamage(WOLF.combat.damage);
     }
     const moving = distance > .01 && distance < Math.max(30, this.actorState.runSpeed * dt / 1000 * 3);
     const animation: WolfAnimation = phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') :

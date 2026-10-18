@@ -1,3 +1,4 @@
+import { isolateSingleWolf } from './wolf-fixture.mjs';
 import { testWolfCloak } from './wolf-cloak-smoke.mjs';
 /** Real browser scenarios for wolf AI, physics and distance-driven art. */
 export async function testWolf(page, ok) {
@@ -60,10 +61,11 @@ export async function testWolf(page, ok) {
   await page.evaluate(() => window.__smokeGame.scene.start('Room', { characterId: 'druid', seed: 0 }));
   await page.waitForFunction(() => {
     const s = window.__smokeGame.scene.getScene('Room');
-    return s.sys.isActive() && s.world?.wolf?.body?.enable;
+    return s.sys.isActive() && s.world?.wolves?.[0]?.body?.enable;
   });
+  await isolateSingleWolf(page);
   const initial = await page.evaluate(async () => {
-    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolf;
+    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0];
     const { WOLF_ART } = await import('/src/rendering/wolfArt.ts');
     return { count: s.children.list.filter(o => o.name === 'wolf').length,
       colliders: s.physics.world.colliders.getActive().length === s.world.mice.length + 3,
@@ -78,7 +80,7 @@ export async function testWolf(page, ok) {
     'Размер волка, физическое основание, NEAREST и отдельная исходная тень подключены корректно');
 
   await page.evaluate(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolf, nav = w.behavior.navigation;
+    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0], nav = w.behavior.navigation;
     let fixture;
     for (let y = 350; y < 1800 && !fixture; y += 100) for (let x = 350; x < 3400 && !fixture; x += 100) {
       let free = true;
@@ -104,9 +106,9 @@ export async function testWolf(page, ok) {
     };
     s.events.on('postupdate', observe); window.__wolfObserver = observe;
   });
-  await page.waitForFunction(() => window.__smokeGame.scene.getScene('Room').world.wolf.actorState.phase === 'attack', null, { timeout: 6000 });
+  await page.waitForFunction(() => window.__smokeGame.scene.getScene('Room').world.wolves[0].actorState.phase === 'attack', null, { timeout: 6000 });
   const contact = await page.evaluate(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolf, p = s.player.body, b = w.body;
+    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0], p = s.player.body, b = w.body;
     const overlap = Math.min(p.right, b.right) - Math.max(p.x, b.x) > .1 && Math.min(p.bottom, b.bottom) - Math.max(p.y, b.y) > .1;
     const o = window.__wolfObservation;
     return { overlap, phase: w.actorState.phase, health: s.playerHealth, frames: o.frames.size,
@@ -119,35 +121,36 @@ export async function testWolf(page, ok) {
     'Бег меняет кадры по пройденному расстоянию; тень повторяет тот же кадр');
   await page.keyboard.down('a'); await page.waitForTimeout(450); await page.keyboard.up('a');
   const blocked = await page.evaluate(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), p = s.player.body, w = s.world.wolf.body;
+    const s = window.__smokeGame.scene.getScene('Room'), p = s.player.body, w = s.world.wolves[0].body;
     return { x: s.player.x, collision: p.x >= w.right - .2, health: s.playerHealth };
   });
-  ok(blocked.collision && blocked.health === initial.health, 'Друид не проходит сквозь волка при нажатии WASD; HP остаются прежними');
+  ok(blocked.collision && blocked.health === initial.health - 1, 'Друид не проходит сквозь волка при нажатии WASD; активный укус снимает 1 HP');
   await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), f = window.__wolfFixture;
     s.player.body.reset(f.x + 650, f.y - 22.5);
-    window.__wolfPursuitStart = s.world.wolf.x;
+    window.__wolfPursuitStart = s.world.wolves[0].x;
   });
   await page.waitForTimeout(900);
   ok(await page.evaluate(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolf;
+    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0];
     return w.actorState.alerted && w.actorState.phase === 'chase' && w.x > window.__wolfPursuitStart + 20;
   }), 'Волк продолжает погоню, когда друид покидает исходный овал');
 
   const oldWolf = await page.evaluateHandle(() => {
-    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolf;
-    s.events.off('postupdate', window.__wolfObserver); s.scene.restart({ seed: 3 }); return w;
+    const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0];
+    s.events.off('postupdate', window.__wolfObserver); s.scene.restart({ seed: 0 }); return w;
   });
   await page.waitForFunction(old => {
     const s = window.__smokeGame.scene.getScene('Room');
     // Arcade inserts newly created colliders on its next physics update.
-    return s.world.wolf !== old && s.world.wolf?.body?.enable &&
-      s.physics.world.colliders.getActive().length === s.world.mice.length + 3;
+    return s.world.wolves[0] !== old && s.world.wolves[0]?.body?.enable &&
+      s.physics.world.colliders.getActive().length === s.world.mice.length + 1 + s.world.wolves.length * 2;
   }, oldWolf);
+  await isolateSingleWolf(page);
   const clean = await page.evaluate(old => {
     const s = window.__smokeGame.scene.getScene('Room');
     return !old.scene && !old.shadow.scene && s.children.list.filter(o => o.name === 'wolf').length === 1 &&
-      s.physics.world.colliders.getActive().length === s.world.mice.length + 3 && !s.world.wolf.actorState.alerted;
+      s.physics.world.colliders.getActive().length === s.world.mice.length + 3 && !s.world.wolves[0].actorState.alerted;
   }, oldWolf);
   await oldWolf.dispose();
   ok(clean, 'Перезапуск удаляет старого волка, его тень и коллайдеры; новый волк спокоен');

@@ -1,3 +1,4 @@
+import { isolateSingleWolf } from './wolf-fixture.mjs';
 /** Actual eight-way input, cast timing, projectile travel, tail and collisions. */
 export async function testAcornAttack(page,ok) {
   const timing=await page.evaluate(async()=>{
@@ -55,11 +56,11 @@ export async function testAcornAttack(page,ok) {
   const old=await page.evaluateHandle(()=>{const s=window.__smokeGame.scene.getScene('Room'),old=s.player;s.scene.restart({seed:0});return old;});
   await page.waitForFunction(old=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.player!==old&&s.acorns&&s.world?.wolf?.body?.enable;
-  },old);await old.dispose();
+    return s.player!==old&&s.acorns&&s.world?.wolves?.[0]?.body?.enable;
+  },old);await old.dispose();await isolateSingleWolf(page);
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    s.world.wolf.setActive(false).setVelocity(0,0);s.world.wolf.body.enable=false;
+    s.world.wolves[0].setActive(false).setVelocity(0,0);s.world.wolves[0].body.enable=false;
     for(const m of s.world.mice){m.setActive(false).setVelocity(0,0);m.body.enable=false;}
     const{obstacleRect}=await import('/src/world/meadowLayout.ts');const trees=s.layout.obstacles.map(obstacleRect);
     let f;
@@ -122,7 +123,7 @@ export async function testAcornAttack(page,ok) {
     const{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
     p.cancelCast();for(const shot of s.acorns.shots)shot.destroy();s.acorns.shots.length=0;
     const tree=s.world.obstacles.getChildren()[0].body;
-    const wolf=s.world.wolf;wolf.setActive(false).setVelocity(0,0);wolf.body.enable=true;
+    const wolf=s.world.wolves[0];wolf.setActive(false).setVelocity(0,0);wolf.body.enable=true;
     const f=window.__acornFixture;wolf.body.reset(f.x+350,f.y+22.5);
     const generic=s.physics.add.image(f.x+500,f.y+10,'acorn').setData('health',9);
     generic.setImmovable(true).setSize(8,20);generic.body.reset(f.x+500,f.y+10);
@@ -139,7 +140,7 @@ export async function testAcornAttack(page,ok) {
   }),'Жёлудь исчезает у дерева, волка и произвольного физического объекта, включая появление внутри него; волк теряет ровно 1 HP, остальные объекты — без урона');
 
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__acornFixture;
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0],f=window.__acornFixture;
     p.cancelHit();p.cancelCast();p.body.reset(f.x,f.y);p.body.updateFromGameObject();const count=s.acorns.emittedCount;
     p.updateCasting(0,'right');p.updateCasting(753.75);
     w.setActive(true);w.body.enable=true;w.body.reset(p.x-47,p.body.bottom);
@@ -187,5 +188,5 @@ export async function testAcornAttack(page,ok) {
     return old.manager.shots.length===0&&old.manager.leaves.length===0&&
       (!old.shot||!old.shot.scene)&&(!old.leaf||!old.leaf.scene)&&s.acorns.emittedCount===0;
   },previous),'Перезапуск убирает желудь, листья и ожидающий выстрел, не переносит их в новую комнату');
-  await previous.dispose();
+  await previous.dispose();await isolateSingleWolf(page);
 }

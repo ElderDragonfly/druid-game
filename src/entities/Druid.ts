@@ -8,8 +8,10 @@ import { HIT_METRICS } from '../rendering/druidHitArt';
 import { CAST_METRICS } from '../rendering/druidCastArt';
 import { wolfContactBounds } from '../physics/wolfContact';
 import { ACORN } from '../data/acorn';
+import type { Damageable } from '../combat/Damageable';
+import { COMBAT_EVENTS } from '../combat/events';
 
-export class Druid extends Phaser.Physics.Arcade.Sprite {
+export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
   readonly actorState: DruidState;
   readonly behavior: DruidMovement;
   readonly appearance;
@@ -19,6 +21,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly castVisual: Phaser.GameObjects.Image;
   private activeWalk?: Facing;
   private nextWalkFrame: Partial<Record<Facing, number>> = {};
+  get dead() { return this.actorState.health <= 0; }
 
   get wolfContactBounds() {
     return wolfContactBounds(this.body as Phaser.Physics.Arcade.Body, this.appearance.wolfContactPadding);
@@ -52,6 +55,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   }
 
   move(x: number, y: number, facing: Facing) {
+    if (this.dead) { this.setVelocity(0, 0); return; }
     if (this.hitReaction.active) {
       this.setVelocity(0, 0); this.actorState.facing = this.hitReaction.facing; return;
     }
@@ -90,12 +94,20 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   }
 
   receiveHit() {
-    if (this.hitReaction.active) return false;
+    if (this.dead || this.hitReaction.active) return false;
     const facing = this.actorState.facing;
     this.cancelCast(); this.rememberStep(); this.anims.stop();
     this.updateAppearance(true);
     this.hitReaction.start(facing); this.setVelocity(0, 0);
     this.showHit(); this.syncCastVisual();
+    return true;
+  }
+
+  takeDamage(amount: number) {
+    if (!Number.isFinite(amount) || amount <= 0 || !this.receiveHit()) return false;
+    this.actorState.health = Math.max(0, this.actorState.health - amount);
+    this.emit(COMBAT_EVENTS.healthChanged);
+    if (this.dead) this.emit(COMBAT_EVENTS.died);
     return true;
   }
 
@@ -111,6 +123,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   }
 
   updateCasting(delta: number, requested?: Facing) {
+    if (this.dead) return;
     this.hitReaction.update(delta);
     if (this.hitReaction.active) { this.showHit(); return; }
     this.hitVisual.setVisible(false);
