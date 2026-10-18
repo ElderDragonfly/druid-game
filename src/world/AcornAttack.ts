@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { ACORN } from '../data/acorn';
 import { AcornProjectile } from '../entities/AcornProjectile';
 import type { Druid } from '../entities/Druid';
-import { sweptRect, worldExit, type Point } from '../physics/projectileSweep';
+import { projectileSpawn, sweptRect, worldExit, type Point } from '../physics/projectileSweep';
+import { facingVector } from '../input/EightWayFacing';
 
 interface Leaf {
   image: Phaser.GameObjects.Image; age: number; life: number;
@@ -10,7 +11,7 @@ interface Leaf {
 }
 type Body = Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody;
 
-/** One provisional rightward spell; appearance, travel and damage are separate. */
+/** Eight-way spell; appearance, travel and damage are separate. */
 export class AcornAttack {
   readonly shots: AcornProjectile[] = [];
   readonly leaves: Leaf[] = [];
@@ -24,9 +25,11 @@ export class AcornAttack {
     if(this.destroyed)return;
     const dt=Math.max(0,delta),facing=this.player.casting.consumeRelease();
     // Wolf hits run before this update, so a same-frame interruption wins.
-    if(facing===ACORN.direction&&!this.player.hitReaction.active&&this.shots.length<ACORN.maxProjectiles) {
+    if(facing&&!this.player.hitReaction.active&&this.shots.length<ACORN.maxProjectiles) {
       const body=this.player.body as Phaser.Physics.Arcade.Body;
-      this.shots.push(new AcornProjectile(this.scene,this.player,this.player.x+ACORN.spawnOffsetX,body.center.y));
+      const direction=facingVector(facing);
+      const spawn=projectileSpawn(body.center,this.player.wolfContactBounds,direction,ACORN.radius);
+      this.shots.push(new AcornProjectile(this.scene,this.player,spawn.x,spawn.y,direction));
       this.emittedCount++;
     }
     for(let i=this.shots.length-1;i>=0;i--) {
@@ -65,20 +68,20 @@ export class AcornAttack {
       travelled+=shot.nextLeafDistance;
       const t=travelled/length;
       const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-ACORN.flightHeight;
-      this.emitLeaf(x-8,y,-1);this.emitLeaf(x-8,y,1);
+      this.emitLeaf(x-shot.direction.x*8,y-shot.direction.y*8,shot.direction);
       shot.nextLeafDistance=this.between(ACORN.trail.spacingMin,ACORN.trail.spacingMax);
     }
     shot.nextLeafDistance-=length-travelled;
   }
 
-  private emitLeaf(x: number, y: number, side: number) {
+  private emitLeaf(x: number, y: number, direction: Point) {
     if(this.leaves.length>=ACORN.trail.maxLeaves)this.leaves.shift()!.image.destroy();
     const config=ACORN.trail;
-    const angle=Phaser.Math.DegToRad(this.between(config.angleDegrees-config.angleJitter,config.angleDegrees+config.angleJitter));
-    // Inherit forward drift; relative to the faster nut the streams form a
-    // shallow ±20-degree wake, while their sideways drift remains slow.
-    const vx=ACORN.speed*config.carry;
-    const vy=side*(ACORN.speed-vx)*Math.tan(angle);
+    // One narrow tail: each leaf has its own sideways drift, rather than a
+    // mirrored partner. Rotate this local velocity with the shot direction.
+    const forward=ACORN.speed*config.carry,sideways=this.between(-config.sidewaysSpeed,config.sidewaysSpeed);
+    const vx=direction.x*forward-direction.y*sideways;
+    const vy=direction.y*forward+direction.x*sideways;
     const image=this.scene.add.image(x+this.between(-3,2),y+this.between(-2,2),'acorn-leaves',String(Math.floor(this.random()*5)))
       .setName('acorn-leaf').setAlpha(0).setRotation(this.between(-Math.PI,Math.PI));
     this.scene.cameras.getCamera('hud')?.ignore(image);

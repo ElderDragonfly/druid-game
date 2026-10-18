@@ -10,7 +10,8 @@ export class AcornProjectile extends Phaser.Physics.Arcade.Image {
   ageMs = 0;
   nextLeafDistance: number;
 
-  constructor(scene: Phaser.Scene, readonly owner: Druid, x: number, y: number) {
+  constructor(scene: Phaser.Scene, readonly owner: Druid, x: number, y: number,
+    readonly direction: Point) {
     super(scene,x,y,'acorn');
     scene.add.existing(this);scene.physics.add.existing(this);
     this.setName('acorn-collider').setVisible(false).setCircle(ACORN.radius,24-ACORN.radius,24-ACORN.radius);
@@ -18,7 +19,7 @@ export class AcornProjectile extends Phaser.Physics.Arcade.Image {
     // reset() uses the full image's top-left; apply the circle's custom offset
     // now, since the first visual/collision check happens before the next step.
     body.updateFromGameObject();body.prev.copy(body.position);body.prevFrame.copy(body.position);
-    this.setVelocity(ACORN.speed,0);
+    this.setVelocity(direction.x*ACORN.speed,direction.y*ACORN.speed);
     this.visual=scene.add.image(x,y-ACORN.flightHeight,'acorn').setName('acorn-projectile')
       .setScale(ACORN.scale*.35).setAlpha(0).setDepth(y+15);
     this.previous={x,y};this.nextLeafDistance=8;

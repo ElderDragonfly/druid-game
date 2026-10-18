@@ -1,4 +1,4 @@
-/** Actual cast timing, projectile travel, all-body collision, wake and cleanup. */
+/** Actual eight-way input, cast timing, projectile travel, tail and collisions. */
 export async function testAcornAttack(page,ok) {
   const timing=await page.evaluate(async()=>{
     const{DruidCasting}=await import('/src/behavior/DruidCasting.ts');
@@ -24,6 +24,19 @@ export async function testAcornAttack(page,ok) {
       sweptRect({x:100,y:50},to,rect,5)===0&&
       worldExit(from,{x:500,y:50},{x:0,y:0,width:300,height:200},5)>0;
   }),'Проверка всего пути ловит тонкие препятствия, появление внутри коллайдера и границы мира');
+
+  ok(await page.evaluate(async()=>{
+    const{projectileSpawn}=await import('/src/physics/projectileSweep.ts');
+    const{facingVector}=await import('/src/input/EightWayFacing.ts');
+    const origin={x:100,y:100},bounds={x:80,y:87.5,width:36,height:25};
+    const expected={right:[121,100],left:[75,100],up:[100,82.5],down:[100,117.5],
+      'up-left':[82.5,82.5],'up-right':[117.5,82.5],
+      'down-left':[82.5,117.5],'down-right':[117.5,117.5]};
+    return Object.entries(expected).every(([f,[x,y]])=>{
+      const direction=facingVector(f),p=projectileSpawn(origin,bounds,direction,5);
+      return Math.abs(p.x-x)<1e-6&&Math.abs(p.y-y)<1e-6&&Math.abs(Math.hypot(direction.x,direction.y)-1)<1e-6;
+    });
+  }),'Все восемь точек выпуска касаются границы друида снаружи; учтён плащ и радиус снаряда');
 
   const old=await page.evaluateHandle(()=>{const s=window.__smokeGame.scene.getScene('Room'),old=s.player;s.scene.restart({seed:0});return old;});
   await page.waitForFunction(old=>{
@@ -61,19 +74,19 @@ export async function testAcornAttack(page,ok) {
       hud:!!(shot.visual.cameraFilter&s.cameras.getCamera('hud').id),
       ground:Math.abs(shot.body.center.y-b.center.y)<.01};
   });
-  ok(start.xOffset>=41&&start.xOffset<53&&start.visualOffset<-20&&start.visualOffset>-36&&
+  ok(start.xOffset>=20&&start.xOffset<33&&start.visualOffset<-20&&start.visualOffset>-36&&
     start.bodyHeight===10&&start.speed===220&&start.ground&&start.hud,
-    `Жёлудь появляется отдельно от посоха в средней части друида; скорость 1,5 = 220, коллайдер на плоскости земли: ${JSON.stringify(start)}`);
+    `Жёлудь появляется у границы друида в средней части тела; скорость 1,5 = 220, коллайдер на плоскости земли: ${JSON.stringify(start)}`);
   await page.waitForTimeout(550);
   const travel=await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),a=s.acorns,shot=a.shots[0];
-    const leaves=a.leaves;const angles=leaves.map(l=>Math.atan(Math.abs(l.vy)/(220-l.vx))*180/Math.PI);
+    const leaves=a.leaves;
     const births=leaves.map(l=>l.image.x-l.vx*l.age/1000);
-    const centers=[];for(let i=0;i+1<births.length;i+=2)centers.push((births[i]+births[i+1])/2);
-    const spaces=centers.slice(1).map((x,i)=>x-centers[i]);
+    const spaces=births.slice(1).map((x,i)=>x-births[i]);
     return{x:shot.x,rotation:shot.visual.rotation,age:shot.ageMs,
       sides:leaves.some(l=>l.vy<0)&&leaves.some(l=>l.vy>0),
-      angles:angles.length>=4&&angles.every(a=>a>=17&&a<=23),
+      narrow:leaves.length>=4&&leaves.every(l=>Math.abs(l.vy)<=12&&l.life>=430&&l.life<=730),
+      singles:spaces.every(space=>space>=3),
       irregular:spaces.length>=2&&Math.max(...spaces)-Math.min(...spaces)>1,
       fade:leaves.some(l=>l.image.alpha<.9),
       green:leaves.every(l=>l.image.texture.key==='acorn-leaves'&&l.image.texture.source[0].scaleMode===1),
@@ -81,14 +94,14 @@ export async function testAcornAttack(page,ok) {
   });
   ok(Math.abs((travel.x-start.x)-220*(travel.age-start.age)/1000)<9&&travel.rotation>start.rotation+.3,
     'Полёт имеет заданную скорость и медленное вращение вокруг центра желудя');
-  ok(travel.sides&&travel.angles&&travel.irregular&&travel.fade&&travel.green&&travel.health===3,
-    'Зелёные листья образуют две ветви ±17–23°, появляются неравномерно, расходятся и плавно исчезают');
+  ok(travel.sides&&travel.narrow&&travel.singles&&travel.irregular&&travel.fade&&travel.green&&travel.health===3,
+    'Один короткий хвост: листья появляются по одному, имеют случайный небольшой дрейф и плавно исчезают');
   await page.screenshot({path:'test-results/acorn-flight.png'});
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');s.player.cancelCast();
-    const old=s.acorns.leaves.map(l=>l.image);s.acorns.update(1200);
+    const old=s.acorns.leaves.map(l=>l.image);s.acorns.update(740);
     return old.length>0&&old.every(image=>!image.scene)&&s.acorns.leaves.length===0;
-  }),'Листья живут не более 1100 мс, затем полностью удаляются вместе с изображениями');
+  }),'Хвост укорочен примерно до 2/3: листья живут не более 730 мс и полностью удаляются');
 
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player;
@@ -102,11 +115,11 @@ export async function testAcornAttack(page,ok) {
     let result=true;
     for(const target of [tree,wolf.body,generic.body]){
       const from={x:target.x-30,y:target.center.y},to={x:target.right+30,y:target.center.y};
-      const shot=new AcornProjectile(s,p,from.x,from.y);s.acorns.shots.push(shot);
+      const shot=new AcornProjectile(s,p,from.x,from.y,{x:1,y:0});s.acorns.shots.push(shot);
       shot.body.reset(to.x,to.y);shot.body.updateFromGameObject();s.acorns.update(0);result&&=!shot.scene;
     }
     // A point spawn inside an enabled body must disappear immediately too.
-    const shot=new AcornProjectile(s,p,wolf.body.center.x,wolf.body.center.y);s.acorns.shots.push(shot);s.acorns.update(0);
+    const shot=new AcornProjectile(s,p,wolf.body.center.x,wolf.body.center.y,{x:1,y:0});s.acorns.shots.push(shot);s.acorns.update(0);
     result&&=!shot.scene&&s.playerHealth===3&&generic.getData('health')===9;
     generic.destroy();wolf.body.enable=false;return result;
   }),'Жёлудь исчезает у дерева, волка и произвольного физического объекта, включая появление внутри него; урона нет');
@@ -122,11 +135,30 @@ export async function testAcornAttack(page,ok) {
     const cancelled=p.hitReaction.active&&!p.casting.active&&s.acorns.emittedCount===count;
     w.setActive(false);w.body.enable=false;p.cancelHit();return cancelled;
   }),'Удар настоящего волка отменяет даже готовый к выпуску жёлудь в том же кадре');
-  const count=await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').acorns.emittedCount);
-  await page.keyboard.down('ArrowUp');await page.waitForTimeout(740);await page.keyboard.up('ArrowUp');
-  ok(await page.evaluate(n=>window.__smokeGame.scene.getScene('Room').acorns.emittedCount===n,count),
-    'Другие направления сохраняют жесты без снарядов: пробная атака пока только вправо');
-  await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').player.cancelCast());
+  for(const[keys,dx,dy]of[
+    [['ArrowRight'],1,0],[['ArrowLeft'],-1,0],[['ArrowUp'],0,-1],[['ArrowDown'],0,1],
+    [['ArrowUp','ArrowLeft'],-1,-1],[['ArrowUp','ArrowRight'],1,-1],
+    [['ArrowDown','ArrowLeft'],-1,1],[['ArrowDown','ArrowRight'],1,1],
+  ]){
+    const count=await page.evaluate(()=>{
+      const s=window.__smokeGame.scene.getScene('Room');s.player.cancelCast();
+      for(const shot of s.acorns.shots)shot.destroy();s.acorns.shots.length=0;
+      return s.acorns.emittedCount;
+    });
+    for(const key of keys)await page.keyboard.down(key);
+    await page.waitForFunction(n=>window.__smokeGame.scene.getScene('Room').acorns.emittedCount>n,count);
+    for(const key of keys)await page.keyboard.up(key);
+    ok(await page.evaluate(({dx,dy,count})=>{
+      const s=window.__smokeGame.scene.getScene('Room'),shot=s.acorns.shots[0];
+      if(!shot)return false;
+      const v=shot.body.velocity,length=Math.hypot(dx,dy);
+      return s.acorns.emittedCount===count+1&&Math.abs(v.x-220*dx/length)<1e-6&&
+        Math.abs(v.y-220*dy/length)<1e-6&&Math.abs(shot.visual.y-shot.body.center.y+38)<1e-6;
+    },{dx,dy,count}),`${keys.join(' + ')} выпускает один жёлудь в нужную сторону со скоростью 220, включая диагонали`);
+  }
+  const count=await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room');s.player.cancelCast();return s.acorns.emittedCount;
+  });
   await page.keyboard.down('ArrowRight');await page.waitForTimeout(1520);await page.keyboard.up('ArrowRight');
   ok(await page.evaluate(n=>window.__smokeGame.scene.getScene('Room').acorns.emittedCount===n+2,count),
     'Удержание вправо выпускает один жёлудь за завершённый замах, без раннего и повторного выстрела внутри жеста');

@@ -6,6 +6,14 @@ export type CardinalFacing = typeof CARDINAL_FACINGS[number];
 export type Facing = typeof FACINGS[number];
 export type MovementKeys = Record<CardinalFacing, Phaser.Input.Keyboard.Key>;
 
+/** A unit vector keeps diagonal projectiles as fast as cardinal ones. */
+export function facingVector(facing: Facing): { x: number; y: number } {
+  const x = facing.includes('left') ? -1 : facing.includes('right') ? 1 : 0;
+  const y = facing.includes('up') ? -1 : facing.includes('down') ? 1 : 0;
+  const length = Math.hypot(x, y);
+  return { x: x / length, y: y / length };
+}
+
 export function facingFromVector(x: number, y: number): Facing | undefined {
   if (x && y) return `${y < 0 ? 'up' : 'down'}-${x < 0 ? 'left' : 'right'}`;
   if (x) return x < 0 ? 'left' : 'right';

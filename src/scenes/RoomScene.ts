@@ -148,7 +148,7 @@ export class RoomScene extends Phaser.Scene {
       const x = 104 + i * 26;
       hearts.fillStyle(0xd98278).fillCircle(x - 4, 35, 5).fillCircle(x + 4, 35, 5).fillTriangle(x - 9, 36, x + 9, 36, x, 47);
     }
-    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — атака · → — жёлудь · R — новая поляна · Esc — в лагерь', {
+    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — жёлудь (8 направлений) · R — новая поляна · Esc — в лагерь', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
     this.hud.add([panel, label, hearts, this.hint]);

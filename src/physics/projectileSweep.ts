@@ -2,6 +2,17 @@ import type { Rect } from '../world/meadowLayout';
 
 export interface Point { x: number; y: number }
 
+/** Place the projectile just outside its owner's contact bounds, with its
+ * radius touching the edge. The origin remains the physical body's center;
+ * asymmetric cloak padding therefore affects the appropriate side only. */
+export function projectileSpawn(origin: Point, bounds: Rect, direction: Point, radius: number): Point {
+  const dx = direction.x, dy = direction.y;
+  const tx = dx ? (bounds.x + (dx > 0 ? bounds.width + radius : -radius) - origin.x) / dx : Infinity;
+  const ty = dy ? (bounds.y + (dy > 0 ? bounds.height + radius : -radius) - origin.y) / dy : Infinity;
+  const distance = Math.min(tx, ty);
+  return { x: origin.x + dx * distance, y: origin.y + dy * distance };
+}
+
 /** Segment vs radius-expanded footprint: detects thin obstacles even at low FPS. */
 export function sweptRect(from: Point, to: Point, rect: Rect, radius: number): number | undefined {
   let enter=0,exit=1;
