@@ -12,15 +12,16 @@ from scipy.ndimage import binary_erosion, shift
 ROOT = Path(__file__).resolve().parents[1]
 OLD = ROOT / 'docs/art/selection-camp-frames-v1'
 OUT = ROOT / 'docs/art/selection-water-flow-v2'
-COUNT, COLS, FPS = 72, 8, 12
+COUNT, COLS, FPS = 144, 8, 24
 # Coordinates relative to the 204x142 river crop. Each lane follows its bend,
 # including the short waterfall; none is a global downward image translation.
 LANES = [
-    {'points': [[198,10],[181,13],[162,17],[169,24]], 'size': [10,2], 'phase': .0},
-    {'points': [[176,32],[171,43],[165,54],[158,63]], 'size': [6,2], 'phase': .3},
-    {'points': [[182,32],[177,43],[171,54],[164,63]], 'size': [5,2], 'phase': .7},
-    {'points': [[151,70],[141,80],[127,88],[124,96],[113,104],[105,109]], 'size': [8,2], 'phase': .2},
-    {'points': [[108,110],[111,116],[120,120],[117,128],[99,131],[78,131],[52,131],[14,134]], 'size': [13,2], 'phase': .6},
+    {'points': [[198,10],[181,13],[162,17],[169,24]], 'size': [16,3], 'phase': .0},
+    {'points': [[176,32],[171,43],[165,54],[158,63]], 'size': [13,4], 'phase': .3},
+    {'points': [[163,32],[158,43],[153,54],[149,63]], 'size': [12,4], 'phase': .1},
+    {'points': [[182,32],[177,43],[171,54],[164,63]], 'size': [11,3], 'phase': .7},
+    {'points': [[151,70],[141,80],[127,88],[124,96],[113,104],[105,109]], 'size': [13,3], 'phase': .2},
+    {'points': [[108,110],[111,116],[120,120],[117,128],[99,131],[78,131],[52,131],[14,134]], 'size': [19,3], 'phase': .6},
 ]
 
 
@@ -60,8 +61,8 @@ def make_frames():
                 light+=shift(sprite,(y-sh/2-2,x-sw/2-2),order=1,mode='constant',prefilter=False)*fade
         light=np.minimum(light,1)*allowed
         result=original.copy()
-        # Small, coherent blue/cyan changes, not bright foam or a moving bank.
-        result[:,:,:3]=np.clip(np.rint(original[:,:,:3].astype(float)+light[:,:,None]*[12,18,20]),0,255).astype('uint8')
+        # Visible blue/cyan ripple accents; the water surface stays fixed.
+        result[:,:,:3]=np.clip(np.rint(original[:,:,:3].astype(float)+light[:,:,None]*[42,66,74]),0,255).astype('uint8')
         motion|=np.any(result!=original,axis=2)
         assert np.array_equal(result[~allowed],original[~allowed])
         frames.append(Image.fromarray(result))
@@ -72,8 +73,8 @@ def make_frames():
     Image.fromarray((motion*255).astype('uint8')).save(OUT/'water-change-mask.png')
     palette=atlas.convert('RGB').quantize(colors=256,dither=Image.Dither.NONE)
     gif=[f.convert('RGB').quantize(palette=palette,dither=Image.Dither.NONE) for f in frames]
-    # GIF time units are 10ms: distribute 80/90ms to retain exactly six seconds.
-    durations=[80 if i%3!=2 else 90 for i in range(COUNT)]
+    # GIF time units are 10ms: distribute 40/50ms to retain exactly six seconds.
+    durations=[40 if i%6!=5 else 50 for i in range(COUNT)]
     gif[0].save(OUT/'water-preview.gif',save_all=True,append_images=gif[1:],duration=durations,loop=0,disposal=2,optimize=False)
     data=np.array([np.array(f).astype(int) for f in frames])
     adjacent=np.abs(data-np.roll(data,1,axis=0))

@@ -1,0 +1,24 @@
+{
+  "canvas": [
+    696,
+    864
+  ],
+  "nativePixelGrid": 2,
+  "staffBounds": [
+    532,
+    390,
+    678,
+    770
+  ],
+  "position": [
+    532,
+    390
+  ],
+  "staffSize": [
+    146,
+    380
+  ],
+  "bodyAndStaffDisjoint": true,
+  "bodyAndBackground": "unchanged files in ../druid-basic-seated-v1",
+  "pose": "Base on ground; upper shaft rests against the right end of the log"
+}

@@ -1,14 +1,14 @@
 {
-  "frames": 72,
-  "fps": 12,
+  "frames": 144,
+  "fps": 24,
   "cycleMs": 6000,
   "frameSize": [
     204,
     142
   ],
   "atlasColumns": 8,
-  "maxAdjacentChannelChange": 7,
-  "maxChangeFromOriginal": 17,
+  "maxAdjacentChannelChange": 15,
+  "maxChangeFromOriginal": 63,
   "lanes": [
     {
       "points": [
@@ -30,8 +30,8 @@
         ]
       ],
       "size": [
-        10,
-        2
+        16,
+        3
       ],
       "phase": 0.0
     },
@@ -55,10 +55,35 @@
         ]
       ],
       "size": [
-        6,
-        2
+        13,
+        4
       ],
       "phase": 0.3
+    },
+    {
+      "points": [
+        [
+          163,
+          32
+        ],
+        [
+          158,
+          43
+        ],
+        [
+          153,
+          54
+        ],
+        [
+          149,
+          63
+        ]
+      ],
+      "size": [
+        12,
+        4
+      ],
+      "phase": 0.1
     },
     {
       "points": [
@@ -80,8 +105,8 @@
         ]
       ],
       "size": [
-        5,
-        2
+        11,
+        3
       ],
       "phase": 0.7
     },
@@ -113,8 +138,8 @@
         ]
       ],
       "size": [
-        8,
-        2
+        13,
+        3
       ],
       "phase": 0.2
     },
@@ -154,8 +179,8 @@
         ]
       ],
       "size": [
-        13,
-        2
+        19,
+        3
       ],
       "phase": 0.6
     }
@@ -163,6 +188,7 @@
   "approxTravelPixelsPerSecond": [
     3.88,
     3.0,
+    5.67,
     3.0,
     3.44,
     4.28

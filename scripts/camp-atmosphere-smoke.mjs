@@ -10,7 +10,7 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
       return hash >>> 0;
     };
-    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true;
+    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true, visibleWaterPixels = 0;
     const readImage = async path => {
       const image = new Image(); image.src = `/docs/art/${path}`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
@@ -29,8 +29,8 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       const actual = document.createElement('canvas'); actual.width = expected.canvas.width; actual.height = expected.canvas.height;
       actual.getContext('2d').drawImage(texture.getSourceImage(),0,0);
       drawnFrames &&= actual.getContext('2d').getImageData(0,0,actual.width,actual.height).data.every((v,i)=>v===expected.data[i]);
-      let previous, first;
-      const gentle = (a,b) => a.every((v,i)=>Math.abs(v-b[i])<=8);
+      let previous, first, waterMin, waterMax;
+      const gentle = (a,b) => a.every((v,i)=>Math.abs(v-b[i])<=16);
       for (let frameIndex=0;frameIndex<config[kind].frameCount;frameIndex++) {
         const frame = texture.get(String(frameIndex));
         const pixels = actual.getContext('2d').getImageData(frame.cutX,frame.cutY,area.width,area.height).data;
@@ -39,14 +39,22 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
           if(!change.data[p]) fixedSurroundings &&= pixels[p+c]===reference.data[p+c];
         }
         if (kind === 'water') {
+          if (!waterMin) { waterMin = pixels.slice(); waterMax = pixels.slice(); }
+          else for (let i=0;i<pixels.length;i++) { waterMin[i]=Math.min(waterMin[i],pixels[i]); waterMax[i]=Math.max(waterMax[i],pixels[i]); }
           if (previous) smoothWater &&= gentle(pixels,previous);
           else first = pixels;
-          smoothWater &&= pixels.every((v,i)=>Math.abs(v-reference.data[i])<=20);
+          smoothWater &&= pixels.every((v,i)=>Math.abs(v-reference.data[i])<=74);
           previous = pixels;
         }
       }
       if (kind === 'water') {
         smoothWater &&= gentle(first,previous); // Includes the last-to-first seam.
+        // Count only the river above/to the right of the opaque menu panel.
+        // Tiny invisible changes in hidden water no longer satisfy this check.
+        for(let y=0;y<80;y++) for(let x=116;x<area.width;x++) {
+          const p=(y*area.width+x)*4;
+          if ([0,1,2].some(c=>waterMax[p+c]-waterMin[p+c]>=24)) visibleWaterPixels++;
+        }
         for (let y=1;y<area.height-1;y++) for(let x=1;x<area.width-1;x++) {
           if (!change.data[(y*area.width+x)*4]) continue;
           for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++)
@@ -76,13 +84,14 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
       panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
       fireFps: config.fire.fps, waterFps: config.water.fps, fireCount: config.fire.frameCount, waterCount: config.water.frameCount,
-      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges };
+      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels };
   });
   ok(before.count === 5 && before.loops && before.independent, 'Пять светлячков имеют независимые периоды и действительно замкнутые траектории');
-  ok(before.animatedPixels && before.filters && before.fireFps === 10 / 3 && before.waterFps === 12 && before.fireCount === 8 && before.waterCount === 72 && before.drawnFrames,
-    'Огонь замедлен втрое; вода имеет плавный шестисекундный цикл; готовые PNG проигрываются 1:1 с NEAREST');
+  ok(before.animatedPixels && before.filters && before.fireFps === 25 / 6 && before.waterFps === 24 && before.fireCount === 8 && before.waterCount === 144 && before.drawnFrames,
+    'Огонь ускорен на 25%; вода имеет плавный шестисекундный цикл; готовые PNG проигрываются 1:1 с NEAREST');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');
+  ok(before.visibleWaterPixels >= 500, 'Течение заметно в открытой части реки: не менее 500 пикселей меняют оттенок минимум на 24/255');
   ok(before.cleanup && before.cleanupAboveWater && before.panelAbove,
     'Старые статичные огоньки убраны, включая область воды; эффекты остаются позади панели интерфейса');
   await page.waitForTimeout(580);

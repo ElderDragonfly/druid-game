@@ -1,8 +1,8 @@
 /** All coordinates are in the 960×540 camp image, whose menu top is y=50. */
 export const CAMP_ATMOSPHERE = {
   menuTop: 50,
-  fire: { x: 584, y: 282, width: 128, height: 148, fps: 10 / 3, frameCount: 8, framesPerRow: 4 },
-  water: { x: 408, y: 245, width: 204, height: 142, fps: 12, frameCount: 72, framesPerRow: 8 },
+  fire: { x: 584, y: 282, width: 128, height: 148, fps: 25 / 6, frameCount: 8, framesPerRow: 4 },
+  water: { x: 408, y: 245, width: 204, height: 142, fps: 24, frameCount: 144, framesPerRow: 8 },
   fireflies: [
     { x: 229, y: 184, radiusX: 15, radiusY: 10, periodMs: 9200, phase: .2 },
     { x: 437, y: 223, radiusX: 18, radiusY: 12, periodMs: 11700, phase: 1.5 },
