@@ -1,4 +1,5 @@
 import type { Facing } from '../input/EightWayFacing';
+import { BASE_ATTACK_RATE, BASE_CAST_DURATION_SCALE } from '../data/attack';
 
 // The six moving phases of the accepted cast-down-v1. Preview-only pauses
 // before/after the gesture are not part of gameplay.
@@ -13,12 +14,12 @@ export class DruidCasting {
   private released = false;
   private pendingRelease?: Facing;
 
-  constructor(readonly releaseAtMs = 580) {}
+  constructor(readonly releaseAtMs = 580, private readonly attackRate: () => number = () => BASE_ATTACK_RATE) {}
 
   update(delta: number, requested?: Facing) {
     if (this.active) {
       if (requested) this.facing = requested;
-      this.elapsed += Math.max(0, delta);
+      this.elapsed += Math.max(0, delta) * Math.max(0, this.attackRate()) / BASE_CAST_DURATION_SCALE;
       if (!this.released && this.elapsed >= this.releaseAtMs) {
         this.pendingRelease = this.facing; this.released = true;
       }

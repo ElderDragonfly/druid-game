@@ -13,7 +13,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
   readonly actorState: DruidState;
   readonly behavior: DruidMovement;
   readonly appearance;
-  readonly casting = new DruidCasting(ACORN.releaseMs);
+  readonly casting = new DruidCasting(ACORN.releaseMs, () => this.actorState.attackRate);
   readonly hitReaction = new DruidHitReaction();
   readonly hitVisual: Phaser.GameObjects.Image;
   readonly castVisual: Phaser.GameObjects.Image;
@@ -29,7 +29,8 @@ export class Druid extends Phaser.Physics.Arcade.Sprite {
     super(scene, 0, 0, appearance.texture, appearance.frames?.down);
     this.appearance = appearance;
     const stats = definition.stats ?? CHARACTERS[0].stats!;
-    this.actorState = { health: stats.health, maxHealth: stats.health, speed: stats.speed, facing: 'down' };
+    this.actorState = { health: stats.health, maxHealth: stats.health, speed: stats.speed,
+      attackRate: stats.attackRate, facing: 'down' };
     this.behavior = new DruidMovement(this.actorState);
     scene.add.existing(this);
     scene.physics.add.existing(this);

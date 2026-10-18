@@ -19,6 +19,9 @@ export class MeadowWorld {
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
+  private player?: Druid;
+  private navigation?: WolfNavigation;
+  private wolfGeneration = 0;
 
   constructor(private scene: Phaser.Scene, readonly layout: MeadowLayout) {
     const surface = this.drawFloor();
@@ -42,9 +45,19 @@ export class MeadowWorld {
   }
 
   bindPlayer(player: Druid) {
+    this.player = player;
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
-    const navigation = new WolfNavigation(this.layout);
-    this.wolf = new Wolf(this.scene, navigation, this.obstacles, player, wolfSpawn(navigation));
+    this.navigation = new WolfNavigation(this.layout);
+    this.spawnWolf();
+  }
+
+  private spawnWolf() {
+    const player = this.player!, navigation = this.navigation!;
+    const body = player.body as Phaser.Physics.Arcade.Body;
+    // Before the initial reset, layout.spawn supplies the starting position.
+    const center = this.wolfGeneration ? { x: body.center.x, y: body.bottom } : undefined;
+    this.wolf = new Wolf(this.scene, navigation, this.obstacles, player,
+      wolfSpawn(navigation, this.wolfGeneration, center));
   }
 
   updateGrass(footX: number, footY: number, depth: number) {
@@ -54,6 +67,9 @@ export class MeadowWorld {
   update(delta: number) {
     this.mice.forEach(mouse => mouse.updateBehavior(delta));
     this.wolf?.updateBehavior(delta);
+    if (this.wolf?.deathFinished) {
+      this.wolf.destroy(); this.wolfGeneration++; this.spawnWolf();
+    }
   }
 
   destroy() {

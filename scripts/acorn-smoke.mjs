@@ -4,18 +4,31 @@ export async function testAcornAttack(page,ok) {
     const{DruidCasting}=await import('/src/behavior/DruidCasting.ts');
     const{ACORN}=await import('/src/data/acorn.ts');
     const cast=new DruidCasting(ACORN.releaseMs);
-    cast.update(0,'right');cast.update(579);
+    cast.update(0,'right');cast.update(869);
     const early=cast.consumeRelease()===undefined;
     cast.update(1);const late=cast.consumeRelease()==='right'&&cast.consumeRelease()===undefined;
     cast.update(40);const once=cast.consumeRelease()===undefined;
-    cast.cancel();cast.update(0,'right');cast.update(579);cast.cancel();cast.update(100);
+    cast.cancel();cast.update(0,'right');cast.update(869);cast.cancel();cast.update(100);
     const interrupted=cast.consumeRelease()===undefined;
-    cast.update(0,'right');cast.update(580);cast.cancel();
+    cast.update(0,'right');cast.update(870);cast.cancel();
     const sameFrame=cast.consumeRelease()===undefined;
-    cast.update(0,'right');cast.update(700);
+    cast.update(0,'right');cast.update(1100);
     return early&&late&&once&&interrupted&&sameFrame&&cast.consumeRelease()==='right'&&!cast.active;
   });
-  ok(timing,'Жёлудь выпускается один раз после 580 мс; отмена, включая тот же кадр, убирает ожидающий выстрел');
+  ok(timing,'Жёлудь выпускается один раз после 870 мс при скорострельности 1; отмена, включая тот же кадр, убирает ожидающий выстрел');
+  ok(await page.evaluate(async()=>{
+    const{DruidCasting}=await import('/src/behavior/DruidCasting.ts');
+    let rate=1;const cast=new DruidCasting(580,()=>rate);
+    cast.update(0,'down');cast.update(1004,'down');
+    const baseline=cast.active&&cast.frameIndex===5;
+    cast.consumeRelease();cast.update(1,'down');
+    const repeated=cast.active&&cast.frameIndex===0;
+    cast.cancel();rate=2;cast.update(0,'down');cast.update(434);
+    const early=cast.consumeRelease()===undefined;
+    cast.update(1);const faster=cast.consumeRelease()==='down';
+    rate=0;const frame=cast.frameIndex;cast.update(5000);
+    return baseline&&repeated&&early&&faster&&cast.frameIndex===frame;
+  }),'Базовая скорострельность 1: цикл 1005 мс; значение 2 удваивает темп жеста и выпуска, 0 приостанавливает таймер');
   ok(await page.evaluate(async()=>{
     const{sweptRect,worldExit}=await import('/src/physics/projectileSweep.ts');
     const from={x:20,y:50},to={x:200,y:50},rect={x:100,y:40,width:1,height:20};
@@ -119,15 +132,15 @@ export async function testAcornAttack(page,ok) {
       shot.body.reset(to.x,to.y);shot.body.updateFromGameObject();s.acorns.update(0);result&&=!shot.scene;
     }
     // A point spawn inside an enabled body must disappear immediately too.
-    const shot=new AcornProjectile(s,p,wolf.body.center.x,wolf.body.center.y,{x:1,y:0});s.acorns.shots.push(shot);s.acorns.update(0);
-    result&&=!shot.scene&&s.playerHealth===3&&generic.getData('health')===9;
-    generic.destroy();wolf.body.enable=false;return result;
-  }),'Жёлудь исчезает у дерева, волка и произвольного физического объекта, включая появление внутри него; урона нет');
+    const shot=new AcornProjectile(s,p,generic.body.center.x,generic.body.center.y,{x:1,y:0});s.acorns.shots.push(shot);s.acorns.update(0);
+    result&&=!shot.scene&&s.playerHealth===3&&generic.getData('health')===9&&wolf.actorState.health===1;
+    generic.destroy();wolf.setActive(true);wolf.updateBehavior(260);wolf.setActive(false);wolf.body.enable=false;return result;
+  }),'Жёлудь исчезает у дерева, волка и произвольного физического объекта, включая появление внутри него; волк теряет ровно 1 HP, остальные объекты — без урона');
 
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolf,f=window.__acornFixture;
     p.cancelHit();p.cancelCast();p.body.reset(f.x,f.y);p.body.updateFromGameObject();const count=s.acorns.emittedCount;
-    p.updateCasting(0,'right');p.updateCasting(580);
+    p.updateCasting(0,'right');p.updateCasting(870);
     w.setActive(true);w.body.enable=true;w.body.reset(p.x-47,p.body.bottom);
     w.body.updateFromGameObject();
     w.actorState.alerted=true;w.actorState.phase='attack';w.actorState.elapsed=230;
@@ -159,7 +172,7 @@ export async function testAcornAttack(page,ok) {
   const count=await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');s.player.cancelCast();return s.acorns.emittedCount;
   });
-  await page.keyboard.down('ArrowRight');await page.waitForTimeout(1520);await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('ArrowRight');await page.waitForTimeout(2350);await page.keyboard.up('ArrowRight');
   ok(await page.evaluate(n=>window.__smokeGame.scene.getScene('Room').acorns.emittedCount===n+2,count),
     'Удержание вправо выпускает один жёлудь за завершённый замах, без раннего и повторного выстрела внутри жеста');
   const previous=await page.evaluateHandle(()=>{

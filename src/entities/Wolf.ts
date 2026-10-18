@@ -5,8 +5,13 @@ import { WolfNavigation, type WolfPoint } from '../world/WolfNavigation';
 import { wolfDurations, type WolfAnimation } from '../rendering/wolfArt';
 import type { Druid } from './Druid';
 import { createDruidWolfCollider } from '../physics/wolfContact';
+import type { Damageable } from '../combat/Damageable';
 
-export class Wolf extends Phaser.Physics.Arcade.Sprite {
+const HIT_DURATION = WOLF.combat.hitFrameDurations.reduce((sum, ms) => sum + ms, 0);
+const HIT_POSES: readonly [WolfAnimation, number][] = [['idle', 0], ['death', 0], ['death', 1], ['death', 0], ['idle', 0]];
+const DEATH_DURATION = wolfDurations('death').reduce((sum, ms) => sum + ms, 0);
+
+export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
   readonly definition = WOLF;
   readonly behavior: WolfBehavior;
   get actorState() { return this.behavior.actorState; }
@@ -17,6 +22,11 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
   private animation: WolfAnimation = 'idle';
   private clock = 0;
   private attackConnected = false;
+  private hitElapsed?: number;
+  private deathElapsed = 0;
+  get dying() { return this.actorState.health <= 0; }
+  get reactingToHit() { return this.hitElapsed !== undefined; }
+  get deathFinished() { return this.dying && this.deathElapsed >= DEATH_DURATION; }
 
   constructor(scene: Phaser.Scene, navigation: WolfNavigation, trees: Phaser.Physics.Arcade.StaticGroup,
     private readonly player: Druid, start: WolfPoint) {
@@ -32,17 +42,57 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
       .setOrigin(this.originX, this.originY).setScale(a.scale);
     this.treeCollider = scene.physics.add.collider(this, trees);
     this.playerCollider = createDruidWolfCollider(scene, player, this);
+    scene.cameras.getCamera('hud')?.ignore([this, this.shadow]);
+  }
+
+  takeDamage(amount: number) {
+    if (this.dying || !this.scene || !Number.isFinite(amount) || amount <= 0) return false;
+    this.actorState.health = Math.max(0, this.actorState.health - amount);
+    this.actorState.alerted = true;
+    if (this.actorState.phase === 'idle' || this.actorState.phase === 'wander') {
+      this.actorState.phase = 'chase'; this.actorState.elapsed = 0;
+    }
+    this.setVelocity(0, 0);
+    this.previous = { x: this.x, y: this.y };
+    if (this.dying) {
+      this.hitElapsed = undefined; this.deathElapsed = 0;
+      (this.body as Phaser.Physics.Arcade.Body).enable = false;
+      this.showFrame('death', 0);
+    } else {
+      // Pause the existing AI/attack clock, rather than restart its active frame.
+      this.hitElapsed = 0; this.showFrame(...HIT_POSES[0]);
+    }
+    return true;
   }
 
   updateBehavior(delta: number) {
     const body = this.body as Phaser.Physics.Arcade.Body;
-    if (!this.active || !body.enable) return;
+    if (!this.active) return;
+    let dt = Math.max(0, delta);
+    if (this.dying) {
+      this.deathElapsed += dt;
+      this.showFrame('death', this.frameAt(this.deathElapsed, wolfDurations('death')));
+      return;
+    }
+    if (!body.enable) return;
+    if (this.hitElapsed !== undefined) {
+      const remaining = HIT_DURATION - this.hitElapsed;
+      this.hitElapsed += dt;
+      this.previous = { x: this.x, y: this.y };
+      if (this.hitElapsed < HIT_DURATION) {
+        this.setVelocity(0, 0);
+        this.showFrame(...HIT_POSES[this.frameAt(this.hitElapsed, WOLF.combat.hitFrameDurations)]);
+        return;
+      }
+      this.hitElapsed = undefined;
+      dt = Math.max(0, dt - remaining);
+    }
     const p = this.player.body as Phaser.Physics.Arcade.Body;
     const contact = this.player.wolfContactBounds;
     const position = { x: this.x, y: this.y };
     const distance = Math.hypot(this.x - this.previous.x, this.y - this.previous.y);
     this.previous = position;
-    const velocity = this.behavior.step(delta, position, { x: p.center.x, y: p.bottom },
+    const velocity = this.behavior.step(dt, position, { x: p.center.x, y: p.bottom },
       contact);
     this.setVelocity(velocity.x, velocity.y).setFlipX(this.actorState.facingLeft).setDepth(this.y);
     const phase = this.actorState.phase;
@@ -52,7 +102,7 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
       // Once per swing, at its active frame, and only if the druid is still in reach.
       if (this.behavior.inAttackRange(position, this.player.wolfContactBounds)) this.player.receiveHit();
     }
-    const moving = distance > .01 && distance < Math.max(30, this.actorState.runSpeed * delta / 1000 * 3);
+    const moving = distance > .01 && distance < Math.max(30, this.actorState.runSpeed * dt / 1000 * 3);
     const animation: WolfAnimation = phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') :
       moving ? (phase === 'chase' ? 'run' : 'walk') : 'idle';
     if (animation !== this.animation) { this.animation = animation; this.clock = 0; }
@@ -60,12 +110,22 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite {
     else if (animation === 'run' || animation === 'walk') {
       const reference = animation === 'run' ? WOLF.appearance.runReferenceSpeed : WOLF.appearance.walkReferenceSpeed;
       this.clock += distance / reference * 1000;
-    } else this.clock += Math.max(0, delta);
+    } else this.clock += dt;
     const durations = wolfDurations(animation), total = durations.reduce((sum, value) => sum + value, 0);
     let elapsed = phase === 'attack' ? Math.min(this.clock, total - .001) : this.clock % total;
     let frame = 0;
     while (frame < durations.length - 1 && elapsed >= durations[frame]) elapsed -= durations[frame++];
-    this.setTexture(`wolf-${animation}`, String(frame));
+    this.showFrame(animation, frame);
+  }
+
+  private frameAt(elapsed: number, durations: readonly number[]) {
+    let frame = 0;
+    while (frame < durations.length - 1 && elapsed >= durations[frame]) elapsed -= durations[frame++];
+    return frame;
+  }
+
+  private showFrame(animation: WolfAnimation, frame: number) {
+    this.setTexture(`wolf-${animation}`, String(frame)).setDepth(this.y);
     this.shadow.setTexture(`wolf-${animation}-shadow`, String(frame)).setPosition(this.x, this.y)
       .setFlipX(this.flipX).setDepth(this.y - .1);
   }

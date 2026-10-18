@@ -4,6 +4,7 @@ import { AcornProjectile } from '../entities/AcornProjectile';
 import type { Druid } from '../entities/Druid';
 import { projectileSpawn, sweptRect, worldExit, type Point } from '../physics/projectileSweep';
 import { facingVector } from '../input/EightWayFacing';
+import { isDamageable } from '../combat/Damageable';
 
 interface Leaf {
   image: Phaser.GameObjects.Image; age: number; life: number;
@@ -38,13 +39,16 @@ export class AcornAttack {
       const body=shot.body as Phaser.Physics.Arcade.Body;
       const next={x:body.center.x,y:body.center.y};
       let impact=worldExit(shot.previous,next,this.scene.physics.world.bounds,ACORN.radius);
+      let hitBody: Body | undefined;
       const targets: Body[]=[...this.scene.physics.world.bodies.entries,...this.scene.physics.world.staticBodies.entries];
       for(const target of targets) {
         if(!target.enable||target===body||target.gameObject===this.player||target.checkCollision.none)continue;
         const t=sweptRect(shot.previous,next,target,ACORN.radius);
-        if(t!==undefined&&(impact===undefined||t<impact))impact=t;
+        if(t!==undefined&&(impact===undefined||t<impact)) {impact=t;hitBody=target;}
       }
       if(impact!==undefined||shot.ageMs+dt>=ACORN.lifetimeMs) {
+        const target=hitBody?.gameObject;
+        if(isDamageable(target))target.takeDamage(ACORN.damage);
         shot.destroy();this.shots.splice(i,1);continue;
       }
       this.emitTrail(shot,shot.previous,next);

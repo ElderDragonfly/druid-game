@@ -3,6 +3,8 @@ import { seededRandom, type Rect } from '../world/meadowLayout';
 import { WolfNavigation, type WolfPoint } from '../world/WolfNavigation';
 
 export interface WolfState {
+  health: number;
+  maxHealth: number;
   phase: 'idle' | 'wander' | 'chase' | 'attack';
   alerted: boolean;
   elapsed: number;
@@ -24,7 +26,7 @@ export class WolfBehavior {
 
   constructor(readonly navigation: WolfNavigation, start: WolfPoint) {
     this.random = seededRandom(navigation.layout.seed ^ 0x574f4c46);
-    this.actorState = { phase: 'idle', alerted: false, elapsed: 0, ...WOLF.stats,
+    this.actorState = { phase: 'idle', alerted: false, elapsed: 0, ...WOLF.stats, maxHealth: WOLF.stats.health,
       target: { ...start }, facingLeft: false, attackUp: false };
     this.idleMs = this.pause();
   }

@@ -1,6 +1,7 @@
 import { BASE_MOVEMENT_SPEED } from './movement';
 
 export const ACORN = {
+  damage: 1,
   speedMultiplier: 1.5, speed: BASE_MOVEMENT_SPEED * 1.5,
   releaseMs: 580, flightHeight: 38,
   radius: 5, scale: .5, birthMs: 70, spinRadiansPerSecond: Math.PI / 2,
