@@ -1,5 +1,5 @@
 import { isolateSingleWolf } from './wolf-fixture.mjs';
-/** Real projectile hits, retained leaves, paused attacks, death and replacement. */
+/** Real projectile hits, retained leaves, paused attacks and permanent death. */
 export async function testWolfCombat(page, ok) {
   const previous=await page.evaluateHandle(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),old=s.player;s.scene.restart({seed:0});return old;
@@ -62,19 +62,24 @@ export async function testWolfCombat(page, ok) {
   'Второй жёлудь запускает смерть: HP 0, нет движения/коллизии и повторного урона');
   await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.wolves[0]!==old,oldWolf);
   await page.waitForFunction(()=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+3;
+    const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+1;
   });
   ok(await page.evaluate(old=>{
-    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0],p={x:s.player.body.center.x,y:s.player.body.bottom};
-    const nav=w.behavior.navigation;
+    const s=window.__smokeGame.scene.getScene('Room');
     s.events.off('postupdate',window.__combatObserver);
-    const normalized=Math.hypot((w.x-p.x)/(1280/3),(w.y-p.y)/240);
+    s.world.update(10000);
     return window.__wolfCombat.deathFrames.size===7&&!old.scene&&!old.shadow.scene&&
-      s.children.list.filter(o=>o.name==='wolf').length===1&&s.children.list.filter(o=>o.name==='wolf-shadow').length===1&&
-      w.actorState.health===2&&!w.actorState.alerted&&w.body.enable&&normalized>=1.19&&normalized<=1.41&&
-      nav.canStand(w)&&nav.route(w,p).length>0&&[w,w.shadow].every(o=>o.cameraFilter&s.cameras.getCamera('hud').id);
-  },oldWolf),'Все 7 кадров смерти проиграны один раз; старый волк удалён, появился ровно один новый с 2 HP вне обнаружения и с рабочей коллизией');
+      s.world.wolves.length===0&&s.children.list.filter(o=>o.name==='wolf').length===0&&
+      s.children.list.filter(o=>o.name==='wolf-shadow').length===0;
+  },oldWolf),'Все 7 кадров смерти проиграны один раз; волк, тень и коллайдеры удалены без появления замены');
   await oldWolf.dispose();
+
+  // A fresh run supplies the next test enemy; the game no longer respawns one.
+  const priorPlayer=await page.evaluateHandle(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player;s.scene.restart({seed:0});return p;
+  });
+  await page.waitForFunction(p=>window.__smokeGame.scene.getScene('Room').player!==p,priorPlayer);
+  await priorPlayer.dispose();await isolateSingleWolf(page);
 
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0];

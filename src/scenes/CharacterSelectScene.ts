@@ -54,7 +54,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
 
     this.nameLabel = this.add.text(70, 402, '', { fontFamily: 'Georgia, serif', fontSize: '22px', color: '#dccda9' });
-    this.descriptionLabel = this.add.text(70, 435, '', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' });
+    this.descriptionLabel = this.add.text(70, 435, '', { fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#9dae94' })
+      .setName('selection-description');
     const preview = layout.preview;
     this.campPreview = this.add.image(preview.x, preview.seatY, CHARACTERS[0].camp!.texture)
       .setName('selected-character-preview').setDepth(2);
@@ -86,7 +87,8 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setScale(prop.scale ?? character.camp!.scale).setAngle(prop.angle ?? 0).setDepth(1)
       .setName(`selected-character-prop-${index}`).setData('characterId', character.id));
     this.nameLabel.setText(character.name);
-    this.descriptionLabel.setText(character.description);
+    this.descriptionLabel.setText(character.description+
+      (character.stats ? ` · Дальность: ${character.stats.range}` : ''));
     return true;
   }
 }

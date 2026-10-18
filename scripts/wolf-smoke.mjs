@@ -9,7 +9,7 @@ export async function testWolf(page, ok) {
     const { BASE_MOVEMENT_SPEED } = await import('/src/data/movement.ts');
     const { CHARACTERS } = await import('/src/data/characters.ts');
     const { generateMeadow } = await import('/src/world/meadowLayout.ts');
-    const { wolfSpawn } = await import('/src/world/wolfSpawn.ts');
+    const { generateWolfPopulation } = await import('/src/world/wolfPopulation.ts');
     const layout = { width: 800, height: 600, seed: 10, spawn: { x: 100, y: 100 }, counts: { trees: 0 }, obstacles: [] };
     const nav = new WolfNavigation(layout), ai = new WolfBehavior(nav, { x: 400, y: 300 });
     const center = { x: 400, y: 300 };
@@ -40,9 +40,10 @@ export async function testWolf(page, ok) {
       Math.hypot(route.at(-1).x - b.x, route.at(-1).y - b.y) < 1;
     let spawnValid = true;
     for (let seed = 0; seed < 12; seed++) {
-      const meadow = generateMeadow(seed), navigation = new WolfNavigation(meadow), spawn = wolfSpawn(navigation);
+      const meadow = generateMeadow(seed), navigation = new WolfNavigation(meadow), spawns = generateWolfPopulation(navigation);
       const p = { x: meadow.spawn.x, y: meadow.spawn.y + 22.5 };
-      spawnValid &&= navigation.canStand(spawn) && !new WolfBehavior(navigation, spawn).detects(spawn, p) && navigation.route(spawn, p).length > 0;
+      spawnValid &&= spawns.every(spawn=>navigation.canStand(spawn) &&
+        !new WolfBehavior(navigation, spawn).detects(spawn, p) && navigation.route(spawn, p).length > 0);
     }
     return { detection, sticky, startedAttack, locked: locked.x === 0 && locked.y === 0, resumed,
       wander: phases.has('idle') && phases.has('wander') && !wander.actorState.alerted,

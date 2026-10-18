@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { Wolf } from '../entities/Wolf';
 import type { Druid } from '../entities/Druid';
 import { WolfNavigation } from './WolfNavigation';
-import { wolfSpawn } from './wolfSpawn';
 import { generateWolfPopulation } from './wolfPopulation';
 import { segmentTouchesEllipse } from '../physics/ellipse';
 import type { Point } from '../physics/projectileSweep';
@@ -24,8 +23,6 @@ export class MeadowWorld {
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
   private player?: Druid;
-  private navigation?: WolfNavigation;
-  private wolfGeneration = 0;
 
   constructor(private scene: Phaser.Scene, readonly layout: MeadowLayout) {
     const surface = this.drawFloor();
@@ -51,9 +48,9 @@ export class MeadowWorld {
   bindPlayer(player: Druid) {
     this.player = player;
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
-    this.navigation = new WolfNavigation(this.layout);
-    generateWolfPopulation(this.navigation).forEach((start,index)=>
-      this.wolves.push(new Wolf(this.scene,this.navigation!,this.obstacles,player,start,index+1)));
+    const navigation = new WolfNavigation(this.layout);
+    generateWolfPopulation(navigation).forEach((start,index)=>
+      this.wolves.push(new Wolf(this.scene,navigation,this.obstacles,player,start,index+1)));
   }
 
   noticeProjectile(from: Point,to: Point) {
@@ -71,16 +68,12 @@ export class MeadowWorld {
   update(delta: number) {
     if(this.player?.dead)return;
     this.mice.forEach(mouse => mouse.updateBehavior(delta));
-    for(let index=0;index<this.wolves.length;index++) {
+    for(let index=this.wolves.length-1;index>=0;index--) {
       if(this.player?.dead)break;
       const wolf=this.wolves[index];wolf.updateBehavior(delta);
       if(wolf.deathFinished) {
-        const body=this.player!.body as Phaser.Physics.Arcade.Body;
-        const start=wolfSpawn(this.navigation!,++this.wolfGeneration,{x:body.center.x,y:body.bottom},
-          this.wolves.filter(other=>other!==wolf&&!other.dying));
         wolf.destroy();
-        this.wolves[index]=new Wolf(this.scene,this.navigation!,this.obstacles,this.player!,start,
-          this.wolfGeneration+index+1);
+        this.wolves.splice(index,1);
       }
     }
   }

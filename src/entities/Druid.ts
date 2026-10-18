@@ -33,7 +33,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
     this.appearance = appearance;
     const stats = definition.stats ?? CHARACTERS[0].stats!;
     this.actorState = { health: stats.health, maxHealth: stats.health, speed: stats.speed,
-      attackRate: stats.attackRate, facing: 'down' };
+      attackRate: stats.attackRate, range: stats.range, facing: 'down' };
     this.behavior = new DruidMovement(this.actorState);
     scene.add.existing(this);
     scene.physics.add.existing(this);

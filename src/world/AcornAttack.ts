@@ -9,6 +9,7 @@ import { isDamageable } from '../combat/Damageable';
 interface Leaf {
   image: Phaser.GameObjects.Image; age: number; life: number;
   vx: number; vy: number; spin: number; scale: number;
+  height: number;
 }
 type Body = Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody;
 
@@ -38,7 +39,13 @@ export class AcornAttack {
       const shot=this.shots[i];
       if(!shot.scene) {this.shots.splice(i,1);continue;}
       const body=shot.body as Phaser.Physics.Arcade.Body;
-      const next={x:body.center.x,y:body.center.y};
+      const dx=body.center.x-shot.previous.x,dy=body.center.y-shot.previous.y;
+      const length=Math.hypot(dx,dy),remaining=shot.flight.remaining;
+      if(remaining<=0) {shot.destroy();this.shots.splice(i,1);continue;}
+      // Clip before collision/awareness checks: a long frame cannot hit or alert
+      // anything beyond the landing point, even if Arcade has already moved on.
+      const fraction=length>0?Math.min(1,remaining/length):1;
+      const next={x:shot.previous.x+dx*fraction,y:shot.previous.y+dy*fraction};
       let impact=worldExit(shot.previous,next,this.scene.physics.world.bounds,ACORN.radius);
       let hitBody: Body | undefined;
       const targets: Body[]=[...this.scene.physics.world.bodies.entries,...this.scene.physics.world.staticBodies.entries];
@@ -51,12 +58,14 @@ export class AcornAttack {
       const t=impact??1;
       this.onFlight(shot.previous,{x:shot.previous.x+(next.x-shot.previous.x)*t,
         y:shot.previous.y+(next.y-shot.previous.y)*t});
-      if(impact!==undefined||shot.ageMs+dt>=ACORN.lifetimeMs) {
+      if(impact!==undefined) {
         const target=hitBody?.gameObject;
         if(isDamageable(target))target.takeDamage(ACORN.damage);
         shot.destroy();this.shots.splice(i,1);continue;
       }
       this.emitTrail(shot,shot.previous,next);
+      shot.flight.distance+=Math.min(length,remaining);
+      if(length>=remaining) {shot.destroy();this.shots.splice(i,1);continue;}
       shot.previous=next;shot.updateVisual(dt);
     }
     for(let i=this.leaves.length-1;i>=0;i--) {
@@ -66,7 +75,7 @@ export class AcornAttack {
       leaf.image.x+=leaf.vx*dt/1000;leaf.image.y+=leaf.vy*dt/1000;
       leaf.image.rotation+=leaf.spin*dt/1000;
       leaf.image.setAlpha(Math.min(1,leaf.age/50)*(1-t*t)*.95)
-        .setScale(leaf.scale*(1-.3*t)).setDepth(leaf.image.y+ACORN.flightHeight+15);
+        .setScale(leaf.scale*(1-.3*t)).setDepth(leaf.image.y+leaf.height+15);
     }
   }
 
@@ -76,14 +85,15 @@ export class AcornAttack {
     while(length-travelled>=shot.nextLeafDistance) {
       travelled+=shot.nextLeafDistance;
       const t=travelled/length;
-      const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-ACORN.flightHeight;
-      this.emitLeaf(x-shot.direction.x*8,y-shot.direction.y*8,shot.direction);
+      const height=shot.flight.heightAt(shot.flight.distance+travelled);
+      const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-height;
+      this.emitLeaf(x-shot.direction.x*8,y-shot.direction.y*8,shot.direction,height);
       shot.nextLeafDistance=this.between(ACORN.trail.spacingMin,ACORN.trail.spacingMax);
     }
     shot.nextLeafDistance-=length-travelled;
   }
 
-  private emitLeaf(x: number, y: number, direction: Point) {
+  private emitLeaf(x: number, y: number, direction: Point, height: number) {
     if(this.leaves.length>=ACORN.trail.maxLeaves)this.leaves.shift()!.image.destroy();
     const config=ACORN.trail;
     // One narrow tail: each leaf has its own sideways drift, rather than a
@@ -94,7 +104,7 @@ export class AcornAttack {
     const image=this.scene.add.image(x+this.between(-3,2),y+this.between(-2,2),'acorn-leaves',String(Math.floor(this.random()*5)))
       .setName('acorn-leaf').setAlpha(0).setRotation(this.between(-Math.PI,Math.PI));
     this.scene.cameras.getCamera('hud')?.ignore(image);
-    this.leaves.push({image,age:0,life:this.between(config.lifetimeMinMs,config.lifetimeMaxMs),vx,vy,
+    this.leaves.push({image,age:0,life:this.between(config.lifetimeMinMs,config.lifetimeMaxMs),vx,vy,height,
       spin:this.between(-1.1,1.1),scale:this.between(config.scaleMin,config.scaleMax)});
   }
 

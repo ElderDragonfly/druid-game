@@ -45,10 +45,10 @@ export async function testWolfPack(page,ok) {
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,old=world.wolves.slice(0,2);
     old.forEach(w=>w.takeDamage(2));world.update(1820);
-    return world.wolves.length===18&&old.every(w=>!w.scene&&!w.shadow.scene)&&
-      world.wolves.slice(0,2).every(w=>w.actorState.health===2&&w.body.enable)&&
-      Math.hypot(world.wolves[0].x-world.wolves[1].x,world.wolves[0].y-world.wolves[1].y)>=100;
-  }),'Одновременная смерть двух волков заменяет только этих двоих и сохраняет численность стаи');
+    world.update(10000);
+    return world.wolves.length===16&&old.every(w=>!w.scene&&!w.shadow.scene)&&
+      world.wolves.every(w=>!old.includes(w));
+  }),'После смерти двух волков стая уменьшается с 18 до 16, новых волков не появляется');
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,nav=world.wolves[0].behavior.navigation;
     for(const w of world.wolves){w.setActive(false).setVelocity(0,0);w.body.enable=false;}

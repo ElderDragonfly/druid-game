@@ -5,6 +5,7 @@ export interface DruidState {
   maxHealth: number;
   speed: number;
   attackRate: number;
+  range: number;
   facing: Facing;
 }
 

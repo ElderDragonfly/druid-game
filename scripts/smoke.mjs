@@ -5,6 +5,7 @@ import { testDruidHits } from './druid-hit-smoke.mjs';
 import { testAcornAttack } from './acorn-smoke.mjs';
 import { testWolfCombat } from './wolf-combat-smoke.mjs';
 import { testWolfPack } from './wolf-pack-smoke.mjs';
+import { testAcornRange } from './acorn-range-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -1926,6 +1927,7 @@ try {
   await testDruidHits(page, ok);
   await testAcornAttack(page, ok);
   await testWolfCombat(page, ok);
+  await testAcornRange(page, ok);
   await testWolfPack(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
