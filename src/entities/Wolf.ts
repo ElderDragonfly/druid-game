@@ -16,8 +16,8 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
   readonly behavior: WolfBehavior;
   get actorState() { return this.behavior.actorState; }
   readonly shadow: Phaser.GameObjects.Image;
-  private treeCollider: Phaser.Physics.Arcade.Collider;
-  private playerCollider: Phaser.Physics.Arcade.Collider;
+  private treeCollider?: Phaser.Physics.Arcade.Collider;
+  private playerCollider?: Phaser.Physics.Arcade.Collider;
   private previous: WolfPoint;
   private animation: WolfAnimation = 'idle';
   private clock = 0;
@@ -54,6 +54,8 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
     if (this.dying) {
       this.hitElapsed = undefined; this.deathElapsed = 0;
       (this.body as Phaser.Physics.Arcade.Body).enable = false;
+      this.treeCollider?.destroy(); this.playerCollider?.destroy();
+      this.treeCollider = undefined; this.playerCollider = undefined;
       this.showFrame('death', 0);
     } else {
       // Pause the existing AI/attack clock, rather than restart its active frame.

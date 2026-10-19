@@ -90,6 +90,7 @@ try {
     const preserved = await Promise.all(variants.map(async art => {
       const image = new Image(); image.src = art.id === 'pine-dark-green'
         ? '/docs/art/pine-preview-v1/pine-dark-green.png'
+        : art.id === 'broadleaf' ? '/docs/art/broadleaf-tree-v1/broadleaf.png'
         : `/docs/art/conifer-trees-v1/sprites/${art.id}.png`; await image.decode();
       const texture = game.textures.get(art.texture), frame = texture.get(art.frame);
       const canvas = document.createElement('canvas'); canvas.width = art.width; canvas.height = art.height;
@@ -105,7 +106,7 @@ try {
     return { count: preserved.length, preserved: preserved.every(Boolean),
       oldTreesAbsent: !['meadow-tree-0','meadow-tree-1','meadow-tree-2','meadow-stump','meadow-bush-0','meadow-bush-1','meadow-bush-2','forest-rocks'].some(key => game.textures.exists(key)) };
   });
-  ok(forestArt.count === 5 && forestArt.preserved, 'Одобренная сосна и четыре архивных дерева совпадают с PNG; фильтр NEAREST');
+  ok(forestArt.count === 6 && forestArt.preserved, 'Сосна, новое лиственное и четыре архивных дерева совпадают с PNG; фильтр NEAREST');
   ok(forestArt.oldTreesAbsent, 'Камни, старые деревья, кусты и пень не загружаются');
   const mainBackground = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('MainMenu');
@@ -734,9 +735,23 @@ try {
     const { generateMeadow, obstacleRect, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
     const { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL } = await import('/src/data/environment.ts');
     const archivedPool = ENVIRONMENT_VARIANTS.tree.filter(art => !TREE_SPAWN_POOL.includes(art.id)).map(art => art.id);
-    const activePinesOnly = TREE_SPAWN_POOL.join() === 'pine-dark-green' && Array.from({ length: 200 }, (_, seed) => generateMeadow(seed))
-      .every(layout => layout.counts.trees >= 56 && layout.counts.trees <= 79 && layout.obstacles.length === layout.counts.trees &&
-        layout.obstacles.every(object => ENVIRONMENT_VARIANTS.tree[object.variant].id === 'pine-dark-green'));
+    let pineCount=0,broadleafCount=0;
+    const activeTreesOnly = TREE_SPAWN_POOL.join() === 'pine-dark-green,broadleaf' && Array.from({ length: 200 }, (_, seed) => generateMeadow(seed))
+      .every(layout => {
+        const ids=layout.obstacles.map(object=>ENVIRONMENT_VARIANTS.tree[object.variant].id);
+        pineCount+=ids.filter(id=>id==='pine-dark-green').length;
+        broadleafCount+=ids.filter(id=>id==='broadleaf').length;
+        return layout.counts.trees >= 70 && layout.counts.trees <= 99 && layout.obstacles.length === layout.counts.trees &&
+          ids.every(id=>TREE_SPAWN_POOL.includes(id))&&ids.includes('pine-dark-green')&&ids.includes('broadleaf')&&
+          JSON.stringify(layout)===JSON.stringify(generateMeadow(layout.seed))&&
+          layout.obstacles.every((object,i)=>{
+            const r=obstacleRect(object),v=obstacleVisualRect(object);
+            const spawn={x:layout.spawn.x-64,y:layout.spawn.y-58,width:128,height:128};
+            return v.x>=0&&v.y>=0&&v.x+v.width<=layout.width&&v.y+v.height<=layout.height&&
+              !overlaps(v,spawn)&&!overlaps(r,spawn,16)&&
+              layout.obstacles.slice(i+1).every(other=>!overlaps(r,obstacleRect(other),27));
+          });
+      });
     const emptyPoolSupported = generateMeadow(123, []).obstacles.length === 0;
     const failures = []; const treeCounts = new Set();
     const treeVariants = new Set();
@@ -749,7 +764,7 @@ try {
       interiorTrees += trees.filter(o => o.x > width * 0.25 && o.x < width * 0.75 &&
         o.y > height * 0.25 && o.y < height * 0.75).length;
       const spawn = { x: layout.spawn.x - 10, y: layout.spawn.y - 2.5, width: 20, height: 25 };
-      if (width !== 3840 || height !== 2160 || trees.length < 56 || trees.length > 79 ||
+      if (width !== 3840 || height !== 2160 || trees.length < 70 || trees.length > 99 ||
         trees.length !== layout.counts.trees ||
         layout.obstacles.length !== trees.length || layout.spawn.x !== width / 2 || layout.spawn.y !== height / 2 ||
         layout.obstacles.some((object, i) => {
@@ -758,16 +773,16 @@ try {
             layout.obstacles.slice(i + 1).some(other => overlaps(r, obstacleRect(other), 27));
         })) failures.push(seed);
     }
-    return { failures, activePinesOnly, emptyPoolSupported, treeVariants: [...treeVariants].sort((a,b) => a-b),
+    return { failures, activeTreesOnly, pineFraction:pineCount/(pineCount+broadleafCount),emptyPoolSupported, treeVariants: [...treeVariants].sort((a,b) => a-b),
       treeCounts: [...treeCounts].sort((a, b) => a - b),
       interiorFraction: interiorTrees / totalTrees,
       repeatable: JSON.stringify(generateMeadow(123, archivedPool)) === JSON.stringify(generateMeadow(123, archivedPool)),
       different: JSON.stringify(generateMeadow(123, archivedPool).obstacles) !== JSON.stringify(generateMeadow(124, archivedPool).obstacles),
     };
   });
-  ok(generation.activePinesOnly && generation.emptyPoolSupported, '200 живых планировок: только одобренная сосна, 56–79 дерева; пустой пул также поддерживается');
-  ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 56–79 дерева, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
-  ok(generation.treeCounts.join() === Array.from({ length: 24 }, (_, i) => i + 56).join(),
+  ok(generation.activeTreesOnly && generation.emptyPoolSupported && generation.pineFraction>.47 && generation.pineFraction<.53, '200 живых планировок: 70–99 деревьев, сосна и лиственное вперемешку с равной вероятностью; безопасные стволы/границы/старт и воспроизводимый seed');
+  ok(generation.failures.length === 0, `2000 архивных планировок при явном включении: 70–99 деревьев, безопасный центр и непересекающиеся препятствия (${generation.failures})`);
+  ok(generation.treeCounts.join() === Array.from({ length: 30 }, (_, i) => i + 70).join(),
     'Генерация использует все допустимые количества деревьев, включая границы диапазонов');
   ok(generation.interiorFraction > 0.2 && generation.interiorFraction < 0.35,
     'Деревья распределены и внутри локации, без прежнего уплотнения только по краям');
@@ -1891,9 +1906,10 @@ try {
   await restart();
   const regenerated = await state();
   ok(regenerated.layout.seed !== oldSeed && await floorSignature() !== oldFloor &&
-    regenerated.layout.counts.trees >= 56 && regenerated.layout.counts.trees <= 79 &&
-    regenerated.obstacles.every(object => object.texture === 'forest-pine'),
-    'R меняет случайную подстилку и размещение сосен; архивные деревья остаются выключены');
+    regenerated.layout.counts.trees >= 70 && regenerated.layout.counts.trees <= 99 &&
+    regenerated.obstacles.every(object => ['forest-pine','forest-broadleaf'].includes(object.texture)) &&
+    ['forest-pine','forest-broadleaf'].every(texture=>regenerated.obstacles.some(object=>object.texture===texture)),
+    'R меняет случайную подстилку и размещение двух пород деревьев; архивные деревья остаются выключены');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');
 
   const beforeResize = await state();

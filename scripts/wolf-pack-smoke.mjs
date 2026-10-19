@@ -46,9 +46,10 @@ export async function testWolfPack(page,ok) {
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,old=world.wolves.slice(0,2);
     old.forEach(w=>w.takeDamage(2));world.update(1820);
     world.update(10000);
-    return world.wolves.length===16&&old.every(w=>!w.scene&&!w.shadow.scene)&&
+    return world.wolves.length===16&&world.corpses.length===2&&
+      old.every(w=>w.scene===s&&w.shadow.scene===s&&!w.active&&!w.body.enable&&w.visible&&w.frame.name==='6')&&
       world.wolves.every(w=>!old.includes(w));
-  }),'После смерти двух волков стая уменьшается с 18 до 16, новых волков не появляется');
+  }),'После смерти двух волков остаются 16 живых и два неподвижных трупа с тенями; новых волков нет');
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,nav=world.wolves[0].behavior.navigation;
     for(const w of world.wolves){w.setActive(false).setVelocity(0,0);w.body.enable=false;}

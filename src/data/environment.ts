@@ -1,5 +1,6 @@
 import conifers from '../../docs/art/conifer-trees-v1/sprites.json';
 import pine from '../assets/environment/pine.json';
+import broadleaf from '../../docs/art/broadleaf-tree-v1/sprite.json';
 
 export type EnvironmentKind = 'tree';
 export interface EnvironmentVariant {
@@ -20,12 +21,12 @@ export const ENVIRONMENT_VARIANTS: Record<EnvironmentKind, readonly EnvironmentV
     id: sprite.id, texture: 'forest-trees', frame: sprite.id, width: sprite.width, height: sprite.height,
     scale: conifers.scale, anchorX: sprite.anchorX, anchorY: sprite.anchorY,
     bodyWidth: Math.round(sprite.baseWidth * conifers.scale), bodyHeight: Math.round(sprite.baseHeight * conifers.scale),
-  })), pine],
+  })), pine, broadleaf.sprite],
 
 };
 
-// Previous variants remain archived; only the approved dark-green pine is active.
-export const TREE_SPAWN_POOL: readonly string[] = [pine.id];
+// Each placement draws equally from these two sprites; older trees stay archived.
+export const TREE_SPAWN_POOL: readonly string[] = [pine.id, broadleaf.sprite.id];
 
 export function environmentVariant(kind: EnvironmentKind, variant: number) {
   const result = ENVIRONMENT_VARIANTS[kind][variant];

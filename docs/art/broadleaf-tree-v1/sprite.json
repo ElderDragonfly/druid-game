@@ -1,0 +1,28 @@
+{
+  "source": "docs/art/4e86ea700a01cfabe8102492566677b2.jpg",
+  "sourceCrop": [
+    105,
+    45,
+    545,
+    759
+  ],
+  "backgroundRGB": [
+    130,
+    114,
+    101
+  ],
+  "exteriorTolerance": 42,
+  "preservesOpaqueRGB": true,
+  "sprite": {
+    "id": "broadleaf",
+    "texture": "forest-broadleaf",
+    "width": 440,
+    "height": 714,
+    "scale": 0.375,
+    "anchorX": 227,
+    "anchorY": 712,
+    "bodyWidth": 36,
+    "bodyHeight": 18,
+    "bodyInsetBottom": 14
+  }
+}

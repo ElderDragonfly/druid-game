@@ -19,6 +19,7 @@ export class MeadowWorld {
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
+  readonly corpses: Wolf[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
@@ -72,7 +73,9 @@ export class MeadowWorld {
       if(this.player?.dead)break;
       const wolf=this.wolves[index];wolf.updateBehavior(delta);
       if(wolf.deathFinished) {
-        wolf.destroy();
+        wolf.setActive(false).setName('wolf-corpse');
+        wolf.shadow.setName('wolf-corpse-shadow');
+        this.corpses.push(wolf);
         this.wolves.splice(index,1);
       }
     }
@@ -80,6 +83,7 @@ export class MeadowWorld {
 
   destroy() {
     this.wolves.forEach(wolf=>wolf.destroy());this.wolves.length=0;
+    this.corpses.forEach(wolf=>wolf.destroy());this.corpses.length=0;
     this.mice.forEach(mouse => mouse.destroy());
     this.collider?.destroy();
     this.obstacles.clear(true, true);

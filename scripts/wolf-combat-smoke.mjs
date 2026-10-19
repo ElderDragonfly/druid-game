@@ -60,7 +60,7 @@ export async function testWolfCombat(page, ok) {
   ok(await page.evaluate(old=>old.actorState.health===0&&!old.body.enable&&old.body.velocity.length()===0&&
     !old.takeDamage(1)&&old.texture.key==='wolf-death',oldWolf),
   'Второй жёлудь запускает смерть: HP 0, нет движения/коллизии и повторного урона');
-  await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.wolves[0]!==old,oldWolf);
+  await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.corpses.includes(old),oldWolf);
   await page.waitForFunction(()=>{
     const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+1;
   });
@@ -68,11 +68,13 @@ export async function testWolfCombat(page, ok) {
     const s=window.__smokeGame.scene.getScene('Room');
     s.events.off('postupdate',window.__combatObserver);
     s.world.update(10000);
-    return window.__wolfCombat.deathFrames.size===7&&!old.scene&&!old.shadow.scene&&
-      s.world.wolves.length===0&&s.children.list.filter(o=>o.name==='wolf').length===0&&
-      s.children.list.filter(o=>o.name==='wolf-shadow').length===0;
-  },oldWolf),'Все 7 кадров смерти проиграны один раз; волк, тень и коллайдеры удалены без появления замены');
-  await oldWolf.dispose();
+    return window.__wolfCombat.deathFrames.size===7&&old.scene===s&&old.shadow.scene===s&&
+      !old.active&&old.visible&&old.shadow.visible&&!old.body.enable&&old.frame.name==='6'&&
+      old.x===window.__combatFixture.x+300&&old.y===window.__combatFixture.y&&
+      s.world.wolves.length===0&&s.world.corpses.length===1&&
+      s.children.list.filter(o=>o.name==='wolf-corpse').length===1&&
+      s.children.list.filter(o=>o.name==='wolf-corpse-shadow').length===1;
+  },oldWolf),'Все 7 кадров смерти проиграны один раз; труп с тенью остаётся на месте и через 10 секунд, без коллизии и замены');
 
   // A fresh run supplies the next test enemy; the game no longer respawns one.
   const priorPlayer=await page.evaluateHandle(()=>{
@@ -80,6 +82,10 @@ export async function testWolfCombat(page, ok) {
   });
   await page.waitForFunction(p=>window.__smokeGame.scene.getScene('Room').player!==p,priorPlayer);
   await priorPlayer.dispose();await isolateSingleWolf(page);
+  ok(await page.evaluate(old=>!old.scene&&!old.shadow.scene&&
+    window.__smokeGame.scene.getScene('Room').world.corpses.length===0,oldWolf),
+  'Новая поляна очищает трупы и их тени предыдущего забега');
+  await oldWolf.dispose();
 
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,w=s.world.wolves[0];
