@@ -8,6 +8,12 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/art/4e86ea700a01cfabe8102492566677b2.jpg'
 OUTPUT = ROOT / 'docs/art/broadleaf-tree-v1'
+# Verified enclosed backdrop patches under the lower canopy, in source pixels.
+# Explicit seeds avoid treating similarly coloured bark elsewhere as background.
+INTERIOR_BACKGROUND_SEEDS = (
+    (226, 538), (244, 536), (267, 547), (271, 551), (276, 563), (292, 577),
+    (363, 600), (372, 597), (378, 592), (399, 591), (418, 576),
+)
 
 
 def prepare():
@@ -53,6 +59,17 @@ def prepare():
         for x in range(width):
             if rgba[x, y][3] and (x, y) not in connected:
                 rgba[x, y] = (0, 0, 0, 0)
+    # Flood only the individually inspected beige gaps. Do this after the
+    # silhouette cleanup, so opening a gap never prunes neighbouring twigs.
+    queue = deque(INTERIOR_BACKGROUND_SEEDS)
+    while queue:
+        x, y = queue.popleft()
+        if not (0 <= x < width and 0 <= y < height) or not rgba[x, y][3]:
+            continue
+        if sum((a - b) ** 2 for a, b in zip(pixels[x, y], background)) > 42 ** 2:
+            continue
+        rgba[x, y] = (0, 0, 0, 0)
+        queue.extend(((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)))
     bounds = result.getbbox()
     result = result.crop(bounds)
     OUTPUT.mkdir(exist_ok=True)
@@ -60,6 +77,7 @@ def prepare():
     metadata = {
         'source': str(SOURCE.relative_to(ROOT)), 'sourceCrop': list(bounds),
         'backgroundRGB': list(background), 'exteriorTolerance': 42,
+        'interiorBackgroundSeeds': [list(point) for point in INTERIOR_BACKGROUND_SEEDS],
         'preservesOpaqueRGB': True,
         'sprite': {
             'id': 'broadleaf', 'texture': 'forest-broadleaf',
