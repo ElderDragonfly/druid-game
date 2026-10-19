@@ -11,7 +11,11 @@ export const SELECTION_CAMP_ART = [
 /** Environment only: it remains behind every selectable character. */
 export function addSelectionCampPlate(scene: Phaser.Scene) {
   scene.add.image(CAMP_DRUID.position.x, CAMP_DRUID.position.y, 'selection-camp-plate')
-    .setName('selection-camp-plate').setOrigin(0).setScale(CAMP_DRUID.scale);
+    .setName('selection-camp-plate').setOrigin(0).setScale(CAMP_DRUID.scale)
+    // The retained reference includes a flat footer from its old preview at
+    // y=844..863. Reveal the full-window forest underneath, without moving or
+    // stretching the camp, character or staff to compensate for that footer.
+    .setCrop(0, 0, CAMP_DRUID.width, 844);
 }
 
 export function prepareSelectionCampTextures(scene: Phaser.Scene) {

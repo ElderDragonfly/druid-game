@@ -41,6 +41,12 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
     await clickNamed('Settings','settings-back');await waitScene('MainMenu');
     await clickNamed('MainMenu','play');await waitScene('CharacterSelect');
     await check('CharacterSelect',viewport.width,viewport.height);
+    ok(await page.evaluate(()=>{
+      const s=window.__smokeGame.scene.getScene('CharacterSelect'),plate=s.children.getByName('selection-camp-plate');
+      // Full source stays intact; only the baked preview footer is excluded.
+      return plate.isCropped&&plate._crop.x===0&&plate._crop.y===0&&plate._crop.width===696&&plate._crop.height===844&&
+        plate.x===525&&plate.y===50&&plate.scaleX===.625&&plate.texture.getSourceImage().height===864;
+    }),`Выбор ${viewport.width}×${viewport.height}: полоса старого предпросмотра скрыта, положение и масштаб лагеря сохранены`);
     await clickNamed('CharacterSelect','character-druid');
     ok(await page.evaluate(()=>{
       const s=window.__smokeGame.scene.getScene('CharacterSelect'),ui=s.cameras.getCamera('menu-ui');
