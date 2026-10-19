@@ -14,7 +14,7 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
       const bounds=bg.getBounds();
       const project=(x,y,camera)=>({x:(x-camera.worldView.x)*camera.zoom,y:(y-camera.worldView.y)*camera.zoom});
       const tl=project(bounds.left,bounds.top,c),br=project(bounds.right,bounds.bottom,c);
-      const buttons=s.children.list.filter(o=>o.name==='play'||o.name==='exit'||o.name==='back'||o.name==='continue-run'||o.name==='music-toggle'||
+      const buttons=s.children.list.filter(o=>o.name==='play'||o.name==='exit'||o.name==='back'||o.name==='continue-run'||o.name==='music-toggle'||o.name==='music-volume'||
         o.name==='start-run'||o.name.startsWith('character-'));
       const controls=buttons.every(button=>{
         const r=button.getBounds(),a=project(r.left,r.top,ui),b=project(r.right,r.bottom,ui);

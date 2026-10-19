@@ -4,6 +4,7 @@ import mp3 from '../../docs/audio/forest-camp-v1/forest-camp-loop.mp3';
 
 export const MENU_MUSIC = { key: 'forest-camp-music', urls: [ogg, mp3] };
 const PREFERENCE_KEY = 'druid-game.music-enabled.v1';
+const VOLUME_KEY = 'druid-game.music-volume.v1';
 type Track = Phaser.Sound.WebAudioSound | Phaser.Sound.HTML5AudioSound | Phaser.Sound.NoAudioSound;
 const controllers = new WeakMap<Phaser.Game, MenuMusic>();
 
@@ -11,12 +12,19 @@ const controllers = new WeakMap<Phaser.Game, MenuMusic>();
 export class MenuMusic extends Phaser.Events.EventEmitter {
   readonly track: Track;
   enabled = true;
+  volume = .8;
   private inMenu = false;
 
   constructor(game: Phaser.Game) {
     super();
     try { this.enabled = localStorage.getItem(PREFERENCE_KEY) !== 'false'; } catch { /* Session preference still works. */ }
-    this.track = game.sound.add(MENU_MUSIC.key, { loop: true, volume: .8 }) as Track;
+    try {
+      const stored = localStorage.getItem(VOLUME_KEY);
+      const volume = stored === null ? NaN : Number(stored);
+      if (Number.isFinite(volume) && volume >= 0 && volume <= 1) this.volume = volume;
+    } catch { /* Keep the existing default if storage is unavailable. */ }
+    this.track = game.sound.add(MENU_MUSIC.key, { loop: true, volume: this.volume }) as Track;
+    this.track.setVolume(this.volume);
     const unlock = () => this.sync();
     game.sound.on(Phaser.Sound.Events.UNLOCKED, unlock);
     game.events.once(Phaser.Core.Events.DESTROY, () => {
@@ -31,6 +39,15 @@ export class MenuMusic extends Phaser.Events.EventEmitter {
     this.enabled = !this.enabled;
     try { localStorage.setItem(PREFERENCE_KEY, String(this.enabled)); } catch { /* No storage must not break audio. */ }
     this.sync(); this.emit('changed');
+  }
+
+  setVolume(value: number) {
+    if (!Number.isFinite(value)) return;
+    const volume = Math.round(Phaser.Math.Clamp(value, 0, 1) * 100) / 100;
+    if (volume === this.volume) return;
+    this.volume = volume; this.track.setVolume(volume);
+    try { localStorage.setItem(VOLUME_KEY, String(volume)); } catch { /* Session volume still works. */ }
+    this.emit('changed');
   }
 
   private sync() {

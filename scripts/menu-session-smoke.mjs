@@ -1,3 +1,4 @@
+import { testMusicVolume } from './music-volume-smoke.mjs';
 /** Real audio graph, persistent preference and a whole saved/continued run. */
 export async function testMenuSession(page, ok) {
   const wait = key => page.waitForFunction(key => {
@@ -34,14 +35,19 @@ export async function testMenuSession(page, ok) {
   ok(await page.evaluate(()=>window.__smokeGame.sound.get('forest-camp-music')===window.__menuTrack&&
     window.__menuTrack.isPlaying&&window.__musicPlays===0),
   'В аудиографе есть сигнал; переход в выбор персонажа продолжает тот же трек без перезапуска');
+  await testMusicVolume(page,ok);
   for(const viewport of [{width:1280,height:720},{width:720,height:900},{width:1920,height:540}]) {
     await page.setViewportSize(viewport);await page.waitForTimeout(80);
     ok(await page.evaluate(()=>{
       const s=window.__smokeGame.scene.getScene('CharacterSelect'),b=s.children.getByName('music-toggle'),c=s.cameras.getCamera('menu-ui');
-      return Math.abs((b.x-c.worldView.x)*c.zoom-(s.scale.width-40))<1&&
+      const volume=s.children.getByName('music-volume');
+      return Math.abs((volume.x-c.worldView.x)*c.zoom-(s.scale.width-164))<1&&
+        Math.abs((volume.y-c.worldView.y)*c.zoom-(s.scale.height-40))<1&&Math.abs(volume.scaleX*c.zoom-1)<.001&&
+        !!(volume.cameraFilter&s.cameras.main.id)&&!(volume.cameraFilter&c.id)&&
+        Math.abs((b.x-c.worldView.x)*c.zoom-(s.scale.width-40))<1&&
         Math.abs((b.y-c.worldView.y)*c.zoom-(s.scale.height-40))<1&&Math.abs(b.scaleX*c.zoom-1)<.001&&
         !!(b.cameraFilter&s.cameras.main.id)&&!(b.cameraFilter&c.id);
-    }),`Динамик закреплён справа снизу и виден один раз при ${viewport.width}×${viewport.height}`);
+    }),`Динамик и ползунок закреплены справа снизу и видны один раз при ${viewport.width}×${viewport.height}`);
   }
   await page.setViewportSize({width:1100,height:820});await page.waitForTimeout(80);
   await click('CharacterSelect','music-toggle');
@@ -51,6 +57,10 @@ export async function testMenuSession(page, ok) {
   ok(await page.evaluate(()=>!window.__smokeGame.sound.get('forest-camp-music').isPlaying&&
     window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('music-toggle').getData('musicEnabled')===false),
   'Выключенная музыка остаётся выключенной после перезагрузки и перехода между меню');
+  await page.waitForFunction(()=>Math.abs(window.__smokeGame.sound.get('forest-camp-music').volume-.37)<.001);
+  ok(await page.evaluate(()=>Math.abs(window.__smokeGame.sound.get('forest-camp-music').volume-.37)<.001&&
+    window.__smokeGame.scene.getScene('CharacterSelect').children.getByName('music-volume').getByName('music-volume-label').text==='37%'),
+  'После перезагрузки и выключения музыки выбранные 37% сохранены');
   await click('CharacterSelect','music-toggle');
   await page.waitForFunction(()=>window.__smokeGame.sound.get('forest-camp-music').isPlaying);
   await page.evaluate(()=>window.__smokeGame.scene.getScene('CharacterSelect').scene.start('Room',{seed:0}));await wait('Room');
