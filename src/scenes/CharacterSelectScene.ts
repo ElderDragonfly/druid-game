@@ -4,7 +4,7 @@ import { addSelectionCampPlate } from '../rendering/selectionCampArt';
 import { CHARACTERS } from '../data/characters';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
-import { addCampBackground, addMenuHint, bindSceneKey } from '../ui/sceneHelpers';
+import { addCampBackground, addMenuHint, bindSceneKey, markMenuScenery, setupMenuCameras } from '../ui/sceneHelpers';
 import { SCENES } from './keys';
 
 export class CharacterSelectScene extends Phaser.Scene {
@@ -25,6 +25,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     addCampBackground(this, 'selection-camp', layout.backgroundPixelScale);
     addSelectionCampPlate(this);
     new CampAtmosphere(this);
+    markMenuScenery(this,[...this.children.list]);
     const p = layout.panel;
     this.add.rectangle(p.x, p.y, p.width, p.height, 0x0d1b14, 0.87).setStrokeStyle(1, 0x44563f);
     this.add.text(70, 125, 'Выбор персонажа', {
@@ -70,6 +71,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-ESC', back);
     bindSceneKey(this, 'keyup-ENTER', start);
     addMenuHint(this, 'Enter — начать · Esc — назад');
+    setupMenuCameras(this);
   }
 
   chooseCharacter(id: string) {
@@ -86,6 +88,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       .setOrigin(prop.originX ?? character.camp!.originX, prop.originY ?? character.camp!.originY)
       .setScale(prop.scale ?? character.camp!.scale).setAngle(prop.angle ?? 0).setDepth(1)
       .setName(`selected-character-prop-${index}`).setData('characterId', character.id));
+    markMenuScenery(this,[this.campPreview,...this.campProps]);
     this.nameLabel.setText(character.name);
     this.descriptionLabel.setText(character.description+
       (character.stats ? ` · Дальность: ${character.stats.range}` : ''));

@@ -121,9 +121,9 @@ export async function testWolfPack(page,ok) {
   await oldPlayer.dispose();
   await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').player.takeDamage(3));
   await page.keyboard.press('Escape');
-  await page.waitForFunction(()=>window.__smokeGame.scene.isActive('CharacterSelect'));
+  await page.waitForFunction(()=>window.__smokeGame.scene.isActive('CharacterSelect')&&!window.__smokeGame.scene.isActive('Room'));
   ok(true,'Esc после гибели возвращает к выбору персонажа');
-  await page.evaluate(()=>window.__smokeGame.scene.start('Room',{seed:3}));
+  await page.evaluate(()=>window.__smokeGame.scene.getScene('CharacterSelect').scene.start('Room',{seed:3}));
   await page.waitForFunction(()=>{
     const s=window.__smokeGame.scene.getScene('Room');return s.sys.isActive()&&s.layout.seed===3&&s.world.wolves.length===0;
   });

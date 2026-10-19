@@ -6,6 +6,7 @@ import { testAcornAttack } from './acorn-smoke.mjs';
 import { testWolfCombat } from './wolf-combat-smoke.mjs';
 import { testWolfPack } from './wolf-pack-smoke.mjs';
 import { testAcornRange } from './acorn-range-smoke.mjs';
+import { testMenuWindow } from './menu-window-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -63,7 +64,7 @@ try {
       const scene = game.scene.getScene(key);
       const object = scene.children.getByName(id);
       const canvas = game.canvas.getBoundingClientRect();
-      const camera = scene.cameras.main;
+      const camera = scene.cameras.getCamera('menu-ui') ?? scene.cameras.main;
       return {
         x: canvas.left + (camera.x + (object.x - camera.worldView.x) * camera.zoom) * canvas.width / game.scale.width,
         y: canvas.top + (camera.y + (object.y - camera.worldView.y) * camera.zoom) * canvas.height / game.scale.height,
@@ -239,6 +240,7 @@ try {
     'Портрет Basic 04 копирует утверждённые пиксели и помещается в карточку без перекраски');
   ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
   await testCampAtmosphere(page, ok, clickNamed, waitScene);
+  await testMenuWindow(page, ok, clickNamed, waitScene);
   for (const id of ['character-locked-1', 'character-locked-2']) {
     await clickNamed('CharacterSelect', id);
     ok((await selection()).id === 'druid' && (await activeScenes()).join() === 'CharacterSelect', `Закрытую ячейку нельзя выбрать: ${id}`);

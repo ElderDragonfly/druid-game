@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
-import { addCampBackground, addMenuHint, bindSceneKey } from '../ui/sceneHelpers';
+import { addCampBackground, addMenuHint, bindSceneKey, setupMenuCameras } from '../ui/sceneHelpers';
 import { SCENES } from './keys';
 
 export class MainMenuScene extends Phaser.Scene {
@@ -19,5 +19,6 @@ export class MainMenuScene extends Phaser.Scene {
     });
     bindSceneKey(this, 'keyup-ENTER', play);
     addMenuHint(this, 'Enter — играть');
+    setupMenuCameras(this);
   }
 }
