@@ -6,6 +6,7 @@ import { wolfDurations, type WolfAnimation } from '../rendering/wolfArt';
 import type { Druid } from './Druid';
 import { createDruidWolfCollider } from '../physics/wolfContact';
 import type { Damageable } from '../combat/Damageable';
+import type { WolfSave } from '../persistence/snapshots';
 
 const HIT_DURATION = WOLF.combat.hitFrameDurations.reduce((sum, ms) => sum + ms, 0);
 const HIT_POSES: readonly [WolfAnimation, number][] = [['idle', 0], ['death', 0], ['death', 1], ['death', 0], ['idle', 0]];
@@ -121,6 +122,38 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
     let frame = 0;
     while (frame < durations.length - 1 && elapsed >= durations[frame]) elapsed -= durations[frame++];
     return frame;
+  }
+
+  snapshot(corpse = false): WolfSave {
+    return { x: this.x, y: this.y, state: { ...this.actorState, target: { ...this.actorState.target } },
+      timers: this.behavior.snapshotTimers(), animation: this.animation, clock: this.clock,
+      hitElapsed: this.hitElapsed ?? null, deathElapsed: this.deathElapsed,
+      attackConnected: this.attackConnected, corpse };
+  }
+
+  restore(saved: WolfSave) {
+    if (saved.state.health === 0) this.takeDamage(this.actorState.health);
+    Object.assign(this.actorState, saved.state, { target: { ...saved.state.target } });
+    this.behavior.restoreTimers(saved.timers);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.reset(saved.x, saved.y); body.updateFromGameObject();
+    body.prev.copy(body.position); body.prevFrame.copy(body.position);
+    this.previous = { x: saved.x, y: saved.y };
+    this.animation = saved.animation; this.clock = saved.clock;
+    this.hitElapsed = saved.hitElapsed ?? undefined; this.deathElapsed = saved.deathElapsed;
+    this.attackConnected = saved.attackConnected; this.setFlipX(saved.state.facingLeft);
+    if (this.dying) {
+      (this.body as Phaser.Physics.Arcade.Body).enable = false;
+      this.showFrame('death', this.frameAt(this.deathElapsed, wolfDurations('death')));
+    } else if (this.hitElapsed !== undefined) this.showFrame(...HIT_POSES[this.frameAt(this.hitElapsed, WOLF.combat.hitFrameDurations)]);
+    else {
+      const animation = this.actorState.phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') : this.animation;
+      const durations = wolfDurations(animation), total = durations.reduce((sum, value) => sum + value, 0);
+      this.showFrame(animation, this.frameAt(this.actorState.phase === 'attack' ? this.actorState.elapsed : this.clock % total, durations));
+    }
+    if (saved.corpse) {
+      this.setActive(false).setName('wolf-corpse'); this.shadow.setName('wolf-corpse-shadow');
+    }
   }
 
   private showFrame(animation: WolfAnimation, frame: number) {

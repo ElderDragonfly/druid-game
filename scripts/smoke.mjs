@@ -7,6 +7,7 @@ import { testWolfCombat } from './wolf-combat-smoke.mjs';
 import { testWolfPack } from './wolf-pack-smoke.mjs';
 import { testAcornRange } from './acorn-range-smoke.mjs';
 import { testMenuWindow } from './menu-window-smoke.mjs';
+import { testMenuSession } from './menu-session-smoke.mjs';
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -293,6 +294,8 @@ try {
       scene.player.body.width === 20 && scene.player.body.height === 25;
   }), 'Игровая комната использует спрайт и масштаб выбранного персонажа из его данных');
   await page.keyboard.press('Escape');
+  await waitScene('MainMenu');
+  await clickNamed('MainMenu', 'play');
   await waitScene('CharacterSelect');
   const fixtureCard = await page.evaluateHandle(() => {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');
@@ -1322,6 +1325,7 @@ try {
     await Promise.all(keys.map(key => page.keyboard.up(key)));
     const idle = await waitState(s => !s.animationPlaying && s.frame === direction && s.vx === 0 && s.vy === 0);
     ok(idle.facing === direction, `${direction}: остановка использует отдельную устойчивую позу`);
+    await page.evaluate(() => window.__smokeGame.events.emit('focus'));
   }
 
   for (const [key, direction] of [['a', 'left'], ['d', 'right']]) {
@@ -1883,6 +1887,7 @@ try {
   await page.evaluate(() => window.__smokeGame.events.emit('blur'));
   ok(!(await castState()).active && (await castState()).playerVisible, 'Потеря фокуса отменяет жест и сбрасывает ввод');
   await page.keyboard.up('ArrowLeft');
+  await page.evaluate(() => window.__smokeGame.events.emit('focus'));
   await page.keyboard.down('ArrowDown'); await waitCast(s => s.active);
   const oldCast = await page.evaluateHandle(() => window.__smokeGame.scene.getScene('Room').player.castVisual);
   await restart(); await page.keyboard.up('ArrowDown');
@@ -1925,18 +1930,18 @@ try {
       'Изменение окна сохраняет seed, препятствия, размеры мира и положение героя');
   }
   await page.keyboard.press('Escape');
+  await waitScene('MainMenu');
+  ok((await activeScenes()).join() === 'MainMenu', 'Esc из живого забега сохраняет его и возвращает в главное меню');
+  await clickNamed('MainMenu', 'play');
   await waitScene('CharacterSelect');
-  ok((await activeScenes()).join() === 'CharacterSelect', 'Esc возвращает в лагерь');
   for (let run = 0; run < 3; run++) {
     await page.keyboard.press('Enter');
     await waitScene('Room');
     assertMeadow(await state());
     await page.keyboard.press('Escape');
-    await waitScene('CharacterSelect');
+    await waitScene('MainMenu');
     ok(await page.evaluate(() => !window.__smokeGame.textures.exists('grass-foreground')),
       `Выход из поляны освобождает текстуру передней травы: ${run + 1}`);
-    await clickNamed('CharacterSelect', 'back');
-    await waitScene('MainMenu');
     await clickNamed('MainMenu', 'play');
     await waitScene('CharacterSelect');
     ok((await activeScenes()).join() === 'CharacterSelect', `Повторные переходы без лишних сцен: ${run + 1}`);
@@ -1947,6 +1952,7 @@ try {
   await testWolfCombat(page, ok);
   await testAcornRange(page, ok);
   await testWolfPack(page, ok);
+  await testMenuSession(page, ok);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

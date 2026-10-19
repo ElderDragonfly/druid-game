@@ -1,4 +1,5 @@
 import type { Facing } from '../input/EightWayFacing';
+import type { HitSave } from '../persistence/snapshots';
 
 export const HIT_FRAME_DURATIONS = [40, 70, 120, 100, 70] as const;
 export const HIT_DURATION = HIT_FRAME_DURATIONS.reduce((sum, ms) => sum + ms, 0);
@@ -28,4 +29,6 @@ export class DruidHitReaction {
     return HIT_FRAME_DURATIONS.length - 1;
   }
   cancel() { this.active = false; this.elapsed = 0; }
+  snapshot(): HitSave { return { active: this.active, facing: this.facing, elapsed: this.elapsed }; }
+  restore(saved: HitSave) { this.active = saved.active; this.facing = saved.facing; this.elapsed = saved.elapsed; }
 }

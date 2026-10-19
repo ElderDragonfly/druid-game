@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { MOUSE } from '../data/mouse';
 import { MouseWander, type MousePoint } from '../behavior/MouseWander';
 import type { MeadowLayout } from '../world/meadowLayout';
+import type { MouseSave } from '../persistence/snapshots';
 
 export class Mouse extends Phaser.Physics.Arcade.Sprite {
   readonly definition = MOUSE;
@@ -39,5 +40,21 @@ export class Mouse extends Phaser.Physics.Arcade.Sprite {
     this.treeCollider?.destroy();
     this.shadow?.destroy();
     super.destroy(fromScene);
+  }
+
+  snapshot(): MouseSave {
+    return { x: this.x, y: this.y, state: { ...this.actorState, target: { ...this.actorState.target } },
+      runLimit: this.behavior.runTimeLimit, flipX: this.flipX, frameIndex: (this.anims.currentFrame?.index ?? 1) - 1 };
+  }
+
+  restore(saved: MouseSave) {
+    this.behavior.restore(saved.state, saved.runLimit);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.reset(saved.x, saved.y); body.updateFromGameObject();
+    body.prev.copy(body.position); body.prevFrame.copy(body.position);
+    this.setFlipX(saved.flipX).setDepth(this.y);
+    this.play({ key: `mouse-${saved.state.phase}`,
+      startFrame: Math.min(saved.frameIndex, this.scene.anims.get(`mouse-${saved.state.phase}`).frames.length - 1) });
+    this.shadow.setPosition(this.x, this.y - 1).setDepth(this.y - .1);
   }
 }

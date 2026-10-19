@@ -5,6 +5,7 @@ import type { Druid } from '../entities/Druid';
 import { projectileSpawn, sweptRect, worldExit, type Point } from '../physics/projectileSweep';
 import { facingVector } from '../input/EightWayFacing';
 import { isDamageable } from '../combat/Damageable';
+import type { ProjectileSave } from '../persistence/snapshots';
 
 interface Leaf {
   image: Phaser.GameObjects.Image; age: number; life: number;
@@ -23,6 +24,15 @@ export class AcornAttack {
   constructor(private readonly scene: Phaser.Scene, private readonly player: Druid,
     private readonly random: () => number = Math.random,
     private readonly onFlight: (from: Point,to: Point) => void = () => {}) {}
+
+  snapshot(): ProjectileSave[] { return this.shots.filter(shot => !!shot.scene).map(shot => shot.snapshot()); }
+
+  restore(shots: ProjectileSave[]) {
+    for (const saved of shots) {
+      const shot = new AcornProjectile(this.scene, this.player, saved.x, saved.y, saved.direction, saved.range);
+      shot.restore(saved); this.shots.push(shot);
+    }
+  }
 
   update(delta: number) {
     if(this.destroyed||this.player.dead)return;

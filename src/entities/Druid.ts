@@ -10,6 +10,7 @@ import { wolfContactBounds } from '../physics/wolfContact';
 import { ACORN } from '../data/acorn';
 import type { Damageable } from '../combat/Damageable';
 import { COMBAT_EVENTS } from '../combat/events';
+import type { DruidSave } from '../persistence/snapshots';
 
 export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
   readonly actorState: DruidState;
@@ -148,6 +149,20 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
     this.casting.cancel();
     this.castVisual.setVisible(false);
     this.setVisible(!this.hitReaction.active || !this.appearance.hits?.[this.hitReaction.facing]);
+  }
+
+  snapshot(): DruidSave {
+    return { x: this.x, y: this.y, state: { ...this.actorState },
+      cast: this.casting.snapshot(), hit: this.hitReaction.snapshot() };
+  }
+
+  restore(saved: DruidSave) {
+    Object.assign(this.actorState, saved.state);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.reset(saved.x, saved.y); body.updateFromGameObject();
+    body.prev.copy(body.position); body.prevFrame.copy(body.position);
+    this.casting.restore(saved.cast); this.hitReaction.restore(saved.hit);
+    this.updateAppearance(true); this.updateCasting(0); this.syncCastVisual();
   }
 
   private rememberStep() {

@@ -12,6 +12,7 @@ import { fitMenuCamera } from '../ui/sceneHelpers';
 import { MOUSE_ART, prepareMouseTextures } from '../rendering/mouseArt';
 import { DRUID_CAST_ART, prepareDruidCastTextures } from '../rendering/druidCastArt';
 import { ACORN_ART, prepareAcornTextures } from '../rendering/acornArt';
+import { MENU_MUSIC } from '../audio/MenuMusic';
 
 export class BootScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
@@ -31,6 +32,7 @@ export class BootScene extends Phaser.Scene {
       progress.fillStyle(0xb8aa75).fillRect(340, 350, 280 * value, 3);
     });
     this.load.once('loaderror', () => { this.failed = true; });
+    this.load.audio(MENU_MUSIC.key, MENU_MUSIC.urls);
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));
     ACORN_ART.forEach(art => this.load.image(art.key, art.url));
     SELECTION_CAMP_ART.forEach(art => this.load.image(art.key, art.url));
@@ -46,7 +48,7 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     if (this.failed) {
-      this.message.setText('Не удалось загрузить изображения. Обновите страницу.').setFontSize(20);
+      this.message.setText('Не удалось загрузить ресурсы. Обновите страницу.').setFontSize(20);
       return;
     }
     this.textures.get('selection-camp').setFilter(Phaser.Textures.FilterMode.NEAREST);

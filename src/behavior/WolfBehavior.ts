@@ -1,6 +1,7 @@
 import { WOLF } from '../data/wolf';
 import { seededRandom, type Rect } from '../world/meadowLayout';
 import { WolfNavigation, type WolfPoint } from '../world/WolfNavigation';
+import type { WolfTimers } from '../persistence/snapshots';
 
 export interface WolfState {
   health: number;
@@ -39,6 +40,15 @@ export class WolfBehavior {
   alert() {
     this.actorState.alerted = true;
     if (this.actorState.phase === 'idle' || this.actorState.phase === 'wander') this.enter('chase');
+  }
+
+  snapshotTimers(): WolfTimers {
+    return { idleMs: this.idleMs, wanderMs: this.wanderMs, recoveryMs: this.recoveryMs };
+  }
+
+  restoreTimers(saved: WolfTimers) {
+    this.idleMs = saved.idleMs; this.wanderMs = saved.wanderMs; this.recoveryMs = saved.recoveryMs;
+    this.path = []; this.pathGoal = undefined; this.pathAge = Infinity;
   }
 
   step(delta: number, position: WolfPoint, player: WolfPoint, playerBody: Rect): WolfPoint {

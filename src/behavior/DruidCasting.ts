@@ -1,4 +1,5 @@
 import type { Facing } from '../input/EightWayFacing';
+import type { CastSave } from '../persistence/snapshots';
 import { BASE_ATTACK_RATE, BASE_CAST_DURATION_SCALE, CAST_DURATION, CAST_FRAME_DURATIONS, CAST_RELEASE_MS } from '../data/attack';
 
 // The six moving phases of the accepted cast-down-v1. Preview-only pauses
@@ -52,5 +53,15 @@ export class DruidCasting {
 
   consumeRelease() {
     const facing = this.pendingRelease; this.pendingRelease = undefined; return facing;
+  }
+
+  snapshot(): CastSave {
+    return { active: this.active, facing: this.facing, elapsed: this.elapsed,
+      released: this.released, pendingRelease: this.pendingRelease };
+  }
+
+  restore(saved: CastSave) {
+    this.active = saved.active; this.facing = saved.facing; this.elapsed = saved.elapsed;
+    this.released = saved.released; this.pendingRelease = saved.pendingRelease;
   }
 }

@@ -10,6 +10,9 @@ import { facingFromVector, type Facing, type MovementKeys } from '../input/Eight
 import { AcornAttack } from '../world/AcornAttack';
 import { COMBAT_EVENTS } from '../combat/events';
 import { DeathOverlay } from '../ui/DeathOverlay';
+import { clearRun, saveRun } from '../persistence/runSave';
+import type { RunSave } from '../persistence/snapshots';
+import { menuMusic } from '../audio/MenuMusic';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -33,15 +36,20 @@ export class RoomScene extends Phaser.Scene {
   private healthLabel!: Phaser.GameObjects.Text;
   private hearts!: Phaser.GameObjects.Graphics;
   private deathOverlay!: DeathOverlay;
+  private savedRun?: RunSave;
 
   constructor() { super(SCENES.room); }
 
-  init(data: { characterId?: string; seed?: number } = {}) {
+  init(data: { characterId?: string; seed?: number; savedRun?: RunSave } = {}) {
+    this.savedRun = data.savedRun;
+    if (this.savedRun) data = { ...data, characterId: this.savedRun.characterId, seed: this.savedRun.layout.seed };
     this.characterId = (CHARACTERS.find(item => item.available && item.id === data.characterId) ?? CHARACTERS[0]).id;
     this.seed = data.seed ?? Math.floor(Math.random() * 0x100000000);
   }
 
   create() {
+    menuMusic(this.game).setInMenu(false);
+    if (!this.savedRun) clearRun();
     this.physics.resume();
     this.gameOver = false;
     const character = CHARACTERS.find(item => item.id === this.characterId)!;
@@ -54,6 +62,7 @@ export class RoomScene extends Phaser.Scene {
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
     this.acorns = new AcornAttack(this,this.player,Math.random,(from,to)=>this.world.noticeProjectile(from,to));
+    if (this.savedRun) this.acorns.restore(this.savedRun.shots);
     this.player.on(COMBAT_EVENTS.healthChanged,this.updateHealth,this);
     this.player.once(COMBAT_EVENTS.died,this.endGame,this);
 
@@ -84,7 +93,7 @@ export class RoomScene extends Phaser.Scene {
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
-    bindSceneKey(this, 'keyup-ESC', () => this.scene.start(SCENES.characterSelect));
+    bindSceneKey(this, 'keyup-ESC', () => this.leaveRun());
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => {
       keyboard.resetKeys(); this.queuedAttack = undefined;
@@ -124,15 +133,17 @@ export class RoomScene extends Phaser.Scene {
   }
 
   private buildWorld() {
-    this.layout = generateMeadow(this.seed);
+    this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
     const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;
     this.physics.world.setBounds(0, 0, width, height);
     this.cameras.main.setBounds(0, 0, width, height);
     this.cameraFollow = new EllipticalFollowCamera(width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs);
-    this.world = new MeadowWorld(this, this.layout);
+    if (this.savedRun) Object.assign(this.cameraFollow.center, this.savedRun.camera);
+    this.world = new MeadowWorld(this, this.layout, this.savedRun?.world);
     this.world.bindPlayer(this.player);
     const position = this.layout.spawn;
     (this.player.body as Phaser.Physics.Arcade.Body).reset(position.x, position.y);
+    if (this.savedRun) { this.player.restore(this.savedRun.player); this.facing = this.player.actorState.facing; }
     this.drawHud();
     // A separate unzoomed camera keeps HP and hints attached to the screen.
     this.hudCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height).setName('hud');
@@ -160,7 +171,7 @@ export class RoomScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#dfdfbd',
     }).setName('health-label');
     this.hearts = this.add.graphics();this.updateHealth();
-    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — жёлудь (8 направлений) · R — новая поляна · Esc — в лагерь', {
+    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — жёлудь (8 направлений) · R — новая поляна · Esc — сохранить и выйти', {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
     }).setOrigin(0, 1);
     this.deathOverlay = new DeathOverlay(this);
@@ -179,10 +190,19 @@ export class RoomScene extends Phaser.Scene {
 
   private endGame() {
     if(this.gameOver)return;
-    this.gameOver=true;this.queuedAttack=undefined;
+    this.gameOver=true;this.queuedAttack=undefined;clearRun();
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
     this.physics.pause();this.deathOverlay.show();
+  }
+
+  private leaveRun() {
+    if (this.gameOver || this.player.dead) { this.scene.start(SCENES.characterSelect); return; }
+    const persistent = saveRun({ version: 1, savedAt: Date.now(), characterId: this.characterId,
+      layout: this.layout, player: this.player.snapshot(), camera: { ...this.cameraFollow.center },
+      world: this.world.snapshot(), shots: this.acorns.snapshot() });
+    this.input.keyboard?.resetKeys();
+    this.scene.start(SCENES.mainMenu, { sessionOnlySave: !persistent });
   }
 }

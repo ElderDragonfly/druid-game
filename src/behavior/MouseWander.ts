@@ -18,6 +18,7 @@ export class MouseWander {
   get state() { return this.actorState.phase; }
   get elapsed() { return this.actorState.elapsed; }
   get target() { return this.actorState.target; }
+  get runTimeLimit() { return this.runLimit; }
   private random: () => number;
   private runLimit = 0;
 
@@ -42,6 +43,10 @@ export class MouseWander {
       this.enter('run');
     }
     return { x: 0, y: 0 };
+  }
+
+  restore(state: MouseActorState, runLimit: number) {
+    Object.assign(this.actorState, state, { target: { ...state.target } }); this.runLimit = runLimit;
   }
 
   private enter(state: MouseState) { this.actorState.phase = state; this.actorState.elapsed = 0; }
