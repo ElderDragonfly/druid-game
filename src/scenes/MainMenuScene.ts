@@ -3,7 +3,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
 import { addCampBackground, addMenuHint, bindSceneKey, setupMenuCameras } from '../ui/sceneHelpers';
 import { SCENES } from './keys';
-import { addMusicToggle } from '../ui/MusicToggle';
+import { menuMusic } from '../audio/MenuMusic';
 import { loadRun } from '../persistence/runSave';
 
 export class MainMenuScene extends Phaser.Scene {
@@ -20,6 +20,10 @@ export class MainMenuScene extends Phaser.Scene {
     new MenuButton(this, layout.x, layout.playY, {
       name: 'play', label: 'Играть', width: layout.width, height: layout.height, onClick: play,
     }).setSelected(true);
+    new MenuButton(this, layout.x, layout.settingsY, {
+      name: 'settings', label: 'Настройки', width: layout.width, height: layout.height,
+      onClick: () => this.scene.start(SCENES.settings),
+    });
     new MenuButton(this, layout.x, layout.exitY, {
       name: 'exit', label: 'Выход', width: layout.width, height: layout.height, enabled: false,
     });
@@ -29,6 +33,6 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#dccda9',
     }).setOrigin(.5);
     setupMenuCameras(this);
-    addMusicToggle(this);
+    menuMusic(this.game).setInMenu(true);
   }
 }

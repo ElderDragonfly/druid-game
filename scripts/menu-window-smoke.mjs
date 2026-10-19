@@ -14,7 +14,7 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
       const bounds=bg.getBounds();
       const project=(x,y,camera)=>({x:(x-camera.worldView.x)*camera.zoom,y:(y-camera.worldView.y)*camera.zoom});
       const tl=project(bounds.left,bounds.top,c),br=project(bounds.right,bounds.bottom,c);
-      const buttons=s.children.list.filter(o=>o.name==='play'||o.name==='exit'||o.name==='back'||o.name==='continue-run'||o.name==='music-toggle'||o.name==='music-volume'||
+      const buttons=s.children.list.filter(o=>o.name==='settings'||o.name==='settings-back'||o.name==='play'||o.name==='exit'||o.name==='back'||o.name==='continue-run'||o.name==='music-toggle'||o.name==='music-volume'||
         o.name==='start-run'||o.name.startsWith('character-'));
       const controls=buttons.every(button=>{
         const r=button.getBounds(),a=project(r.left,r.top,ui),b=project(r.right,r.bottom,ui);
@@ -23,16 +23,22 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
       });
       const canvas=s.game.canvas.getBoundingClientRect();
       return{covered:tl.x<=1&&tl.y<=1&&br.x>=s.scale.width-1&&br.y>=s.scale.height-1,
+        audioPlacement:key==='Settings'?!!s.children.getByName('music-toggle')&&!!s.children.getByName('music-volume'):
+          !s.children.getByName('music-toggle')&&!s.children.getByName('music-volume'),
         controls,layer:!(bg.cameraFilter&c.id)&&!!(bg.cameraFilter&ui.id),
         cameras:s.cameras.cameras.length,canvas:canvas.width===innerWidth&&canvas.height===innerHeight};
     },key);
-    ok(result.covered&&result.canvas&&result.layer&&result.controls&&result.cameras===2,
+    ok(result.covered&&result.canvas&&result.layer&&result.controls&&result.audioPlacement&&result.cameras===2,
       `${key} ${width}×${height}: фон закрывает всё окно, кнопки видимы полностью и не дублируются`);
   };
   for(const viewport of [{width:1280,height:720},{width:1920,height:540},{width:1100,height:820},{width:720,height:900}]){
     await page.setViewportSize(viewport);
     await check('MainMenu',viewport.width,viewport.height);
     if(viewport.width===1280)await page.screenshot({path:'test-results/main-menu-full-window.png'});
+    await clickNamed('MainMenu','settings');await waitScene('Settings');
+    await check('Settings',viewport.width,viewport.height);
+    if(viewport.width===1280)await page.screenshot({path:'test-results/settings.png'});
+    await clickNamed('Settings','settings-back');await waitScene('MainMenu');
     await clickNamed('MainMenu','play');await waitScene('CharacterSelect');
     await check('CharacterSelect',viewport.width,viewport.height);
     await clickNamed('CharacterSelect','character-druid');

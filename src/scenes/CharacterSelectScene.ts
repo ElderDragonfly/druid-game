@@ -6,7 +6,7 @@ import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
 import { addCampBackground, addMenuHint, bindSceneKey, markMenuScenery, setupMenuCameras } from '../ui/sceneHelpers';
 import { SCENES } from './keys';
-import { addMusicToggle } from '../ui/MusicToggle';
+import { menuMusic } from '../audio/MenuMusic';
 
 export class CharacterSelectScene extends Phaser.Scene {
   selectedId = CHARACTERS[0].id;
@@ -73,7 +73,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-ENTER', start);
     addMenuHint(this, 'Enter — начать · Esc — назад');
     setupMenuCameras(this);
-    addMusicToggle(this);
+    menuMusic(this.game).setInMenu(true);
   }
 
   chooseCharacter(id: string) {

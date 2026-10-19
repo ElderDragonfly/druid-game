@@ -4,6 +4,7 @@ import { SETTINGS } from './settings';
 import { BootScene } from './scenes/BootScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
+import { SettingsScene } from './scenes/SettingsScene';
 import './style.css';
 
 export const game = new Phaser.Game({
@@ -14,7 +15,7 @@ export const game = new Phaser.Game({
   backgroundColor: '#17241f',
   scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: { default: 'arcade', arcade: { debug: false } },
-  scene: [BootScene, MainMenuScene, CharacterSelectScene, RoomScene],
+  scene: [BootScene, MainMenuScene, CharacterSelectScene, SettingsScene, RoomScene],
 });
 
 // Vite заменяет старый экземпляр игры при обновлении исходников.

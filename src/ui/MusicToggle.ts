@@ -1,14 +1,12 @@
 import Phaser from 'phaser';
 import { menuMusic } from '../audio/MenuMusic';
 import { MenuButton } from './MenuButton';
-import { addMusicVolume } from './MusicVolume';
 
-/** Screen-space corner control using the existing UI camera (no third camera). */
-export function addMusicToggle(scene: Phaser.Scene) {
+/** Reusable speaker control placed by its owning settings scene. */
+export function addMusicToggle(scene: Phaser.Scene, x: number, y: number) {
   const music = menuMusic(scene.game);
-  music.setInMenu(true);
   let pressed = false;
-  const button = new MenuButton(scene, 0, 0, {
+  const button = new MenuButton(scene, x, y, {
     name: 'music-toggle', label: '', width: 48, height: 48,
     onClick: () => { if (pressed) { pressed = false; music.toggle(); } },
   }).setDepth(1000);
@@ -29,19 +27,13 @@ export function addMusicToggle(scene: Phaser.Scene) {
       icon.beginPath().arc(1, 0, 14, -.8, .8).strokePath();
     } else icon.lineBetween(6, -7, 16, 7).lineBetween(16, -7, 6, 7);
   };
-  const resize = () => {
-    const { width, height } = scene.scale;
-    const zoom = scene.cameras.getCamera('menu-ui')!.zoom;
-    button.setScale(1 / zoom).setPosition(480 + (width / 2 - 40) / zoom, 320 + (height / 2 - 40) / zoom);
-  };
   scene.cameras.main.ignore(button);
   button.on('pointerdown', () => { pressed = true; });
   button.on('pointerover', () => hint.setVisible(true));
   button.on('pointerout', () => { pressed = false; hint.setVisible(false); });
-  music.on('changed', draw); scene.scale.on(Phaser.Scale.Events.RESIZE, resize);
+  music.on('changed', draw);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-    music.off('changed', draw); scene.scale.off(Phaser.Scale.Events.RESIZE, resize);
+    music.off('changed', draw);
   });
-  draw(); resize();
-  addMusicVolume(scene, music);
+  draw();
 }
