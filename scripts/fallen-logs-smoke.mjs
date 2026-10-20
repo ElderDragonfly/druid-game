@@ -69,6 +69,27 @@ export async function testFallenLogs(page,ok) {
   ok(stats.species===7&&stats.variants===5&&stats.angleCount===1&&stats.native&&stats.repeatable,'Все 5 брёвен и 7 видов грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
   ok(stats.scattered&&stats.pointCount>200,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
   ok(stats.art,'Вырезанные PNG прозрачны без полупрозрачной каймы; размеры и NEAREST сохранены');
+  ok(await page.evaluate(async()=>{
+    const read=async path=>{const i=new Image();i.src=path;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const ctx=c.getContext('2d');ctx.drawImage(i,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
+    let preserved=true,cleaned=0;
+    for(let n=0;n<7;n++) {
+      const original=await read(`/docs/art/fallen-logs-v1/mushroom-${n}.png`);
+      const source=window.__smokeGame.textures.get(`mushroom-${n}`).getSourceImage();
+      const c=document.createElement('canvas');c.width=source.width;c.height=source.height;const ctx=c.getContext('2d');ctx.drawImage(source,0,0);const actual=ctx.getImageData(0,0,c.width,c.height).data;
+      let removed=0,total=0;
+      for(let i=0;i<original.length;i+=4) {
+        if(original[i+3]===255)total++;
+        if(actual[i+3]) {preserved&&=original[i+3]===255;for(let k=0;k<3;k++)preserved&&=actual[i+k]===original[i+k];}
+        else if(original[i+3]===255) {
+          removed++;const y=Math.floor(i/4/c.width);
+          preserved&&=(n===2&&y<32)||(n===4&&y<40);
+        }
+      }
+      if(removed)cleaned++;
+      preserved&&=removed<total*.25;
+    }
+    return preserved&&cleaned===2;
+  }),'Кайма удалена только у двух фиолетовых шляпок; RGB оставшихся пикселей, белые ножки и другие грибы сохранены');
   ok(stats.rendered&&stats.upright,'В игре стоят выбранные варианты; грибы растут на уменьшенном бревне вертикально');
   ok(stats.bodies&&stats.navigation&&stats.emptyCorners,'Коллизии, обход волка и маршрут мыши учитывают древесину, пустые углы проходимы');
   ok(await page.evaluate(async()=>{

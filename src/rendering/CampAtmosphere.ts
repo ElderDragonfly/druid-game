@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import fireUrl from '../../docs/art/selection-camp-uploaded-flame-v1/fire-frames.png';
+import fireUrl from '../../docs/art/selection-camp-seam-v1/fire-frames.png';
 import waterUrl from '../../docs/art/selection-camp-seam-v1/water-frames.png';
 import cleanUrl from '../../docs/art/selection-camp-atmosphere-v1/firefly-clean-patches.png';
 import { CAMP_ATMOSPHERE as CONFIG, fireflyPosition } from '../data/campAtmosphere';

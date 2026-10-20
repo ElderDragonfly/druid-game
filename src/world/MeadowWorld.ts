@@ -1,6 +1,6 @@
 import { FALLEN_LOG_GENERATION } from '../data/fallenLogs';
 import { drawFallenLog } from '../rendering/fallenLogArt';
-import { mushroomPoint, logCollisionRects } from './fallenLogs';
+import { distanceToLog, logCollisionRects } from './fallenLogs';
 import Phaser from 'phaser';
 import { Wolf } from '../entities/Wolf';
 import type { Druid } from '../entities/Druid';
@@ -74,19 +74,18 @@ export class MeadowWorld {
     });
   }
 
-  /** One press collects one nearest reachable mushroom; the layout is the save state. */
+  /** The log is the interaction target; mushroom sprite positions never limit reach. */
   collectMushroom(point: Point) {
     if (this.player?.dead) return false;
-    let nearest: { logIndex: number; mushroomIndex: number; slot: number } | undefined;
-    let distance: number = FALLEN_LOG_GENERATION.interactionRadius;
-    (this.layout.logs ?? []).forEach((log, logIndex) => log.mushrooms.forEach((m, mushroomIndex) => {
-      const p = mushroomPoint(log, m), current = Math.hypot(point.x-p.x, point.y-p.y);
-      if (current <= distance) { distance=current; nearest={logIndex,mushroomIndex,slot:m.slot}; }
-    }));
-    if (!nearest) return false;
-    const { logIndex, mushroomIndex, slot } = nearest;
-    this.layout.logs![logIndex].mushrooms.splice(mushroomIndex,1);
-    const imageIndex = this.logArt.findIndex(image=>image.getData('logIndex')===logIndex&&image.getData('mushroomSlot')===slot);
+    let logIndex = -1, distance: number = FALLEN_LOG_GENERATION.interactionRadius;
+    (this.layout.logs ?? []).forEach((log, index) => {
+      if (!log.mushrooms.length) return;
+      const current = distanceToLog(log,point);
+      if (current <= distance) { distance=current; logIndex=index; }
+    });
+    if (logIndex < 0) return false;
+    const mushroom = this.layout.logs![logIndex].mushrooms.shift()!;
+    const imageIndex = this.logArt.findIndex(image=>image.getData('logIndex')===logIndex&&image.getData('mushroomSlot')===mushroom.slot);
     if (imageIndex >= 0) this.logArt.splice(imageIndex,1)[0].destroy();
     return true;
   }

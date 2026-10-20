@@ -103,7 +103,7 @@ export class RoomScene extends Phaser.Scene {
       up: Phaser.Input.Keyboard.KeyCodes.UP, down: Phaser.Input.Keyboard.KeyCodes.DOWN,
       left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
     }) as MovementKeys;
-    const captureArrowTap = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if(this.gameOver)return;
       if (event.code === 'KeyE') {
         if (!event.repeat) this.world.collectMushroom((this.player.body as Phaser.Physics.Arcade.Body).center);
@@ -114,7 +114,7 @@ export class RoomScene extends Phaser.Scene {
       this.queuedAttack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),
         Number(arrows.down.isDown) - Number(arrows.up.isDown));
     };
-    keyboard.on('keydown', captureArrowTap);
+    keyboard.on('keydown', handleKeyDown);
     // Arcade syncs sprite coordinates in post-update; sample grass after that sync.
     const updateGrass = (_time: number, delta: number) => {
       if(this.gameOver)return;
@@ -141,7 +141,7 @@ export class RoomScene extends Phaser.Scene {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
-      keyboard.off('keydown', captureArrowTap);
+      keyboard.off('keydown', handleKeyDown);
     });
   }
 

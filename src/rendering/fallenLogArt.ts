@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { FALLEN_LOGS, LOG_MUSHROOMS } from '../data/fallenLogs';
 import { mushroomPoint, type FallenLogPlacement } from '../world/fallenLogs';
-const sources=import.meta.glob<string>('../../docs/art/fallen-logs-{v1,v2}/{log,mushroom}-*.png',
+const sources=import.meta.glob<string>('../../docs/art/{fallen-logs-v2,log-mushrooms-v2}/{log,mushroom}-*.png',
   {eager:true,query:'?url',import:'default'});
 export const FALLEN_LOG_ART=[...FALLEN_LOGS,...LOG_MUSHROOMS].map(art=>({
-  key:art.id,url:sources[`../../docs/art/fallen-logs-${art.id.startsWith('log-') ? 'v2' : 'v1'}/${art.file}`],
+  key:art.id,url:sources[`../../docs/art/${art.id.startsWith('log-') ? 'fallen-logs-v2' : 'log-mushrooms-v2'}/${art.file}`],
 }));
 export function drawFallenLog(scene: Phaser.Scene, log: FallenLogPlacement, index:number) {
   const art=FALLEN_LOGS[log.variant], depth=log.y+12;

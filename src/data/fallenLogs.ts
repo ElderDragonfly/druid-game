@@ -1,5 +1,5 @@
 import art from '../../docs/art/fallen-logs-v2/sprites.json';
-import original from '../../docs/art/fallen-logs-v1/sprites.json';
+import original from '../../docs/art/log-mushrooms-v2/sprites.json';
 
 export const FALLEN_LOGS = art.logs;
 export const LOG_MUSHROOMS = original.mushrooms.map(sprite => ({

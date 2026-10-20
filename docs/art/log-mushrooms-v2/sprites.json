@@ -1,0 +1,167 @@
+{
+  "mushrooms": [
+    {
+      "id": "mushroom-0",
+      "file": "mushroom-0.png",
+      "width": 60,
+      "height": 61,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        8,
+        8,
+        68,
+        69
+      ],
+      "retainedPixels": 2347,
+      "rgbPreserved": true,
+      "scale": 0.36065573770491804,
+      "originalRetainedPixels": 2347
+    },
+    {
+      "id": "mushroom-1",
+      "file": "mushroom-1.png",
+      "width": 60,
+      "height": 61,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        83,
+        7,
+        143,
+        68
+      ],
+      "retainedPixels": 2090,
+      "rgbPreserved": true,
+      "scale": 0.36065573770491804,
+      "originalRetainedPixels": 2090
+    },
+    {
+      "id": "mushroom-2",
+      "file": "mushroom-2.png",
+      "width": 61,
+      "height": 57,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        232,
+        11,
+        293,
+        68
+      ],
+      "retainedPixels": 2198,
+      "rgbPreserved": true,
+      "scale": 0.38596491228070173,
+      "originalRetainedPixels": 2261
+    },
+    {
+      "id": "mushroom-3",
+      "file": "mushroom-3.png",
+      "width": 53,
+      "height": 54,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        87,
+        89,
+        140,
+        143
+      ],
+      "retainedPixels": 1984,
+      "rgbPreserved": true,
+      "scale": 0.4074074074074074,
+      "originalRetainedPixels": 1984
+    },
+    {
+      "id": "mushroom-4",
+      "file": "mushroom-4.png",
+      "width": 56,
+      "height": 55,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        235,
+        88,
+        291,
+        143
+      ],
+      "retainedPixels": 1826,
+      "rgbPreserved": true,
+      "scale": 0.4,
+      "originalRetainedPixels": 2037
+    },
+    {
+      "id": "mushroom-5",
+      "file": "mushroom-5.png",
+      "width": 60,
+      "height": 57,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        8,
+        176,
+        68,
+        233
+      ],
+      "retainedPixels": 2012,
+      "rgbPreserved": true,
+      "scale": 0.38596491228070173,
+      "originalRetainedPixels": 2012
+    },
+    {
+      "id": "mushroom-6",
+      "file": "mushroom-6.png",
+      "width": 45,
+      "height": 52,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        16,
+        248,
+        61,
+        300
+      ],
+      "retainedPixels": 1756,
+      "rgbPreserved": true,
+      "scale": 0.4230769230769231,
+      "originalRetainedPixels": 1756
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "mushroom-0",
+      "removed": 0,
+      "capOnly": false,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-1",
+      "removed": 0,
+      "capOnly": false,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-2",
+      "removed": 63,
+      "capOnly": true,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-3",
+      "removed": 0,
+      "capOnly": false,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-4",
+      "removed": 211,
+      "capOnly": true,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-5",
+      "removed": 0,
+      "capOnly": false,
+      "maxExteriorDepth": 3
+    },
+    {
+      "id": "mushroom-6",
+      "removed": 0,
+      "capOnly": false,
+      "maxExteriorDepth": 3
+    }
+  ]
+}

@@ -5,10 +5,12 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
     const read=async path=>{const i=new Image();i.src=path;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const ctx=c.getContext('2d');ctx.drawImage(i,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
     const old=await read('/docs/art/selection-camp-atmosphere-v1/environment-reference.png');
     const current=await read('/docs/art/selection-camp-seam-v1/background.png');
+    const fireClean=await read('/docs/art/selection-camp-seam-v1/fire-clean-mask.png');
     let preserved=true,before=0,after=0;
     for(let y=0;y<528;y++) for(let x=0;x<960;x++) for(let c=0;c<4;c++) {
       const i=(y*960+x)*4+c;
-      if(x<503||x>553)preserved&&=old[i]===current[i];
+      const cleaned=x>=584&&x<712&&y>=282&&y<430&&fireClean[((y-282)*128+x-584)*4]>0;
+      if((x<503||x>553)&&!cleaned)preserved&&=old[i]===current[i];
       if(x===525&&y<245&&c<3){before+=Math.abs(old[i]-old[i-4]);after+=Math.abs(current[i]-current[i-4]);}
     }
     return preserved&&after<before*.5;

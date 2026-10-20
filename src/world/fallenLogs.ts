@@ -60,6 +60,14 @@ export function logCollisionRects(log: FallenLogPlacement): Rect[] {
     width:radius*2,height:radius*2,
   }));
 }
+/** Distance to the wood as a whole, independent of where its mushrooms grow. */
+export function distanceToLog(log: FallenLogPlacement, point: { x: number; y: number }) {
+  return Math.min(...logCollisionRects(log).map(rect => Math.hypot(
+    Math.max(rect.x-point.x,0,point.x-rect.x-rect.width),
+    Math.max(rect.y-point.y,0,point.y-rect.y-rect.height),
+  )));
+}
+
 export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[], canopies: readonly Rect[]): FallenLogPlacement[] {
   const random = seededRandom(layout.seed ^ 0x4c4f4753);
   const integer = (min:number,max:number)=>min+Math.floor(random()*(max-min+1));
