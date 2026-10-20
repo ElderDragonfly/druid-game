@@ -28,12 +28,30 @@ export async function testDruidHits(page, ok) {
       const idleTexture = s.textures.get(DRUID_VIEWS.find(view => view.direction === direction).sourceKey);
       c.clearRect(0, 0, 256, 320); c.drawImage(idleTexture.getSourceImage(), 0, 0);
       const idle = c.getImageData(0, 0, 256, 320).data;
+      let originalHit, tunicMask;
+      if (direction === 'left') {
+        originalHit = new Image(); originalHit.src = '/docs/art/druid-hit-side-v1/hit-left-512x384.png';
+        tunicMask = new Image(); tunicMask.src = '/docs/art/druid-left-tunic-v1/hit-left-tunic-mask.png';
+        await Promise.all([originalHit.decode(), tunicMask.decode()]);
+      }
       let stable = true, endpoints = true, changed = 0, alpha = true;
       for (let index = 0; index < 5; index++) {
         const frame = texture.get(String(index));
         c.clearRect(0, 0, 256, 320);
         c.drawImage(texture.getSourceImage(), frame.cutX + 128, 40, 256, 320, 0, 0, 256, 320);
         const pixels = c.getImageData(0, 0, 256, 320).data;
+        if (originalHit) {
+          c.clearRect(0, 0, 256, 320);
+          c.drawImage(originalHit, index * 512 + 128, 40, 256, 320, 0, 0, 256, 320);
+          const previous = c.getImageData(0, 0, 256, 320).data;
+          c.clearRect(0, 0, 256, 320);
+          c.drawImage(tunicMask, index * 512 + 128, 40, 256, 320, 0, 0, 256, 320);
+          const allowed = c.getImageData(0, 0, 256, 320).data;
+          for (let p=0;p<pixels.length;p+=4) {
+            stable &&= pixels[p+3] === previous[p+3];
+            if (!allowed[p]) for(let channel=0;channel<3;channel++) stable &&= pixels[p+channel] === previous[p+channel];
+          }
+        }
         for (let p = 0; p < pixels.length; p += 4) {
           alpha &&= pixels[p + 3] === 0 || pixels[p + 3] === 255;
           if (mask[p] && (pixels[p] !== idle[p] || pixels[p + 1] !== idle[p + 1] || pixels[p + 2] !== idle[p + 2] || pixels[p + 3] !== idle[p + 3])) stable = false;

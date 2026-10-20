@@ -863,7 +863,7 @@ try {
     const atlas = texture.getSourceImage().getContext('2d');
     const sources = ['down', 'up', 'left', 'right', 'down-left', 'down-right', 'up-left', 'up-right'].map(direction => ({
       direction, sourceX: 0, width: 256, height: 320,
-      path: `/docs/art/${direction === 'left' ? 'druid-facing-fixes-v1' : 'druid-eight-way-v1'}/idle-${direction}-256x320.png`,
+      path: `/docs/art/${direction === 'left' ? 'druid-left-tunic-v1' : 'druid-eight-way-v1'}/idle-${direction}-256x320.png`,
     }));
     return Promise.all(sources.map(async ({ direction, sourceX, width, height, path }) => {
       const image = new Image(); image.src = path; await image.decode();
@@ -1080,7 +1080,7 @@ try {
   ok(true, 'Остановка в каждой из четырёх фаз W возвращает отдельную стоящую позу');
 
   for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-facing-fixes-v1' },
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-left-tunic-v1' },
     { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v2' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
@@ -1150,32 +1150,49 @@ try {
   }
 
   ok(await page.evaluate(async () => {
-    const read = async path => {
+    const image = async path => {
       const image = new Image(); image.src = path; await image.decode();
-      const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
-      const ctx = c.getContext('2d'); ctx.drawImage(image, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data;
+      return image;
     };
-    const updated = await read('/docs/art/druid-walk-right-v2/walk-right-256x320.png');
-    const previous = await read('/docs/art/druid-eight-way-v1/walk-right-256x320.png');
-    let upperUnchanged = true, connected = true; const toes = [];
+    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
+    const ctx = canvas.getContext('2d');
+    const read = source => {
+      ctx.clearRect(0, 0, 1024, 320); ctx.drawImage(source, 0, 0);
+      return ctx.getImageData(0, 0, 1024, 320).data;
+    };
+    const updated = read(await image('/docs/art/druid-walk-right-v2/walk-right-256x320.png'));
+    const previous = read(await image('/docs/art/druid-eight-way-v1/walk-right-256x320.png'));
+    const foregroundImage = await image('/docs/art/druid-walk-right-v2/foreground-right-256x320.png');
+    const foreground = read(foregroundImage);
+    const legImage = await image('/docs/art/druid-walk-right-v2/legs-right-256x320.png');
+    const donor = read(await image('/docs/art/druid-side-refinement-v1/walk-left-body-256x320.png'));
+    const legs = read(legImage);
+    const staff = await image('/docs/art/druid-side-refinement-v1/walk-right-arm-staff-256x320.png');
+    ctx.clearRect(0, 0, 1024, 320);
+    for (const layer of [staff, legImage, foregroundImage]) ctx.drawImage(layer, 0, 0);
+    const composed = ctx.getImageData(0, 0, 1024, 320).data;
+    let upperUnchanged = true, singleLegLayer = true, donorFeet = true; const toes = [];
     for (let frame = 0; frame < 4; frame++) {
       let toe = 0;
       for (let y = 0; y < 320; y++) for (let x = 0; x < 256; x++) {
         const i = (y * 1024 + frame * 256 + x) * 4;
         if (y < 220) for (let c = 0; c < 4; c++) upperUnchanged &&= updated[i+c] === previous[i+c];
         if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
+        if (y >= 220) for (let c=0;c<4;c++) singleLegLayer &&= updated[i+c] === composed[i+c];
+        if (y >= 270 && y < 307) {
+          const opposite = (y * 1024 + frame * 256 + 255 - x) * 4;
+          // Only the legs are reflected; the staff keeps its anatomical hand.
+          for(let c=0;c<4;c++) donorFeet &&= legs[i+c] === donor[opposite+c];
+        }
       }
       toes.push(toe);
-      for(let y=258;y<264;y++)for(let x=76;x<83;x++)connected&&=updated[(y*1024+frame*256+x)*4+3]===255;
-      // These trousers belonged to the approved right body and must remain
-      // opaque when the opposite leg donor is occluded by its original cloak.
-      for(let y=230;y<252;y++) for(let x=78;x<95;x++) {
-        const i=(y*1024+frame*256+x)*4;
-        if(previous[i+3]===255) connected &&= updated[i+3]===255;
-      }
+      // The earlier test required an opaque static patch here, which created
+      // a third leg. The original calf must now be absent from the foreground.
+      for(let y=263;y<270;y++)for(let x=70;x<100;x++)
+        singleLegLayer &&= foreground[(y*1024+frame*256+x)*4+3]===0;
     }
-    return upperUnchanged && connected && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
-  }), 'Вправо: ноги проходят разные фазы шага; принятые верх, рука и посох сохранены точно');
+    return upperUnchanged && singleLegLayer && donorFeet && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
+  }), 'Вправо: один слой движущихся ног без прежней голени; шаги взяты из левой походки, верх сохранён');
 
   const clearSquare = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');
@@ -1726,26 +1743,35 @@ try {
     };
     const referenceLight = meanLight(reference, i => reference[i + 3] > 0);
     let woodOnly = true;
+    let tunicOnly = true;
     for (const [kind, textureKey] of [['idle', 'druid-left-source'], ['walk', 'druid-walk-left-source']]) {
       const original = await png(`druid-eight-way-v1/${kind}-left-256x320.png`);
       const mask = await png(`druid-facing-fixes-v1/${kind}-left-wood-mask.png`);
+      const previous = await png(`druid-facing-fixes-v1/${kind}-left-256x320.png`);
+      const tunicMask = await png(`druid-left-tunic-v1/${kind}-left-tunic-mask.png`);
       const actual = read(game.textures.get(textureKey).getSourceImage());
-      let changed = 0;
+      let changed = 0, changedCloth = 0;
       for (let i = 0; i < actual.length; i += 4) {
         woodOnly &&= actual[i + 3] === original[i + 3];
         const different = [0, 1, 2].some(c => actual[i + c] !== original[i + c]);
-        if (mask[i] === 0) woodOnly &&= !different;
-        else if (different) changed++;
+        if (mask[i] === 0 && tunicMask[i] === 0) woodOnly &&= !different;
+        if (mask[i] > 0 && different) changed++;
+        const clothDifferent = [0, 1, 2].some(c => actual[i+c] !== previous[i+c]);
+        tunicOnly &&= actual[i+3] === previous[i+3];
+        if (tunicMask[i] === 0) tunicOnly &&= !clothDifferent;
+        else if (clothDifferent) changedCloth++;
       }
+      tunicOnly &&= changedCloth > 1500;
       woodOnly &&= changed > 1000 && Math.abs(meanLight(actual, i => mask[i] > 0) - referenceLight) < 3;
     }
     const idle = read(game.textures.get('druid-down-left-source').getSourceImage());
     const body = await png('druid-facing-fixes-v1/body-down-left-fixed-256x320.png');
     let contour = true;
     for (let i = 3; i < body.length; i += 4) if (body[i] && !idle[i]) contour = false;
-    return { woodOnly, contour };
+    return { woodOnly, tunicOnly, contour };
   });
-  ok(facingFixes.woodOnly, 'Посох в стойке и ходьбе влево имеет тон основного посоха; прозрачность, руки, одежда и сапоги неизменны');
+  ok(facingFixes.woodOnly, 'Посох в стойке и ходьбе влево сохраняет основной тон; вне посоха и туники пиксели прежние');
+  ok(facingFixes.tunicOnly, 'Влево: обновлены только панели туники в стойке и ходьбе; плащ, руки, ноги, посох и весь alpha сохранены точно');
   ok(facingFixes.contour, 'Неподвижный корпус каста вниз-влево полностью вписан в силуэт стойки, без добавленной ширины');
   const layeredCasts = await page.evaluate(async () => {
     const game = window.__smokeGame;

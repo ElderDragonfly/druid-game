@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import left from '../../docs/art/druid-hit-side-v1/hit-left-512x384.png';
+import left from '../../docs/art/druid-left-tunic-v1/hit-left-512x384.png';
 import right from '../../docs/art/druid-hit-side-v1/hit-right-512x384.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { HIT_FRAME_DURATIONS } from '../behavior/DruidHitReaction';

@@ -1,0 +1,10 @@
+{
+  "reference": "../druid-eight-way-v1/idle-down-256x320.png",
+  "previous": "../druid-facing-fixes-v1",
+  "changedRgbPixels": {
+    "walk": 9583,
+    "idle": 1974
+  },
+  "preserved": "all alpha; all pixels outside tunic masks; same shared palette for idle and walk",
+  "panels": "muted front-view center and green side panels, existing beige hem trim"
+}
