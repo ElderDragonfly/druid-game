@@ -1,4 +1,4 @@
-"""Mechanically crop the user's three JPEGs. Preserve all retained RGB pixels."""
+"""Mechanically crop the user's two log JPEGs. Preserve all retained RGB pixels."""
 from pathlib import Path
 import json
 import hashlib
@@ -12,7 +12,6 @@ OUT.mkdir(exist_ok=True)
 SOURCES = {
  'logs': ROOT/'docs/art/27935983a1221547afe93ab842633fc4.jpg',
  'trunk': ROOT/'docs/art/e61f996047ae8b58748b8ca5559c9323.jpg',
- 'plants': ROOT/'docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg',
 }
 
 def cut(source, box, name, mode):
@@ -32,7 +31,7 @@ def cut(source, box, name, mode):
     components, count = label(silhouette, np.ones((3,3)))
     sizes = np.bincount(components.ravel()); sizes[0] = 0
     # Retain every substantial connected part; discard detached JPEG ringing.
-    keep = sizes[components]>= (32 if source!='plants' else 8)
+    keep = sizes[components]>= 32
     rgba = np.dstack((rgb, keep.astype('uint8')*255))
     image = Image.fromarray(rgba)
     bounds = image.getbbox(); image = image.crop(bounds)
@@ -56,11 +55,7 @@ for item,scale,line,radius,spots in zip(logs,[.45,.45,.4,.4,.3],
  [[(100,85),(175,60),(245,50)],[(100,85),(175,60),(245,50)],
   [(95,85),(190,65),(270,55)],[(95,85),(190,65),(270,55)],[(150,125),(295,185),(425,235)]]):
     item.update(scale=scale,bodyLine=line,bodyRadius=radius,mushroomSpots=spots)
-fungi=[]
-for i,box in enumerate([(3,2,74,74),(78,2,150,74),(227,2,300,74),(78,79,150,151),(227,79,300,151),(2,166,75,237),(2,240,75,311)]):
-    fungi.append(cut('plants',box,f'mushroom-{i}','flat'))
-    fungi[-1]['scale']=min(22/fungi[-1]['height'],25/fungi[-1]['width'])
-metadata={'logs':logs,'mushrooms':fungi,'sourceHashes':{k:hashlib.sha256(p.read_bytes()).hexdigest() for k,p in SOURCES.items()}}
+metadata={'logs':logs,'sourceHashes':{k:hashlib.sha256(p.read_bytes()).hexdigest() for k,p in SOURCES.items()}}
 (OUT/'sprites.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2)+'\n')
 # Local inspection only; game loads independent transparent sprites.
 preview=Image.new('RGB',(1000,640),(39,61,47));d=ImageDraw.Draw(preview)
@@ -68,8 +63,5 @@ for i,item in enumerate(logs):
     im=Image.open(OUT/item['file']);im.thumbnail((300,210),Image.Resampling.NEAREST)
     x=20+(i%3)*325;y=30+(i//3)*240
     preview.paste(im,(x,y),im);d.text((x,y-16),item['id'],fill='white')
-for i,item in enumerate(fungi):
-    im=Image.open(OUT/item['file']);x=20+i*135;y=550
-    preview.paste(im,(x,y),im);d.text((x,y-16),item['id'],fill='white')
 preview.save(OUT/'collection.png')
-print([(x['id'],x['width'],x['height']) for x in logs+fungi])
+print([(x['id'],x['width'],x['height']) for x in logs])

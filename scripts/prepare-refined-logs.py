@@ -1,5 +1,5 @@
 """Pack the five refined, shadow-free logs on a common two-world-unit pixel grid.
-The v1 art remains archived; mushrooms reuse its original source PNGs.
+The v1 log art remains archived; mushrooms have an independent active set.
 """
 from pathlib import Path
 import json

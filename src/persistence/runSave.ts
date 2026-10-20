@@ -14,6 +14,15 @@ const flag = (value: unknown) => typeof value === 'boolean';
 const point = (p: PointSave) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y) &&
   p.x >= 0 && p.x <= MEADOW_WORLD.width && p.y >= -32 && p.y <= MEADOW_WORLD.height + 32;
 const facing = (value: RunSave['player']['state']['facing']) => FACINGS.includes(value);
+// Old runs referenced seven retired mushroom sprites. Accept only those known
+// indices, then replace their artwork on load without losing collected items.
+const LEGACY_MUSHROOM_COUNT = 7;
+function migrateMushrooms(save: RunSave): RunSave {
+  save.layout.logs?.forEach(log => log.mushrooms.forEach(mushroom => {
+    mushroom.variant %= LOG_MUSHROOMS.length;
+  }));
+  return save;
+}
 
 /** Treat local storage as untrusted input; old/truncated saves cannot crash boot. */
 export function isRunSave(value: unknown): value is RunSave {
@@ -39,7 +48,8 @@ export function isRunSave(value: unknown): value is RunSave {
             bounds.y + bounds.height <= s.layout.height &&
             new Set(log.mushrooms.map(m => m.slot)).size === log.mushrooms.length &&
             new Set(log.mushrooms.map(m => m.variant)).size <= 1 &&
-            log.mushrooms.every(m => !!m && Number.isInteger(m.variant) && !!LOG_MUSHROOMS[m.variant] &&
+            log.mushrooms.every(m => !!m && Number.isInteger(m.variant) && m.variant >= 0 &&
+              m.variant < Math.max(LOG_MUSHROOMS.length, LEGACY_MUSHROOM_COUNT) &&
               Number.isInteger(m.slot) && m.slot >= 0 && m.slot < FALLEN_LOGS[log.variant].mushroomSpots.length &&
               (m.surface === undefined || (Number.isFinite(m.surface.x) && Number.isFinite(m.surface.y) &&
                 onMushroomSurface(log.variant,m.surface))));
@@ -76,13 +86,13 @@ export function isRunSave(value: unknown): value is RunSave {
 }
 
 export function loadRun(): RunSave | null {
-  if (sessionOnly) return sessionSave;
+  if (sessionOnly) return sessionSave ? migrateMushrooms(sessionSave) : null;
   let raw: string | null;
-  try { raw = localStorage.getItem(RUN_SAVE_KEY); } catch { return sessionSave; }
+  try { raw = localStorage.getItem(RUN_SAVE_KEY); } catch { return sessionSave ? migrateMushrooms(sessionSave) : null; }
   if (!raw || raw.length > 1_000_000) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isRunSave(parsed) ? parsed : null;
+    return isRunSave(parsed) ? migrateMushrooms(parsed) : null;
   } catch { return null; }
 }
 

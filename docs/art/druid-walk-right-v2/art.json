@@ -4,12 +4,5 @@
   "frameCount": 4,
   "frameDurationMs": 240,
   "donor": "druid-side-refinement-v1/walk-left-body-256x320.png",
-  "preserved": "right upper body y<220, hand, staff, scale and timing",
-  "layerOrder": [
-    "original far-side staff",
-    "one mirrored moving leg layer",
-    "original garments"
-  ],
-  "staticLegUnderlay": false,
-  "sampling": "nearest; foot placement unchanged below y=270"
+  "preserved": "right-facing upper body, cloak, hand and far-side staff"
 }

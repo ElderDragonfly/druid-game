@@ -1150,49 +1150,32 @@ try {
   }
 
   ok(await page.evaluate(async () => {
-    const image = async path => {
+    const read = async path => {
       const image = new Image(); image.src = path; await image.decode();
-      return image;
+      const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
+      const ctx = c.getContext('2d'); ctx.drawImage(image, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data;
     };
-    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
-    const ctx = canvas.getContext('2d');
-    const read = source => {
-      ctx.clearRect(0, 0, 1024, 320); ctx.drawImage(source, 0, 0);
-      return ctx.getImageData(0, 0, 1024, 320).data;
-    };
-    const updated = read(await image('/docs/art/druid-walk-right-v2/walk-right-256x320.png'));
-    const previous = read(await image('/docs/art/druid-eight-way-v1/walk-right-256x320.png'));
-    const foregroundImage = await image('/docs/art/druid-walk-right-v2/foreground-right-256x320.png');
-    const foreground = read(foregroundImage);
-    const legImage = await image('/docs/art/druid-walk-right-v2/legs-right-256x320.png');
-    const donor = read(await image('/docs/art/druid-side-refinement-v1/walk-left-body-256x320.png'));
-    const legs = read(legImage);
-    const staff = await image('/docs/art/druid-side-refinement-v1/walk-right-arm-staff-256x320.png');
-    ctx.clearRect(0, 0, 1024, 320);
-    for (const layer of [staff, legImage, foregroundImage]) ctx.drawImage(layer, 0, 0);
-    const composed = ctx.getImageData(0, 0, 1024, 320).data;
-    let upperUnchanged = true, singleLegLayer = true, donorFeet = true; const toes = [];
+    const updated = await read('/docs/art/druid-walk-right-v2/walk-right-256x320.png');
+    const previous = await read('/docs/art/druid-eight-way-v1/walk-right-256x320.png');
+    let upperUnchanged = true, connected = true; const toes = [];
     for (let frame = 0; frame < 4; frame++) {
       let toe = 0;
       for (let y = 0; y < 320; y++) for (let x = 0; x < 256; x++) {
         const i = (y * 1024 + frame * 256 + x) * 4;
         if (y < 220) for (let c = 0; c < 4; c++) upperUnchanged &&= updated[i+c] === previous[i+c];
         if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
-        if (y >= 220) for (let c=0;c<4;c++) singleLegLayer &&= updated[i+c] === composed[i+c];
-        if (y >= 270 && y < 307) {
-          const opposite = (y * 1024 + frame * 256 + 255 - x) * 4;
-          // Only the legs are reflected; the staff keeps its anatomical hand.
-          for(let c=0;c<4;c++) donorFeet &&= legs[i+c] === donor[opposite+c];
-        }
       }
       toes.push(toe);
-      // The earlier test required an opaque static patch here, which created
-      // a third leg. The original calf must now be absent from the foreground.
-      for(let y=263;y<270;y++)for(let x=70;x<100;x++)
-        singleLegLayer &&= foreground[(y*1024+frame*256+x)*4+3]===0;
+      for(let y=258;y<264;y++)for(let x=76;x<83;x++)connected&&=updated[(y*1024+frame*256+x)*4+3]===255;
+      // These trousers belonged to the approved right body and must remain
+      // opaque when the opposite leg donor is occluded by its original cloak.
+      for(let y=230;y<252;y++) for(let x=78;x<95;x++) {
+        const i=(y*1024+frame*256+x)*4;
+        if(previous[i+3]===255) connected &&= updated[i+3]===255;
+      }
     }
-    return upperUnchanged && singleLegLayer && donorFeet && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
-  }), 'Вправо: один слой движущихся ног без прежней голени; шаги взяты из левой походки, верх сохранён');
+    return upperUnchanged && connected && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
+  }), 'Вправо: ноги проходят разные фазы шага; принятые верх, рука и посох сохранены точно');
 
   const clearSquare = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');

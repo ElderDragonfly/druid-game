@@ -66,30 +66,33 @@ export async function testFallenLogs(page,ok) {
   ok(stats.counts.join()==='4'&&stats.safe&&stats.visible,'1500 тестовых локаций: четыре видимых бревна около старта, без крон и с безопасным проходом');
   ok(Math.abs(stats.fraction-.625)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
     `Тест: на первом бревне гарантированы 1–3 гриба, у остальных шанс 50%; один вид на бревно (${(stats.fraction*100).toFixed(1)}%)`);
-  ok(stats.species===7&&stats.variants===5&&stats.angleCount===1&&stats.native&&stats.repeatable,'Все 5 брёвен и 7 видов грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
+  ok(stats.species===2&&stats.variants===5&&stats.angleCount===1&&stats.native&&stats.repeatable,'Все 5 брёвен и 2 новых вида грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
   ok(stats.scattered&&stats.pointCount>200,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
   ok(stats.art,'Вырезанные PNG прозрачны без полупрозрачной каймы; размеры и NEAREST сохранены');
   ok(await page.evaluate(async()=>{
-    const read=async path=>{const i=new Image();i.src=path;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const ctx=c.getContext('2d');ctx.drawImage(i,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
-    let preserved=true,cleaned=0;
-    for(let n=0;n<7;n++) {
-      const original=await read(`/docs/art/fallen-logs-v1/mushroom-${n}.png`);
-      const source=window.__smokeGame.textures.get(`mushroom-${n}`).getSourceImage();
-      const c=document.createElement('canvas');c.width=source.width;c.height=source.height;const ctx=c.getContext('2d');ctx.drawImage(source,0,0);const actual=ctx.getImageData(0,0,c.width,c.height).data;
-      let removed=0,total=0;
-      for(let i=0;i<original.length;i+=4) {
-        if(original[i+3]===255)total++;
-        if(actual[i+3]) {preserved&&=original[i+3]===255;for(let k=0;k<3;k++)preserved&&=actual[i+k]===original[i+k];}
-        else if(original[i+3]===255) {
-          removed++;const y=Math.floor(i/4/c.width);
-          preserved&&=(n===2&&y<32)||(n===4&&y<40);
+    const {LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
+    const game=window.__smokeGame;
+    const read=image=>{const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const ctx=c.getContext('2d');ctx.drawImage(image,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
+    let exact=true,guard=true,clean=true;
+    for(const art of LOG_MUSHROOMS) {
+      const original=new Image();original.src=`/docs/art/log-mushrooms-v3/${art.file}`;await original.decode();
+      const expected=read(original),actual=read(game.textures.get(art.id).getSourceImage());
+      exact&&=actual.every((v,i)=>v===expected[i]);
+      let count=0;
+      for(let y=0;y<art.height;y++)for(let x=0;x<art.width;x++) {
+        const i=(y*art.width+x)*4;
+        if(x===0||y===0||x===art.width-1||y===art.height-1)guard&&=actual[i+3]===0;
+        if(actual[i+3]) {
+          count++;
+          const rgb=[actual[i],actual[i+1],actual[i+2]];
+          clean&&=!(Math.min(...rgb)>=230&&Math.max(...rgb)-Math.min(...rgb)<=18);
         }
       }
-      if(removed)cleaned++;
-      preserved&&=removed<total*.25;
+      exact&&=count===art.retainedPixels;
     }
-    return preserved&&cleaned===2;
-  }),'Кайма удалена только у двух фиолетовых шляпок; RGB оставшихся пикселей, белые ножки и другие грибы сохранены');
+    const active=game.textures.getTextureKeys().filter(key=>/^mushroom-\d+$/.test(key));
+    return exact&&guard&&clean&&active.length===2&&LOG_MUSHROOMS.length===2;
+  }),'Только два новых грибных PNG: пиксели загружены 1:1, края прозрачны, нейтрального белого фона нет');
   ok(stats.rendered&&stats.upright,'В игре стоят выбранные варианты; грибы растут на уменьшенном бревне вертикально');
   ok(stats.bodies&&stats.navigation&&stats.emptyCorners,'Коллизии, обход волка и маршрут мыши учитывают древесину, пустые углы проходимы');
   ok(await page.evaluate(async()=>{
@@ -105,17 +108,29 @@ export async function testFallenLogs(page,ok) {
   }),'Брёвна уменьшены на треть на сетке 2 ед./пиксель; старые повороты не меняют новую геометрию');
   ok(stats.noHint,'Нижняя серая подсказка управления удалена из игрового HUD');
   ok(await page.evaluate(async()=>{
-    const s=window.__smokeGame.scene.getScene('Room');const {isRunSave}=await import('/src/persistence/runSave.ts');
+    const s=window.__smokeGame.scene.getScene('Room');const {isRunSave,loadRun,RUN_SAVE_KEY}=await import('/src/persistence/runSave.ts');
     const snapshot={version:1,savedAt:Date.now(),characterId:s.characterId,layout:structuredClone(s.layout),
       player:s.player.snapshot(),camera:{x:s.cameras.main.midPoint.x,y:s.cameras.main.midPoint.y},world:s.world.snapshot(),shots:[]};
     const valid=isRunSave(snapshot),legacySlots=structuredClone(snapshot),legacy=structuredClone(snapshot);
     legacySlots.layout.logs.forEach(l=>l.mushrooms.forEach(m=>delete m.surface));
     delete legacy.layout.logs;delete legacy.layout.counts.logs;
     const corrupt=mutate=>{const saved=structuredClone(snapshot);mutate(saved.layout.logs[0]);return !isRunSave(saved);};
-    return valid&&isRunSave(legacy)&&isRunSave(legacySlots)&&corrupt(l=>l.variant=100)&&corrupt(l=>l.angle=null)&&corrupt(l=>l.flipX='yes')&&
+    const oldSet=structuredClone(snapshot);
+    oldSet.layout.logs.forEach(log=>log.mushrooms.forEach(m=>m.variant=6));
+    const before=localStorage.getItem(RUN_SAVE_KEY);
+    let migrated=false;
+    try {
+      localStorage.setItem(RUN_SAVE_KEY,JSON.stringify(oldSet));
+      const restored=loadRun();
+      migrated=!!restored&&restored.layout.logs.every((log,i)=>
+        log.x===snapshot.layout.logs[i].x&&log.y===snapshot.layout.logs[i].y&&
+        log.mushrooms.length===snapshot.layout.logs[i].mushrooms.length&&
+        log.mushrooms.every(m=>m.variant===0));
+    } finally { if(before===null)localStorage.removeItem(RUN_SAVE_KEY);else localStorage.setItem(RUN_SAVE_KEY,before); }
+    return migrated&&valid&&isRunSave(legacy)&&isRunSave(legacySlots)&&corrupt(l=>l.variant=100)&&corrupt(l=>l.mushrooms=[{slot:0,variant:7}])&&corrupt(l=>l.angle=null)&&corrupt(l=>l.flipX='yes')&&
       corrupt(l=>l.mushrooms=[{slot:0,variant:0},{slot:1,variant:1}])&&corrupt(l=>l.mushrooms=[{slot:9,variant:0}])&&
       corrupt(l=>l.mushrooms=[{slot:0,variant:0,surface:{x:0,y:0}}]);
-  }),'Новый сейв хранит брёвна/грибы; старый сейв поддерживается, повреждённые данные отклоняются');
+  }),'Сейвы сохраняют позиции и сбор; прежние семь видов заменяются новыми двумя, неверные данные отклоняются');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
     const proxies=s.world.obstacles.getChildren().filter(o=>o.getData('kind')==='log');

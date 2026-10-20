@@ -1,0 +1,38 @@
+{
+  "mushrooms": [
+    {
+      "id": "mushroom-0",
+      "file": "mushroom-0.png",
+      "width": 717,
+      "height": 982,
+      "source": "docs/art/4b0b8db07aff0050267f37040ceb7ed9.jpg",
+      "sourceCrop": [
+        234,
+        76,
+        951,
+        1058
+      ],
+      "sourceSha256": "20a00f70675229bb6887365a496cbf166cdd1af1b9e4a490331d74de2253a713",
+      "retainedPixels": 299782,
+      "rgbPreserved": true,
+      "scale": 0.02240325865580448
+    },
+    {
+      "id": "mushroom-1",
+      "file": "mushroom-1.png",
+      "width": 643,
+      "height": 1040,
+      "source": "docs/art/7e7fc479fa99796e96ff1fd405f0d0a4.jpg",
+      "sourceCrop": [
+        273,
+        81,
+        916,
+        1121
+      ],
+      "sourceSha256": "e759bbb137ac31fb54d50d046a5444a932f09a230b1915cca0dd20e14a89ceae",
+      "retainedPixels": 316422,
+      "rgbPreserved": true,
+      "scale": 0.021153846153846155
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 import art from '../../docs/art/fallen-logs-v2/sprites.json';
-import original from '../../docs/art/log-mushrooms-v2/sprites.json';
+import mushrooms from '../../docs/art/log-mushrooms-v3/sprites.json';
 
 export const FALLEN_LOGS = art.logs;
-export const LOG_MUSHROOMS = original.mushrooms.map(sprite => ({
+export const LOG_MUSHROOMS = mushrooms.mushrooms.map(sprite => ({
   ...sprite, scale: sprite.scale * art.sizeMultiplier,
 }));
 export const FALLEN_LOG_GENERATION = {
