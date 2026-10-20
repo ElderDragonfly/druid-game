@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import numpy as np
 from PIL import Image, ImageDraw, ImageOps
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import binary_dilation, distance_transform_edt
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'docs/art/druid-walk-right-v2'
 OUT.mkdir(exist_ok=True)
@@ -47,7 +47,17 @@ for i in range(4):
  # ends in a transparent cut just below the old cloak. Feet stay donor-only.
  underlay=np.array(original)
  yy,xx=np.indices(underlay.shape[:2])
- underlay[:,:,3][~((xx>=70)&(xx<118)&(yy>=220)&(yy<258))]=0
+ bridge=Image.new('L',(256,320))
+ ImageDraw.Draw(bridge).polygon([(69,246),(118,246),(118,258),(94,269),(74,264),(69,258)],fill=255)
+ support=((xx>=70)&(xx<118)&(yy>=220)&(yy<258))|(np.array(bridge)>0)
+ underlay[:,:,3][~support]=0
+ # The original right layer also has no pixels in this tiny hidden-knee gap.
+ # Extend its nearest existing trouser texture under the cloak; no new foot.
+ hues=np.array(original.convert('RGB').convert('HSV'))
+ cloth_source=(np.array(original)[:,:,3]>0)&(hues[:,:,0]<32)&(hues[:,:,2]>10)&(xx>=70)&(xx<118)&(yy>=230)&(yy<270)
+ nearest=distance_transform_edt(~cloth_source,return_distances=False,return_indices=True)
+ fill=(np.array(bridge)>0)&(underlay[:,:,3]==0)
+ underlay[fill]=np.array(original)[nearest[0][fill],nearest[1][fill]]
  underlay[underlay[:,:,3]==0]=0
  frame.alpha_composite(Image.fromarray(underlay))
  frame.alpha_composite(legs)

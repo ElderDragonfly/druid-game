@@ -10,7 +10,7 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       for (const value of ctx.getImageData(0,0,c.width,c.height).data) hash = Math.imul(hash ^ value, 16777619);
       return hash >>> 0;
     };
-    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true, visibleWaterPixels = 0, onlyFlameChanges = true, softFireJoin = true, softEdgeCount = 0;
+    let drawnFrames = true, fixedSurroundings = true, smoothWater = true, protectedWaterEdges = true, visibleWaterPixels = 0, onlyFlameChanges = true, softFireJoin = true, softEdgeCount = 0, transparentBorders = true;
     const readImage = async path => {
       const image = new Image(); image.src = `/docs/art/${path}`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
@@ -39,8 +39,22 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       const previousMask = kind === 'water' ? await readImage('selection-camp-frames-v1/water-change-mask.png') : null;
       const texture = game.textures.get(`selection-${kind}-frames`), area = config[kind];
       const actual = document.createElement('canvas'); actual.width = expected.canvas.width; actual.height = expected.canvas.height;
-      actual.getContext('2d').drawImage(texture.getSourceImage(),0,0);
-      drawnFrames &&= actual.getContext('2d').getImageData(0,0,actual.width,actual.height).data.every((v,i)=>v===expected.data[i]);
+      const actualCtx=actual.getContext('2d');
+      const raw=document.createElement('canvas');raw.width=actual.width;raw.height=actual.height;
+      raw.getContext('2d').drawImage(texture.getSourceImage(),0,0);
+      const rawPixels=raw.getContext('2d').getImageData(0,0,raw.width,raw.height).data;
+      // Test final pixels over the common static background, while runtime uses
+      // transparent effects only. Opaque rectangular scenery is never overlaid.
+      for(let index=0;index<config[kind].frameCount;index++) {
+        const x=index%area.framesPerRow*area.width,y=Math.floor(index/area.framesPerRow)*area.height;
+        actualCtx.drawImage(base.canvas,0,0,area.width,area.height,x,y,area.width,area.height);
+        actualCtx.drawImage(raw,x,y,area.width,area.height,x,y,area.width,area.height);
+        for(let py=0;py<area.height;py++)for(let px=0;px<area.width;px++) {
+          if(px<2||py<2||px>=area.width-2||py>=area.height-2)
+            transparentBorders&&=rawPixels[((y+py)*raw.width+x+px)*4+3]===0;
+        }
+      }
+      drawnFrames &&= actualCtx.getImageData(0,0,actual.width,actual.height).data.every((v,i)=>v===expected.data[i]);
       let previous, first, waterMin, waterMax;
       const gentle = (a,b) => a.every((v,i)=>Math.abs(v-b[i])<=16);
       for (let frameIndex=0;frameIndex<config[kind].frameCount;frameIndex++) {
@@ -107,13 +121,14 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       cleanup, cleanupAboveWater: scene.children.getIndex(clean) > scene.children.getIndex(water),
       panelAbove: scene.children.list.findIndex(o=>o.type==='Rectangle') > scene.children.getIndex(fire),
       fireFps: config.fire.fps, waterFps: config.water.fps, fireCount: config.fire.frameCount, waterCount: config.water.frameCount,
-      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels, onlyFlameChanges, softFireJoin, softEdgeCount };
+      drawnFrames, fixedSurroundings, smoothWater, protectedWaterEdges, visibleWaterPixels, onlyFlameChanges, softFireJoin, softEdgeCount, transparentBorders };
   });
   ok(before.count === 6 && before.loops && before.independent, 'Шесть светлячков имеют независимые периоды и действительно замкнутые траектории');
   ok(before.animatedPixels && before.filters && before.fireFps === 18.75 && before.waterFps === 24 && before.fireCount === 37 && before.waterCount === 144 && before.drawnFrames,
     'Все 37 кадров загруженного огня проигрываются при 18,75 FPS (на 25% медленнее); вода прежняя; готовые PNG используются 1:1 с NEAREST');
   ok(before.oppositeFlight, 'Новый огонёк справа летит против часовой стрелки, два прежних видимых огонька — по часовой');
   ok(before.onlyFlameChanges, 'Импортированное пламя сохранено: камни и угли прежние, фон GIF и чужие поленья отсутствуют');
+  ok(before.transparentBorders,'Огонь и вода — прозрачные слои: двухпиксельная граница каждого кадра пуста, прямоугольный фон не перекрывается');
   ok(before.softFireJoin&&before.softEdgeCount>100,'Подложка костра плавно соединяется со скалой: на внешней границе убрано не менее 85% прежнего резкого перепада');
   ok(before.fixedSurroundings, 'Камни, берега, лес и окружение вне масок движения побайтно неподвижны во всех кадрах');
   ok(before.smoothWater && before.protectedWaterEdges, 'Вода меняет оттенки плавно, включая стык цикла; сохранён защитный пиксель вдоль берегов и камней');

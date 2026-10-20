@@ -51,5 +51,17 @@ for y in range(0,frames.shape[0],142):
   original=frames[y:y+142,x:x+204].astype('int16')
   frames[y:y+142,x:x+204]=np.clip(original+new_reference.astype('int16')-reference.astype('int16'),0,255).astype('uint8')
 Image.fromarray(new_reference).save(OUT/'water-reference.png',optimize=True)
+# Only the flowing water is drawn over the background at runtime. A transparent
+# guard prevents opaque rectangle edges at fractional camera zooms in WebGL.
+mask=np.array(Image.open(folder/'water-change-mask.png').convert('L'))>0
+mask[:2]=False;mask[-2:]=False;mask[:,:2]=False;mask[:,-2:]=False
+water_overlay=np.zeros_like(frames)
+for index in range(144):
+ y=index//8*142;x=index%8*204
+ cell=frames[y:y+142,x:x+204]
+ cell[~mask]=new_reference[~mask]
+ overlay=water_overlay[y:y+142,x:x+204]
+ overlay[mask]=cell[mask]
 Image.fromarray(frames).save(OUT/'water-frames.png',optimize=True)
+Image.fromarray(water_overlay).save(OUT/'water-overlay-frames.png',optimize=True)
 (OUT/'art.json').write_text(json.dumps({'size':[960,540],'repairColumns':[503,553],'seamX':525,'footerRestoredFromY':528,'water':'accepted v2 deltas, unchanged cadence and masks','fire':'accepted flame-only frames over a feathered static cleanup, exact coals/logs, no hard rock-patch edge','characterAndStaff':'separate, unchanged'},indent=2)+'\n')

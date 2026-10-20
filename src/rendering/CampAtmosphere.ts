@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import fireUrl from '../../docs/art/selection-camp-seam-v1/fire-frames.png';
-import waterUrl from '../../docs/art/selection-camp-seam-v1/water-frames.png';
+import fireUrl from '../../docs/art/selection-camp-uploaded-flame-v1/flame-only-frames.png';
+import waterUrl from '../../docs/art/selection-camp-seam-v1/water-overlay-frames.png';
 import cleanUrl from '../../docs/art/selection-camp-atmosphere-v1/firefly-clean-patches.png';
 import { CAMP_ATMOSPHERE as CONFIG, fireflyPosition } from '../data/campAtmosphere';
 
@@ -8,7 +8,8 @@ export const CAMP_ATMOSPHERE_ART = [
   { key: 'camp-fire-drawn-source', url: fireUrl }, { key: 'camp-water-drawn-source', url: waterUrl }, { key: 'camp-firefly-clean', url: cleanUrl },
 ];
 const FIRE_KEY = 'selection-fire-frames', WATER_KEY = 'selection-water-frames', FLY_KEY = 'selection-firefly';
-/** Prepared PNG frames; the engine only switches frames, never warps the background. */
+/** Transparent effects only: never redraw a rectangular piece of scenery over
+ * the shared backdrop. This also avoids WebGL seams at fractional camera zoom. */
 export class CampAtmosphere {
   readonly fire: Phaser.GameObjects.Image;
   readonly water: Phaser.GameObjects.Image;

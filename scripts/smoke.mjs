@@ -1166,6 +1166,7 @@ try {
         if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
       }
       toes.push(toe);
+      for(let y=258;y<264;y++)for(let x=76;x<83;x++)connected&&=updated[(y*1024+frame*256+x)*4+3]===255;
       // These trousers belonged to the approved right body and must remain
       // opaque when the opposite leg donor is occluded by its original cloak.
       for(let y=230;y<252;y++) for(let x=78;x<95;x++) {

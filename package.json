@@ -11,7 +11,8 @@
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node scripts/smoke.mjs",
-    "test:editor": "node scripts/entity-editor-smoke.mjs"
+    "test:editor": "node scripts/entity-editor-smoke.mjs",
+    "test:camp-render": "node scripts/camp-overlay-render-smoke.mjs"
   },
   "dependencies": { "phaser": "3.90.0" },
   "devDependencies": {
