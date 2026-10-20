@@ -7,5 +7,9 @@ export const LOG_MUSHROOMS = original.mushrooms.map(sprite => ({
 }));
 export const FALLEN_LOG_GENERATION = {
   min: 2, max: 4, mushroomChance: .5, mushroomMin: 1, mushroomMax: 3,
-  angleMin: 0, angleMax: 0,
+  interactionRadius: 44,
+  // Temporary inspection layout; disable to restore the world-wide 2–4 rule.
+  testAroundSpawn: true,
+  testOffsets: [{ x: -220, y: -135 }, { x: 220, y: -135 },
+    { x: -220, y: 135 }, { x: 220, y: 135 }],
 } as const;

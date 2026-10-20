@@ -25,7 +25,10 @@ for i in range(4):
  m=Image.new('L',(256,320));ImageDraw.Draw(m).polygon([(96,210),(162,210)]+left_edges[i][3:],fill=255)
  a=np.array(donor); a[:,:,3]=np.minimum(a[:,:,3],np.array(m))
  hsv=np.array(donor.convert('RGB').convert('HSV'))
+ yy,xx=np.indices(a.shape[:2])
+ # Warm boot highlights overlap the cloak hue: mask only its outer edges.
  cloth=(hsv[:,:,0]>=32)&(hsv[:,:,0]<=110)&(hsv[:,:,1]>40)&(a[:,:,3]>0)
+ cloth &= ((xx>162)&(yy<268))|((xx<98)&(yy<249))
  a[:,:,3][binary_dilation(cloth,iterations=1)]=0
  a[a[:,:,3]==0]=0
  legs=ImageOps.mirror(Image.fromarray(a))
@@ -39,6 +42,14 @@ for i in range(4):
  fg[:,:,3][(np.array(removal)>0)&~protect]=0;fg[fg[:,:,3]==0]=0
  # Restore the actual far-side staff where old legs previously covered it.
  frame=staff.crop(box)
+ # The left donor had this upper-leg area hidden by a differently shaped cloak.
+ # Retain the matching right-facing trousers underneath, so the new knee never
+ # ends in a transparent cut just below the old cloak. Feet stay donor-only.
+ underlay=np.array(original)
+ yy,xx=np.indices(underlay.shape[:2])
+ underlay[:,:,3][~((xx>=70)&(xx<118)&(yy>=220)&(yy<258))]=0
+ underlay[underlay[:,:,3]==0]=0
+ frame.alpha_composite(Image.fromarray(underlay))
  frame.alpha_composite(legs)
  frame.alpha_composite(Image.fromarray(fg))
  # Absolutely preserve the approved upper body, hand and staff motion.

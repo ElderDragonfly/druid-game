@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { CampAtmosphere } from '../rendering/CampAtmosphere';
-import { addSelectionCampPlate } from '../rendering/selectionCampArt';
+import { addSelectionCampBackground } from '../rendering/selectionCampArt';
 import { CHARACTERS } from '../data/characters';
 import { MenuButton } from '../ui/MenuButton';
 import { MENU_LAYOUT } from '../ui/layout';
-import { addCampBackground, addMenuHint, bindSceneKey, markMenuScenery, setupMenuCameras } from '../ui/sceneHelpers';
+import { addMenuHint, bindSceneKey, markMenuScenery, setupMenuCameras } from '../ui/sceneHelpers';
 import { SCENES } from './keys';
 import { menuMusic } from '../audio/MenuMusic';
 
@@ -23,8 +23,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.cards = [];
     this.campProps = [];
     const layout = MENU_LAYOUT.select;
-    addCampBackground(this, 'selection-camp', layout.backgroundPixelScale);
-    addSelectionCampPlate(this);
+    addSelectionCampBackground(this);
     new CampAtmosphere(this);
     markMenuScenery(this,[...this.children.list]);
     const p = layout.panel;

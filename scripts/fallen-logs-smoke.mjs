@@ -2,16 +2,22 @@
 export async function testFallenLogs(page,ok) {
   const stats=await page.evaluate(async()=>{
     const {generateMeadow,obstacleRect,obstacleVisualRect,overlaps}=await import('/src/world/meadowLayout.ts');
-    const {logVisualRect,logCollisionRects,logPoint}=await import('/src/world/fallenLogs.ts');
+    const {logVisualRect,logCollisionRects,logPoint,mushroomPoint,onMushroomSurface}=await import('/src/world/fallenLogs.ts');
     const {FALLEN_LOGS,LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
     const counts=new Set(),amounts=new Set(),species=new Set(),variants=new Set(),angles=new Set();
-    let total=0,covered=0,safe=true,repeatable=true,homogeneous=true,native=true;
+    let total=0,covered=0,safe=true,repeatable=true,homogeneous=true,native=true,scattered=true,visible=true;
+    const points=new Set();
     for(let seed=0;seed<1500;seed++) {
       const layout=generateMeadow(seed);counts.add(layout.logs.length);total+=layout.logs.length;
-      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length>=2&&layout.logs.length<=4;
+      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length===4&&layout.logs[0].mushrooms.length>0;
       const spawn={x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
       for(const log of layout.logs) {
         native&&=log.angle===0&&log.flipX===false;variants.add(log.variant);angles.add(log.angle);const bounds=logVisualRect(log),body=logCollisionRects(log);
+        visible&&=Math.abs(log.x-layout.spawn.x)<=240&&Math.abs(log.y-layout.spawn.y)<=155;
+        for(const m of log.mushrooms) {
+          scattered&&=onMushroomSurface(log.variant,m.surface)&&log.mushrooms.every(other=>other===m||Math.hypot(other.surface.x-m.surface.x,other.surface.y-m.surface.y)>=6);
+          points.add(`${log.variant}:${m.surface.x}:${m.surface.y}`);
+        }
         safe&&=bounds.x>=24&&bounds.y>=24&&bounds.x+bounds.width<=layout.width-24&&bounds.y+bounds.height<=layout.height-24&&
           !overlaps(bounds,spawn)&&!layout.obstacles.some(tree=>overlaps(bounds,obstacleVisualRect(tree),23))&&!layout.obstacles.some(tree=>body.some(r=>overlaps(r,obstacleRect(tree),27)));
         homogeneous&&=new Set(log.mushrooms.map(m=>m.variant)).size<=1&&new Set(log.mushrooms.map(m=>m.slot)).size===log.mushrooms.length;
@@ -36,7 +42,7 @@ export async function testFallenLogs(page,ok) {
         Math.abs(o.body.x-expected[n].x)<.001&&Math.abs(o.body.y-expected[n].y)<.001&&
         Math.abs(o.body.width-expected[n].width)<.001&&Math.abs(o.body.height-expected[n].height)<.001);
       for(const [n,m] of log.mushrooms.entries()) {
-        const image=scene.children.getByName(`log-mushroom-${index}-${n}`),spot=a.mushroomSpots[m.slot],p=logPoint(log,...spot);
+        const image=scene.children.getByName(`log-mushroom-${index}-${m.slot}`),p=mushroomPoint(log,m);
         upright&&=image.angle===0&&!image.body&&image.texture.key===LOG_MUSHROOMS[m.variant].id&&
           Math.abs(image.x-p.x)<.001&&Math.abs(image.y-p.y)<.001&&image.depth>scene.children.getByName(`fallen-log-${index}`).depth;
       }
@@ -55,12 +61,13 @@ export async function testFallenLogs(page,ok) {
     const emptyCorners=corners.some(p=>nav.canStand(p)&&mouseCanStand(layout,p));
     const noHint=!scene.hint&&!scene.children.list.some(o=>o.text?.includes('WASD —'))&&scene.hud.list.length===4;
     return{counts:[...counts].sort(),amounts:[...amounts].sort(),species:species.size,variants:variants.size,angleCount:angles.size,
-      fraction:covered/total,native,safe,homogeneous,repeatable,art,rendered,bodies,upright,navigation,emptyCorners,noHint};
+      fraction:covered/total,scattered,visible,pointCount:points.size,native,safe,homogeneous,repeatable,art,rendered,bodies,upright,navigation,emptyCorners,noHint};
   });
-  ok(stats.counts.join()==='2,3,4'&&stats.safe,'1500 локаций: 2–4 бревна в границах мира, без стволов и с безопасным стартом');
-  ok(Math.abs(stats.fraction-.5)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
-    `На ~50% брёвен 1–3 одинаковых гриба, без повторных мест роста (${(stats.fraction*100).toFixed(1)}%)`);
+  ok(stats.counts.join()==='4'&&stats.safe&&stats.visible,'1500 тестовых локаций: четыре видимых бревна около старта, без крон и с безопасным проходом');
+  ok(Math.abs(stats.fraction-.625)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
+    `Тест: на первом бревне гарантированы 1–3 гриба, у остальных шанс 50%; один вид на бревно (${(stats.fraction*100).toFixed(1)}%)`);
   ok(stats.species===7&&stats.variants===5&&stats.angleCount===1&&stats.native&&stats.repeatable,'Все 5 брёвен и 7 видов грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
+  ok(stats.scattered&&stats.pointCount>200,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
   ok(stats.art,'Вырезанные PNG прозрачны без полупрозрачной каймы; размеры и NEAREST сохранены');
   ok(stats.rendered&&stats.upright,'В игре стоят выбранные варианты; грибы растут на уменьшенном бревне вертикально');
   ok(stats.bodies&&stats.navigation&&stats.emptyCorners,'Коллизии, обход волка и маршрут мыши учитывают древесину, пустые углы проходимы');
@@ -80,10 +87,13 @@ export async function testFallenLogs(page,ok) {
     const s=window.__smokeGame.scene.getScene('Room');const {isRunSave}=await import('/src/persistence/runSave.ts');
     const snapshot={version:1,savedAt:Date.now(),characterId:s.characterId,layout:structuredClone(s.layout),
       player:s.player.snapshot(),camera:{x:s.cameras.main.midPoint.x,y:s.cameras.main.midPoint.y},world:s.world.snapshot(),shots:[]};
-    const valid=isRunSave(snapshot),legacy=structuredClone(snapshot);delete legacy.layout.logs;delete legacy.layout.counts.logs;
+    const valid=isRunSave(snapshot),legacySlots=structuredClone(snapshot),legacy=structuredClone(snapshot);
+    legacySlots.layout.logs.forEach(l=>l.mushrooms.forEach(m=>delete m.surface));
+    delete legacy.layout.logs;delete legacy.layout.counts.logs;
     const corrupt=mutate=>{const saved=structuredClone(snapshot);mutate(saved.layout.logs[0]);return !isRunSave(saved);};
-    return valid&&isRunSave(legacy)&&corrupt(l=>l.variant=100)&&corrupt(l=>l.angle=null)&&corrupt(l=>l.flipX='yes')&&
-      corrupt(l=>l.mushrooms=[{slot:0,variant:0},{slot:1,variant:1}])&&corrupt(l=>l.mushrooms=[{slot:9,variant:0}]);
+    return valid&&isRunSave(legacy)&&isRunSave(legacySlots)&&corrupt(l=>l.variant=100)&&corrupt(l=>l.angle=null)&&corrupt(l=>l.flipX='yes')&&
+      corrupt(l=>l.mushrooms=[{slot:0,variant:0},{slot:1,variant:1}])&&corrupt(l=>l.mushrooms=[{slot:9,variant:0}])&&
+      corrupt(l=>l.mushrooms=[{slot:0,variant:0,surface:{x:0,y:0}}]);
   }),'Новый сейв хранит брёвна/грибы; старый сейв поддерживается, повреждённые данные отклоняются');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');

@@ -3,7 +3,7 @@ import { ENVIRONMENT_VARIANTS } from '../data/environment';
 import { FACINGS } from '../input/EightWayFacing';
 import { MEADOW_WORLD } from '../world/meadowLayout';
 import { FALLEN_LOGS, LOG_MUSHROOMS } from '../data/fallenLogs';
-import { logVisualRect } from '../world/fallenLogs';
+import { onMushroomSurface, logVisualRect } from '../world/fallenLogs';
 import type { PointSave, RunSave } from './snapshots';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
@@ -40,7 +40,9 @@ export function isRunSave(value: unknown): value is RunSave {
             new Set(log.mushrooms.map(m => m.slot)).size === log.mushrooms.length &&
             new Set(log.mushrooms.map(m => m.variant)).size <= 1 &&
             log.mushrooms.every(m => !!m && Number.isInteger(m.variant) && !!LOG_MUSHROOMS[m.variant] &&
-              Number.isInteger(m.slot) && m.slot >= 0 && m.slot < FALLEN_LOGS[log.variant].mushroomSpots.length);
+              Number.isInteger(m.slot) && m.slot >= 0 && m.slot < FALLEN_LOGS[log.variant].mushroomSpots.length &&
+              (m.surface === undefined || (Number.isFinite(m.surface.x) && Number.isFinite(m.surface.y) &&
+                onMushroomSurface(log.variant,m.surface))));
         })) return false;
     } else if (s.layout.counts.logs !== undefined) return false;
     const p = s.player, state = p?.state;

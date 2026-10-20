@@ -1,21 +1,21 @@
 import Phaser from 'phaser';
 import cleanPlate from '../../docs/art/druid-basic-seated-v1/camp-clean-plate.png';
 import staff from '../../docs/art/druid-basic-seated-v1/staff-lying.png';
-import { CAMP_DRUID, DRUID_TEXTURES } from './druidArt';
+import unified from '../../docs/art/selection-camp-seam-v1/background.png';
+import { addCampBackground } from '../ui/sceneHelpers';
+import { DRUID_TEXTURES } from './druidArt';
 
 export const SELECTION_CAMP_ART = [
-  { key: 'selection-camp-plate', url: cleanPlate },
+  { key: 'selection-camp-plate', url: cleanPlate }, // retained source/reference
+  { key: 'selection-camp-unified', url: unified },
   { key: DRUID_TEXTURES.campStaff, url: staff },
 ];
 
 /** Environment only: it remains behind every selectable character. */
-export function addSelectionCampPlate(scene: Phaser.Scene) {
-  scene.add.image(CAMP_DRUID.position.x, CAMP_DRUID.position.y, 'selection-camp-plate')
-    .setName('selection-camp-plate').setOrigin(0).setScale(CAMP_DRUID.scale)
-    // The retained reference includes a flat footer from its old preview at
-    // y=844..863. Reveal the full-window forest underneath, without moving or
-    // stretching the camp, character or staff to compensate for that footer.
-    .setCrop(0, 0, CAMP_DRUID.width, 844);
+export function addSelectionCampBackground(scene: Phaser.Scene) {
+  // One precomposed environment avoids the hard edge of an opaque half-screen plate.
+  // The selected actor, equipment, water, fire and fireflies remain independent.
+  addCampBackground(scene, 'selection-camp-unified');
 }
 
 export function prepareSelectionCampTextures(scene: Phaser.Scene) {

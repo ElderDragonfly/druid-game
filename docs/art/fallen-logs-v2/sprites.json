@@ -39,7 +39,33 @@
       ],
       "previousWorldWidth": 154.8,
       "worldPixelSize": 2,
-      "shadowFree": true
+      "shadowFree": true,
+      "mushroomSurface": [
+        [
+          14,
+          12
+        ],
+        [
+          24,
+          9
+        ],
+        [
+          39,
+          10
+        ],
+        [
+          39,
+          14
+        ],
+        [
+          25,
+          17
+        ],
+        [
+          13,
+          18
+        ]
+      ]
     },
     {
       "id": "log-1",
@@ -80,7 +106,33 @@
       ],
       "previousWorldWidth": 154.8,
       "worldPixelSize": 2,
-      "shadowFree": true
+      "shadowFree": true,
+      "mushroomSurface": [
+        [
+          14,
+          12
+        ],
+        [
+          24,
+          9
+        ],
+        [
+          39,
+          10
+        ],
+        [
+          39,
+          14
+        ],
+        [
+          25,
+          17
+        ],
+        [
+          13,
+          18
+        ]
+      ]
     },
     {
       "id": "log-2",
@@ -121,7 +173,37 @@
       ],
       "previousWorldWidth": 156.8,
       "worldPixelSize": 2,
-      "shadowFree": true
+      "shadowFree": true,
+      "mushroomSurface": [
+        [
+          9,
+          11
+        ],
+        [
+          20,
+          9
+        ],
+        [
+          33,
+          6
+        ],
+        [
+          36,
+          8
+        ],
+        [
+          32,
+          12
+        ],
+        [
+          17,
+          16
+        ],
+        [
+          9,
+          17
+        ]
+      ]
     },
     {
       "id": "log-3",
@@ -162,7 +244,37 @@
       ],
       "previousWorldWidth": 153.60000000000002,
       "worldPixelSize": 2,
-      "shadowFree": true
+      "shadowFree": true,
+      "mushroomSurface": [
+        [
+          9,
+          11
+        ],
+        [
+          20,
+          9
+        ],
+        [
+          33,
+          6
+        ],
+        [
+          36,
+          8
+        ],
+        [
+          32,
+          12
+        ],
+        [
+          17,
+          16
+        ],
+        [
+          9,
+          17
+        ]
+      ]
     },
     {
       "id": "log-4",
@@ -203,7 +315,41 @@
       ],
       "previousWorldWidth": 186.0,
       "worldPixelSize": 2,
-      "shadowFree": true
+      "shadowFree": true,
+      "mushroomSurface": [
+        [
+          10,
+          8
+        ],
+        [
+          17,
+          11
+        ],
+        [
+          34,
+          19
+        ],
+        [
+          45,
+          20
+        ],
+        [
+          48,
+          24
+        ],
+        [
+          37,
+          23
+        ],
+        [
+          20,
+          16
+        ],
+        [
+          9,
+          11
+        ]
+      ]
     }
   ],
   "sizeMultiplier": 0.6666666666666666,

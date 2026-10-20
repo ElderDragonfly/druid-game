@@ -1,6 +1,18 @@
 /** Menus fill the same browser window as gameplay, without cropping controls. */
 export async function testMenuWindow(page,ok,clickNamed,waitScene) {
   const original=page.viewportSize();
+  ok(await page.evaluate(async()=>{
+    const read=async path=>{const i=new Image();i.src=path;await i.decode();const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const ctx=c.getContext('2d');ctx.drawImage(i,0,0);return ctx.getImageData(0,0,c.width,c.height).data;};
+    const old=await read('/docs/art/selection-camp-atmosphere-v1/environment-reference.png');
+    const current=await read('/docs/art/selection-camp-seam-v1/background.png');
+    let preserved=true,before=0,after=0;
+    for(let y=0;y<528;y++) for(let x=0;x<960;x++) for(let c=0;c<4;c++) {
+      const i=(y*960+x)*4+c;
+      if(x<503||x>553)preserved&&=old[i]===current[i];
+      if(x===525&&y<245&&c<3){before+=Math.abs(old[i]-old[i-4]);after+=Math.abs(current[i]-current[i-4]);}
+    }
+    return preserved&&after<before*.5;
+  }),'Шов x=525 сглажен без замены остального лагеря; перепад вдоль старой вертикальной границы уменьшен более чем вдвое');
   await clickNamed('CharacterSelect','back');await waitScene('MainMenu');
   const check=async(key,width,height)=>{
     await page.waitForFunction(({key,width,height})=>{
@@ -42,11 +54,10 @@ export async function testMenuWindow(page,ok,clickNamed,waitScene) {
     await clickNamed('MainMenu','play');await waitScene('CharacterSelect');
     await check('CharacterSelect',viewport.width,viewport.height);
     ok(await page.evaluate(()=>{
-      const s=window.__smokeGame.scene.getScene('CharacterSelect'),plate=s.children.getByName('selection-camp-plate');
-      // Full source stays intact; only the baked preview footer is excluded.
-      return plate.isCropped&&plate._crop.x===0&&plate._crop.y===0&&plate._crop.width===696&&plate._crop.height===844&&
-        plate.x===525&&plate.y===50&&plate.scaleX===.625&&plate.texture.getSourceImage().height===864;
-    }),`Выбор ${viewport.width}×${viewport.height}: полоса старого предпросмотра скрыта, положение и масштаб лагеря сохранены`);
+      const s=window.__smokeGame.scene.getScene('CharacterSelect'),bg=s.children.getByName('camp-background');
+      return bg.texture.key==='selection-camp-unified'&&bg.displayWidth===960&&bg.displayHeight===540&&
+        !s.children.getByName('selection-camp-plate')&&s.children.getByName('selected-character-preview').texture.key==='druid-camp';
+    }),`Выбор ${viewport.width}×${viewport.height}: окружение единое, без вертикальной накладки и нижней полосы; друид отдельным слоем`);
     await clickNamed('CharacterSelect','character-druid');
     ok(await page.evaluate(()=>{
       const s=window.__smokeGame.scene.getScene('CharacterSelect'),ui=s.cameras.getCamera('menu-ui');

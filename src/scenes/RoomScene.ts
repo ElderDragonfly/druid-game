@@ -105,6 +105,10 @@ export class RoomScene extends Phaser.Scene {
     }) as MovementKeys;
     const captureArrowTap = (event: KeyboardEvent) => {
       if(this.gameOver)return;
+      if (event.code === 'KeyE') {
+        if (!event.repeat) this.world.collectMushroom((this.player.body as Phaser.Physics.Arcade.Body).center);
+        return;
+      }
       if (!event.code.startsWith('Arrow') || event.repeat) return;
       const arrows = this.attackKeys;
       this.queuedAttack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),

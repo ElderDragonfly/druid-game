@@ -18,11 +18,11 @@ export async function testCampAtmosphere(page, ok, clickNamed, waitScene) {
       return { canvas, context, data:context.getImageData(0,0,image.width,image.height).data };
     };
     for (const kind of ['fire','water']) {
-      const folder = kind === 'fire' ? 'selection-camp-uploaded-flame-v1' : 'selection-water-flow-v2';
+      const folder = kind === 'fire' ? 'selection-camp-uploaded-flame-v1' : 'selection-camp-seam-v1';
       const read = name => readImage(`${folder}/${name}`);
       const expected = await read(`${kind}-frames.png`), reference = await read(`${kind}-reference.png`);
-      const change = await read(`${kind}-change-mask.png`);
-      const motion = await read(kind === 'fire' ? 'fire-motion-mask.png' : 'water-change-mask.png');
+      const change = kind==='water' ? await readImage('selection-water-flow-v2/water-change-mask.png') : await read(`${kind}-change-mask.png`);
+      const motion = kind==='water' ? change : await read('fire-motion-mask.png');
       const base = kind === 'fire' ? await read('fire-base.png') : reference;
       if (kind === 'fire') {
         const acceptedBase=await readImage('selection-camp-frames-v1/fire-base.png');

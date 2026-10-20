@@ -1,3 +1,4 @@
+import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
 import { testFallenLogs } from './fallen-logs-smoke.mjs';
 import assert from 'node:assert/strict';
 import { testCampAtmosphere } from './camp-atmosphere-smoke.mjs';
@@ -149,7 +150,7 @@ try {
   const slots = await selection();
   ok(slots.cards.length === 3 && slots.cards[0].enabled && !slots.cards[1].enabled && !slots.cards[2].enabled,
     'Три ячейки: крайняя левая доступна, остальные закрыты');
-  ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp' && slots.seatedCharacterId === slots.id,
+  ok(slots.preview === 'druid-camp' && slots.background === 'selection-camp-unified' && slots.seatedCharacterId === slots.id,
     'На бревне сидит пиксельная версия выбранного друида');
   ok(slots.seatedWidth === 435 && slots.seatedHeight === 540 && slots.seatedX === 525 && slots.seatedY === 50 &&
     slots.seatedPixelScale === 0.625,
@@ -170,7 +171,7 @@ try {
     const scene = window.__smokeGame.scene.getScene('CharacterSelect');
     const staff = scene.children.getByName('selected-character-prop-0');
     return { width: canvas.width, height: canvas.height, transparent: transparent / (canvas.width * canvas.height),
-      separate: !!scene.children.getByName('selection-camp-plate') && staff?.texture.key === 'druid-camp-staff' &&
+      separate: scene.children.getByName('camp-background')?.texture.key === 'selection-camp-unified' && staff?.texture.key === 'druid-camp-staff' &&
         staff.getData('characterId') === 'druid' && staff.depth < scene.children.getByName('selected-character-preview').depth,
       identical: data.length === approvedPixels.length && data.every((value, index) => value === approvedPixels[index]) };
   });
@@ -241,7 +242,7 @@ try {
   });
   ok(basicPortrait.identical && basicPortrait.height === 94 && basicPortrait.filter === 1,
     'Портрет Basic 04 копирует утверждённые пиксели и помещается в карточку без перекраски');
-  ok(slots.pixels.width === 384 && slots.pixels.height === 216, 'Пиксели фона выбора увеличены на четверть: 384×216 вместо 480×270');
+  ok(slots.pixels.width === 960 && slots.pixels.height === 540, 'Окружение выбора — единый пиксельный фон 960×540, без непрозрачной половины поверх него');
   await testCampAtmosphere(page, ok, clickNamed, waitScene);
   await testMenuWindow(page, ok, clickNamed, waitScene);
   for (const id of ['character-locked-1', 'character-locked-2']) {
@@ -352,6 +353,7 @@ try {
   await waitScene('Room');
 
   await testFallenLogs(page,ok);
+  await testMushroomInteraction(page,ok,clickNamed,waitScene);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
@@ -1155,7 +1157,7 @@ try {
     };
     const updated = await read('/docs/art/druid-walk-right-v2/walk-right-256x320.png');
     const previous = await read('/docs/art/druid-eight-way-v1/walk-right-256x320.png');
-    let upperUnchanged = true; const toes = [];
+    let upperUnchanged = true, connected = true; const toes = [];
     for (let frame = 0; frame < 4; frame++) {
       let toe = 0;
       for (let y = 0; y < 320; y++) for (let x = 0; x < 256; x++) {
@@ -1164,8 +1166,14 @@ try {
         if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
       }
       toes.push(toe);
+      // These trousers belonged to the approved right body and must remain
+      // opaque when the opposite leg donor is occluded by its original cloak.
+      for(let y=230;y<252;y++) for(let x=78;x<95;x++) {
+        const i=(y*1024+frame*256+x)*4;
+        if(previous[i+3]===255) connected &&= updated[i+3]===255;
+      }
     }
-    return upperUnchanged && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
+    return upperUnchanged && connected && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
   }), 'Вправо: ноги проходят разные фазы шага; принятые верх, рука и посох сохранены точно');
 
   const clearSquare = await page.evaluate(() => {

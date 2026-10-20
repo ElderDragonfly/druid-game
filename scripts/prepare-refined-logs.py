@@ -20,6 +20,9 @@ def position(i):
     return (int(y.min())>source.height*.4,int(x.min()))
 ids.sort(key=position)
 old=json.loads((ROOT/'docs/art/fallen-logs-v1/sprites.json').read_text())
+surfaces=[[[14,12],[24,9],[39,10],[39,14],[25,17],[13,18]],[[14,12],[24,9],[39,10],[39,14],[25,17],[13,18]],
+ [[9,11],[20,9],[33,6],[36,8],[32,12],[17,16],[9,17]],[[9,11],[20,9],[33,6],[36,8],[32,12],[17,16],[9,17]],
+ [[10,8],[17,11],[34,19],[45,20],[48,24],[37,23],[20,16],[9,11]]]
 logs=[]
 for index,region in enumerate(ids):
     selected=regions==region
@@ -35,7 +38,7 @@ for index,region in enumerate(ids):
     point=lambda p:[round(p[0]/ref['width']*width,3),round(p[1]/ref['height']*height,3)]
     logs.append({'id':ref['id'],'file':ref['file'],'width':width,'height':height,'scale':2,
       'bodyLine':[point(p) for p in ref['bodyLine']],'bodyRadius':ref['bodyRadius']*2/3,
-      'mushroomSpots':[point(p) for p in ref['mushroomSpots']],
+      'mushroomSpots':[point(p) for p in ref['mushroomSpots']], 'mushroomSurface':surfaces[index],
       'sourceCrop':list(bounds),'previousWorldWidth':ref['width']*ref['scale'],
       'worldPixelSize':2,'shadowFree':True})
 (OUT/'sprites.json').write_text(json.dumps({'logs':logs,'sizeMultiplier':2/3,'worldPixelSize':2,
