@@ -1079,7 +1079,7 @@ try {
 
   for (const { key, direction, sign, folder } of [
     { key: 'a', direction: 'left', sign: -1, folder: 'druid-facing-fixes-v1' },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-eight-way-v1' },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v2' },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder }) => {
       const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-256x320.png`; await image.decode();
@@ -1146,6 +1146,27 @@ try {
     const idle = await waitState(current => !current.animationPlaying && current.frame === direction && current.vx === 0);
     ok(idle.facing === direction, `Отпускание ${key.toUpperCase()} возвращает стоящий спрайт ${direction}`);
   }
+
+  ok(await page.evaluate(async () => {
+    const read = async path => {
+      const image = new Image(); image.src = path; await image.decode();
+      const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
+      const ctx = c.getContext('2d'); ctx.drawImage(image, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data;
+    };
+    const updated = await read('/docs/art/druid-walk-right-v2/walk-right-256x320.png');
+    const previous = await read('/docs/art/druid-eight-way-v1/walk-right-256x320.png');
+    let upperUnchanged = true; const toes = [];
+    for (let frame = 0; frame < 4; frame++) {
+      let toe = 0;
+      for (let y = 0; y < 320; y++) for (let x = 0; x < 256; x++) {
+        const i = (y * 1024 + frame * 256 + x) * 4;
+        if (y < 220) for (let c = 0; c < 4; c++) upperUnchanged &&= updated[i+c] === previous[i+c];
+        if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
+      }
+      toes.push(toe);
+    }
+    return upperUnchanged && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
+  }), 'Вправо: ноги проходят разные фазы шага; принятые верх, рука и посох сохранены точно');
 
   const clearSquare = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');

@@ -7,13 +7,11 @@ export interface FallenLogPlacement {
   x: number; y: number; variant: number; angle: number; flipX: boolean;
   mushrooms: { variant: number; slot: number }[];
 }
-/** The sprite rotates; mushroom stems stay upright at transformed surface points. */
+/** Native sprite orientation, including logs restored from older rotated saves. */
 export function logPoint(log: FallenLogPlacement, x: number, y: number) {
-  const art = FALLEN_LOGS[log.variant], angle = log.angle * Math.PI / 180;
-  const px = (x - art.width / 2) * art.scale * (log.flipX ? -1 : 1);
-  const py = (y - art.height / 2) * art.scale;
-  return { x: log.x + px * Math.cos(angle) - py * Math.sin(angle),
-    y: log.y + px * Math.sin(angle) + py * Math.cos(angle) };
+  const art = FALLEN_LOGS[log.variant];
+  return { x: log.x + (x - art.width / 2) * art.scale,
+    y: log.y + (y - art.height / 2) * art.scale };
 }
 export function logVisualRect(log: FallenLogPlacement): Rect {
   const a = FALLEN_LOGS[log.variant];
@@ -22,7 +20,7 @@ export function logVisualRect(log: FallenLogPlacement): Rect {
   return { x:left,y:top,width:Math.max(...points.map(p=>p.x))-left,height:Math.max(...points.map(p=>p.y))-top };
 }
 /** Small overlapping footprints follow the wood, leaving the empty corners of
- * a rotated sprite walkable. Physics, navigation and placement share them. */
+ * the sprite walkable. Physics, navigation and placement share them. */
 export function logCollisionRects(log: FallenLogPlacement): Rect[] {
   const art = FALLEN_LOGS[log.variant], [start,end] = art.bodyLine;
   const a = logPoint(log,start[0],start[1]), b = logPoint(log,end[0],end[1]), radius = art.bodyRadius;
@@ -38,7 +36,7 @@ export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[]
   const count = integer(CONFIG.min,CONFIG.max), result:FallenLogPlacement[]=[];
   const spawn = {x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
   for(let index=0;index<count;index++) {
-    const variant=integer(0,FALLEN_LOGS.length-1), angle=integer(CONFIG.angleMin,CONFIG.angleMax), flipX=random()<.5;
+    const variant=integer(0,FALLEN_LOGS.length-1), angle=0, flipX=false;
     const mushrooms:FallenLogPlacement['mushrooms']=[];
     if(random()<CONFIG.mushroomChance) {
       const species=integer(0,LOG_MUSHROOMS.length-1), amount=integer(CONFIG.mushroomMin,CONFIG.mushroomMax);

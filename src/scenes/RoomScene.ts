@@ -162,6 +162,8 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
+    // Old saves retain positions and mushrooms, but use the accepted native poses.
+    this.layout.logs?.forEach(log => { log.angle = 0; log.flipX = false; });
     const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;
     this.physics.world.setBounds(0, 0, width, height);
     this.cameras.main.setBounds(0, 0, width, height);

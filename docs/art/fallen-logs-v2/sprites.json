@@ -1,0 +1,213 @@
+{
+  "logs": [
+    {
+      "id": "log-0",
+      "file": "log-0.png",
+      "width": 52,
+      "height": 27,
+      "scale": 2,
+      "bodyLine": [
+        [
+          6.047,
+          20.543
+        ],
+        [
+          43.837,
+          14.674
+        ]
+      ],
+      "bodyRadius": 6.666666666666667,
+      "mushroomSpots": [
+        [
+          15.116,
+          12.473
+        ],
+        [
+          26.453,
+          8.804
+        ],
+        [
+          37.035,
+          7.337
+        ]
+      ],
+      "sourceCrop": [
+        32,
+        82,
+        575,
+        365
+      ],
+      "previousWorldWidth": 154.8,
+      "worldPixelSize": 2,
+      "shadowFree": true
+    },
+    {
+      "id": "log-1",
+      "file": "log-1.png",
+      "width": 52,
+      "height": 27,
+      "scale": 2,
+      "bodyLine": [
+        [
+          6.047,
+          20.543
+        ],
+        [
+          43.837,
+          14.674
+        ]
+      ],
+      "bodyRadius": 6.666666666666667,
+      "mushroomSpots": [
+        [
+          15.116,
+          12.473
+        ],
+        [
+          26.453,
+          8.804
+        ],
+        [
+          37.035,
+          7.337
+        ]
+      ],
+      "sourceCrop": [
+        627,
+        88,
+        1160,
+        365
+      ],
+      "previousWorldWidth": 154.8,
+      "worldPixelSize": 2,
+      "shadowFree": true
+    },
+    {
+      "id": "log-2",
+      "file": "log-2.png",
+      "width": 52,
+      "height": 22,
+      "scale": 2,
+      "bodyLine": [
+        [
+          5.969,
+          16.5
+        ],
+        [
+          41.786,
+          11.688
+        ]
+      ],
+      "bodyRadius": 5.333333333333333,
+      "mushroomSpots": [
+        [
+          12.602,
+          11.688
+        ],
+        [
+          25.204,
+          8.938
+        ],
+        [
+          35.816,
+          7.562
+        ]
+      ],
+      "sourceCrop": [
+        1236,
+        103,
+        1790,
+        338
+      ],
+      "previousWorldWidth": 156.8,
+      "worldPixelSize": 2,
+      "shadowFree": true
+    },
+    {
+      "id": "log-3",
+      "file": "log-3.png",
+      "width": 51,
+      "height": 21,
+      "scale": 2,
+      "bodyLine": [
+        [
+          5.977,
+          16.579
+        ],
+        [
+          41.836,
+          11.743
+        ]
+      ],
+      "bodyRadius": 5.333333333333333,
+      "mushroomSpots": [
+        [
+          12.617,
+          11.743
+        ],
+        [
+          25.234,
+          8.98
+        ],
+        [
+          35.859,
+          7.599
+        ]
+      ],
+      "sourceCrop": [
+        155,
+        523,
+        752,
+        763
+      ],
+      "previousWorldWidth": 153.60000000000002,
+      "worldPixelSize": 2,
+      "shadowFree": true
+    },
+    {
+      "id": "log-4",
+      "file": "log-4.png",
+      "width": 62,
+      "height": 38,
+      "scale": 2,
+      "bodyLine": [
+        [
+          8.5,
+          12.825
+        ],
+        [
+          51.0,
+          29.45
+        ]
+      ],
+      "bodyRadius": 8.0,
+      "mushroomSpots": [
+        [
+          15.0,
+          11.875
+        ],
+        [
+          29.5,
+          17.575
+        ],
+        [
+          42.5,
+          22.325
+        ]
+      ],
+      "sourceCrop": [
+        934,
+        427,
+        1595,
+        836
+      ],
+      "previousWorldWidth": 186.0,
+      "worldPixelSize": 2,
+      "shadowFree": true
+    }
+  ],
+  "sizeMultiplier": 0.6666666666666666,
+  "worldPixelSize": 2,
+  "source": "refined-source.png",
+  "previous": "../fallen-logs-v1/sprites.json"
+}
