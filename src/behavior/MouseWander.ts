@@ -1,5 +1,6 @@
+import { layoutCollisionRects } from '../world/collision';
 import { MOUSE } from '../data/mouse';
-import { obstacleRect, overlaps, seededRandom, type MeadowLayout } from '../world/meadowLayout';
+import { overlaps, seededRandom, type MeadowLayout } from '../world/meadowLayout';
 
 export interface MousePoint { x: number; y: number }
 export type MouseState = 'run' | 'rise' | 'look' | 'lower';
@@ -8,8 +9,8 @@ export interface MouseActorState { phase: MouseState; elapsed: number; target: M
 export function mouseCanStand(layout: MeadowLayout, point: MousePoint, gap = 3) {
   const { x, y } = point;
   return x >= 32 && y >= 40 && x <= layout.width - 32 && y <= layout.height - 12 &&
-    !layout.obstacles.some(object => overlaps({ x: x - MOUSE.bodyWidth / 2, y: y - MOUSE.bodyHeight,
-      width: MOUSE.bodyWidth, height: MOUSE.bodyHeight }, obstacleRect(object), gap));
+    !layoutCollisionRects(layout).some(rect => overlaps({ x: x - MOUSE.bodyWidth / 2, y: y - MOUSE.bodyHeight,
+      width: MOUSE.bodyWidth, height: MOUSE.bodyHeight }, rect, gap));
 }
 
 /** A peaceful state machine. It has no player reference, sight radius or attack state. */

@@ -2,6 +2,8 @@ import { CHARACTERS } from '../data/characters';
 import { ENVIRONMENT_VARIANTS } from '../data/environment';
 import { FACINGS } from '../input/EightWayFacing';
 import { MEADOW_WORLD } from '../world/meadowLayout';
+import { FALLEN_LOGS, LOG_MUSHROOMS } from '../data/fallenLogs';
+import { logVisualRect } from '../world/fallenLogs';
 import type { PointSave, RunSave } from './snapshots';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
@@ -25,6 +27,22 @@ export function isRunSave(value: unknown): value is RunSave {
       s.layout.obstacles.length > 4096 || s.layout.counts?.trees !== s.layout.obstacles.length) return false;
     if (!s.layout.obstacles.every(o => o.kind === 'tree' && point(o) && Number.isInteger(o.variant) &&
       !!ENVIRONMENT_VARIANTS.tree[o.variant])) return false;
+    if (s.layout.logs !== undefined) {
+      const logs = s.layout.logs;
+      if (!Array.isArray(logs) || logs.length < 2 || logs.length > 4 || s.layout.counts.logs !== logs.length ||
+        !logs.every(log => {
+          if (!point(log) || !Number.isInteger(log.variant) || !FALLEN_LOGS[log.variant] ||
+            !Number.isFinite(log.angle) || Math.abs(log.angle) > 180 || !flag(log.flipX) ||
+            !Array.isArray(log.mushrooms) || log.mushrooms.length > 3) return false;
+          const bounds = logVisualRect(log);
+          return bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= s.layout.width &&
+            bounds.y + bounds.height <= s.layout.height &&
+            new Set(log.mushrooms.map(m => m.slot)).size === log.mushrooms.length &&
+            new Set(log.mushrooms.map(m => m.variant)).size <= 1 &&
+            log.mushrooms.every(m => !!m && Number.isInteger(m.variant) && !!LOG_MUSHROOMS[m.variant] &&
+              Number.isInteger(m.slot) && m.slot >= 0 && m.slot < FALLEN_LOGS[log.variant].mushroomSpots.length);
+        })) return false;
+    } else if (s.layout.counts.logs !== undefined) return false;
     const p = s.player, state = p?.state;
     if (!point(p) || !state || !Number.isInteger(state.health) || state.health < 1 || state.health > state.maxHealth ||
       !Number.isInteger(state.maxHealth) || state.maxHealth > 10000 || !nonnegative(state.speed) ||

@@ -1,13 +1,19 @@
+import { generateFallenLogs, type FallenLogPlacement } from './fallenLogs';
+import { seededRandom } from './random';
+import { overlaps, type Rect } from './geometry';
+export { seededRandom } from './random';
+export { overlaps, type Rect } from './geometry';
 import { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL, environmentVariant, type EnvironmentKind } from '../data/environment';
 
 export type ObstacleKind = EnvironmentKind;
 export interface ObstaclePlacement { kind: ObstacleKind; x: number; y: number; variant: number }
-export interface Rect { x: number; y: number; width: number; height: number }
 export interface MeadowLayout {
   width: number; height: number; seed: number;
-  counts: { trees: number };
+  counts: { trees: number; logs?: number };
   spawn: { x: number; y: number };
   obstacles: ObstaclePlacement[];
+  /** Missing only in older saved runs. */
+  logs?: FallenLogPlacement[];
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -24,16 +30,6 @@ export const MEADOW_GENERATION = {
   spawnClearance: 16,
 } as const;
 
-export function seededRandom(seed: number) {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6d2b79f5;
-    let value = Math.imul(state ^ (state >>> 15), 1 | state);
-    value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export function obstacleRect(object: ObstaclePlacement): Rect {
   const art = environmentVariant(object.kind, object.variant);
   return { x: object.x - art.bodyWidth / 2, y: object.y - art.bodyHeight,
@@ -44,11 +40,6 @@ export function obstacleVisualRect(object: ObstaclePlacement): Rect {
   const art = environmentVariant(object.kind, object.variant);
   return { x: object.x - art.anchorX * art.scale, y: object.y - art.anchorY * art.scale,
     width: art.width * art.scale, height: art.height * art.scale };
-}
-
-export function overlaps(a: Rect, b: Rect, gap = 0) {
-  return a.x < b.x + b.width + gap && a.x + a.width + gap > b.x &&
-    a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
 }
 
 export function generateMeadow(seed: number, treePool: readonly string[] = TREE_SPAWN_POOL): MeadowLayout {
@@ -86,7 +77,10 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       if (placed !== count) break;
     }
     if (obstacles.length === trees) {
-      return { width, height, seed, counts: { trees }, spawn, obstacles };
+      const layout:MeadowLayout={ width, height, seed, counts: { trees }, spawn, obstacles };
+      layout.logs=generateFallenLogs(layout,obstacles.map(obstacleRect),obstacles.map(obstacleVisualRect));
+      layout.counts.logs=layout.logs.length;
+      return layout;
     }
   }
   throw new Error(`Не удалось разместить поляну ${width}×${height}: ${trees} деревьев`);

@@ -1,3 +1,4 @@
+import { FALLEN_LOG_ART } from './fallenLogArt';
 import Phaser from 'phaser';
 import trees from '../../docs/art/conifer-trees-v1/trees-atlas.png';
 import conifers from '../../docs/art/conifer-trees-v1/sprites.json';
@@ -8,6 +9,7 @@ import broadleaf from '../../docs/art/broadleaf-tree-v1/broadleaf.png';
 import grassCoverage from '../assets/environment/grass-coverage-heights.png';
 
 export const FOREST_ART = [
+  ...FALLEN_LOG_ART,
   { key: 'forest-trees', url: trees },
   { key: 'forest-pine', url: pine },
   { key: 'forest-broadleaf', url: broadleaf },

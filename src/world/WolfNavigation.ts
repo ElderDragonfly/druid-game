@@ -1,17 +1,18 @@
+import { layoutCollisionRects } from './collision';
 import { WOLF } from '../data/wolf';
-import { obstacleRect, overlaps, type MeadowLayout, type Rect } from './meadowLayout';
+import { overlaps, type MeadowLayout, type Rect } from './meadowLayout';
 
 export interface WolfPoint { x: number; y: number }
 /** Feet coordinates throughout: navigation and Arcade use the same footprint. */
 export class WolfNavigation {
-  private readonly trunks: Rect[];
+  private readonly trunks: readonly Rect[];
   private readonly cell = 24;
   private readonly columns: number;
   private readonly rows: number;
   private readonly free: Uint8Array;
 
   constructor(readonly layout: MeadowLayout) {
-    this.trunks = layout.obstacles.map(obstacleRect);
+    this.trunks = layoutCollisionRects(layout);
     this.columns = Math.ceil(layout.width / this.cell);
     this.rows = Math.ceil(layout.height / this.cell);
     this.free = Uint8Array.from({ length: this.columns * this.rows }, (_, i) => Number(this.canStand(this.point(i))));

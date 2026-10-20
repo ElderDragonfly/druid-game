@@ -1,3 +1,4 @@
+import { testFallenLogs } from './fallen-logs-smoke.mjs';
 import assert from 'node:assert/strict';
 import { testCampAtmosphere } from './camp-atmosphere-smoke.mjs';
 import { testWolf } from './wolf-smoke.mjs';
@@ -350,6 +351,7 @@ try {
   await seededPlayer.dispose();
   await waitScene('Room');
 
+  await testFallenLogs(page,ok);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
@@ -721,7 +723,7 @@ try {
     ok(current.hudView.zoom === 1 && current.hudView.x === 0 && current.hudView.y === 0 &&
       current.hudView.width === viewport.width && current.hudView.height === viewport.height && current.cameraCount === 2,
       'HP закреплены на экране отдельной камерой без масштаба; камер ровно две');
-    ok(current.obstacles.every((body, i) => {
+    ok(current.obstacles.filter(body=>body.kind==='tree').every((body, i) => {
       const object = layout.obstacles[i], expected = current.expectedBodies[i], image = current.expectedImages[i];
       return body.kind === object.kind && body.width === expected.width && body.height === expected.height &&
         Math.abs(body.x - expected.x) < 0.1 && Math.abs(body.y - expected.y) < 0.1 &&
@@ -1912,7 +1914,7 @@ try {
   const regenerated = await state();
   ok(regenerated.layout.seed !== oldSeed && await floorSignature() !== oldFloor &&
     regenerated.layout.counts.trees >= 70 && regenerated.layout.counts.trees <= 99 &&
-    regenerated.obstacles.every(object => ['forest-pine','forest-broadleaf'].includes(object.texture)) &&
+    regenerated.obstacles.filter(object=>object.kind==='tree').every(object => ['forest-pine','forest-broadleaf'].includes(object.texture)) &&
     ['forest-pine','forest-broadleaf'].every(texture=>regenerated.obstacles.some(object=>object.texture===texture)),
     'R меняет случайную подстилку и размещение двух пород деревьев; архивные деревья остаются выключены');
   ok(regenerated.x === regenerated.layout.spawn.x && regenerated.y === regenerated.layout.spawn.y, 'R возвращает друида к безопасному старту');

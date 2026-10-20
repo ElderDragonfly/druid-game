@@ -1,0 +1,328 @@
+{
+  "logs": [
+    {
+      "id": "log-0",
+      "file": "log-0.png",
+      "width": 344,
+      "height": 184,
+      "source": "docs/art/27935983a1221547afe93ab842633fc4.jpg",
+      "sourceCrop": [
+        126,
+        282,
+        470,
+        466
+      ],
+      "retainedPixels": 40184,
+      "rgbPreserved": true,
+      "scale": 0.45,
+      "bodyLine": [
+        [
+          40,
+          140
+        ],
+        [
+          290,
+          100
+        ]
+      ],
+      "bodyRadius": 10,
+      "mushroomSpots": [
+        [
+          100,
+          85
+        ],
+        [
+          175,
+          60
+        ],
+        [
+          245,
+          50
+        ]
+      ]
+    },
+    {
+      "id": "log-1",
+      "file": "log-1.png",
+      "width": 344,
+      "height": 184,
+      "source": "docs/art/27935983a1221547afe93ab842633fc4.jpg",
+      "sourceCrop": [
+        546,
+        282,
+        890,
+        466
+      ],
+      "retainedPixels": 40204,
+      "rgbPreserved": true,
+      "scale": 0.45,
+      "bodyLine": [
+        [
+          40,
+          140
+        ],
+        [
+          290,
+          100
+        ]
+      ],
+      "bodyRadius": 10,
+      "mushroomSpots": [
+        [
+          100,
+          85
+        ],
+        [
+          175,
+          60
+        ],
+        [
+          245,
+          50
+        ]
+      ]
+    },
+    {
+      "id": "log-2",
+      "file": "log-2.png",
+      "width": 392,
+      "height": 160,
+      "source": "docs/art/27935983a1221547afe93ab842633fc4.jpg",
+      "sourceCrop": [
+        84,
+        540,
+        476,
+        700
+      ],
+      "retainedPixels": 40167,
+      "rgbPreserved": true,
+      "scale": 0.4,
+      "bodyLine": [
+        [
+          45,
+          120
+        ],
+        [
+          315,
+          85
+        ]
+      ],
+      "bodyRadius": 8,
+      "mushroomSpots": [
+        [
+          95,
+          85
+        ],
+        [
+          190,
+          65
+        ],
+        [
+          270,
+          55
+        ]
+      ]
+    },
+    {
+      "id": "log-3",
+      "file": "log-3.png",
+      "width": 384,
+      "height": 152,
+      "source": "docs/art/27935983a1221547afe93ab842633fc4.jpg",
+      "sourceCrop": [
+        530,
+        540,
+        914,
+        692
+      ],
+      "retainedPixels": 38430,
+      "rgbPreserved": true,
+      "scale": 0.4,
+      "bodyLine": [
+        [
+          45,
+          120
+        ],
+        [
+          315,
+          85
+        ]
+      ],
+      "bodyRadius": 8,
+      "mushroomSpots": [
+        [
+          95,
+          85
+        ],
+        [
+          190,
+          65
+        ],
+        [
+          270,
+          55
+        ]
+      ]
+    },
+    {
+      "id": "log-4",
+      "file": "log-4.png",
+      "width": 620,
+      "height": 400,
+      "source": "docs/art/e61f996047ae8b58748b8ca5559c9323.jpg",
+      "sourceCrop": [
+        170,
+        280,
+        790,
+        680
+      ],
+      "retainedPixels": 98391,
+      "rgbPreserved": true,
+      "scale": 0.3,
+      "bodyLine": [
+        [
+          85,
+          135
+        ],
+        [
+          510,
+          310
+        ]
+      ],
+      "bodyRadius": 12,
+      "mushroomSpots": [
+        [
+          150,
+          125
+        ],
+        [
+          295,
+          185
+        ],
+        [
+          425,
+          235
+        ]
+      ]
+    }
+  ],
+  "mushrooms": [
+    {
+      "id": "mushroom-0",
+      "file": "mushroom-0.png",
+      "width": 60,
+      "height": 61,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        8,
+        8,
+        68,
+        69
+      ],
+      "retainedPixels": 2347,
+      "rgbPreserved": true,
+      "scale": 0.36065573770491804
+    },
+    {
+      "id": "mushroom-1",
+      "file": "mushroom-1.png",
+      "width": 60,
+      "height": 61,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        83,
+        7,
+        143,
+        68
+      ],
+      "retainedPixels": 2090,
+      "rgbPreserved": true,
+      "scale": 0.36065573770491804
+    },
+    {
+      "id": "mushroom-2",
+      "file": "mushroom-2.png",
+      "width": 61,
+      "height": 57,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        232,
+        11,
+        293,
+        68
+      ],
+      "retainedPixels": 2261,
+      "rgbPreserved": true,
+      "scale": 0.38596491228070173
+    },
+    {
+      "id": "mushroom-3",
+      "file": "mushroom-3.png",
+      "width": 53,
+      "height": 54,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        87,
+        89,
+        140,
+        143
+      ],
+      "retainedPixels": 1984,
+      "rgbPreserved": true,
+      "scale": 0.4074074074074074
+    },
+    {
+      "id": "mushroom-4",
+      "file": "mushroom-4.png",
+      "width": 56,
+      "height": 55,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        235,
+        88,
+        291,
+        143
+      ],
+      "retainedPixels": 2037,
+      "rgbPreserved": true,
+      "scale": 0.4
+    },
+    {
+      "id": "mushroom-5",
+      "file": "mushroom-5.png",
+      "width": 60,
+      "height": 57,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        8,
+        176,
+        68,
+        233
+      ],
+      "retainedPixels": 2012,
+      "rgbPreserved": true,
+      "scale": 0.38596491228070173
+    },
+    {
+      "id": "mushroom-6",
+      "file": "mushroom-6.png",
+      "width": 45,
+      "height": 52,
+      "source": "docs/art/d604a2e904ddb3a3efb1c37341c5979c.jpg",
+      "sourceCrop": [
+        16,
+        248,
+        61,
+        300
+      ],
+      "retainedPixels": 1756,
+      "rgbPreserved": true,
+      "scale": 0.4230769230769231
+    }
+  ],
+  "sourceHashes": {
+    "logs": "45c67b0d3792756b279bb9adbbdec55410e8c043ad8baa767d5f88028da888d3",
+    "trunk": "8a8f1ba142643aba9e44dd70673e9b157968732a2e0ffe90df80c7b813616506",
+    "plants": "690c02a3342f0a158b187bf8d4aa56c63cb01fae52debac6f0f729aba7e71c77"
+  }
+}

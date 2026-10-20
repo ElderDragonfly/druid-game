@@ -1,3 +1,5 @@
+import { drawFallenLog } from '../rendering/fallenLogArt';
+import { logCollisionRects } from './fallenLogs';
 import Phaser from 'phaser';
 import { Wolf } from '../entities/Wolf';
 import type { Druid } from '../entities/Druid';
@@ -21,6 +23,7 @@ export class MeadowWorld {
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
   readonly corpses: Wolf[] = [];
+  private logArt: Phaser.GameObjects.Image[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
@@ -42,6 +45,14 @@ export class MeadowWorld {
       // Physics and generation/pathfinding share the same trimmed trunk.
       body.setSize(bounds.width, bounds.height, false)
         .setOffset(bounds.x - topLeft.x, bounds.y - topLeft.y);
+    });
+    (layout.logs??[]).forEach((log,index)=>{
+      this.logArt.push(...drawFallenLog(scene,log,index));
+      logCollisionRects(log).forEach((bounds,part)=>{
+        const proxy=this.obstacles.create(bounds.x,bounds.y,'__WHITE') as Phaser.Physics.Arcade.Image;
+        proxy.setName(`fallen-log-collider-${index}-${part}`).setData('kind','log').setOrigin(0)
+          .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
+      });
     });
     this.mice = (saved?.mice ?? generateMousePopulation(layout)).map((start, index) => {
       const mouse = new Mouse(scene, layout, this.obstacles, start, index + 1);
@@ -96,6 +107,7 @@ export class MeadowWorld {
     this.collider?.destroy();
     this.obstacles.clear(true, true);
     this.obstacles.destroy();
+    this.logArt.forEach(image=>image.destroy());this.logArt=[];
     this.floor.destroy();
     this.grass.destroy();
   }

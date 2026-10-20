@@ -31,7 +31,6 @@ export class RoomScene extends Phaser.Scene {
   private shadow!: Phaser.GameObjects.Image;
   private hud!: Phaser.GameObjects.Container;
   private hudCamera!: Phaser.Cameras.Scene2D.Camera;
-  private hint!: Phaser.GameObjects.Text;
   private cameraFollow!: EllipticalFollowCamera;
   private feetOffset = 0;
   private healthLabel!: Phaser.GameObjects.Text;
@@ -174,7 +173,7 @@ export class RoomScene extends Phaser.Scene {
     (this.player.body as Phaser.Physics.Arcade.Body).reset(position.x, position.y);
     if (this.savedRun) { this.player.restore(this.savedRun.player); this.facing = this.player.actorState.facing; }
     this.drawHud();
-    // A separate unzoomed camera keeps HP and hints attached to the screen.
+    // A separate unzoomed camera keeps HP attached to the screen.
     this.hudCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height).setName('hud');
     this.cameras.main.ignore(this.hud);
     this.hudCamera.ignore(this.children.list.filter(object => object !== this.hud));
@@ -189,7 +188,6 @@ export class RoomScene extends Phaser.Scene {
     const { x, y } = this.cameraFollow.center;
     this.cameras.main.centerOn(x, y);
     this.hudCamera.setSize(width, height);
-    this.hint.setY(height - 22);
     this.deathOverlay.resize(width,height);
   }
 
@@ -200,11 +198,8 @@ export class RoomScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#dfdfbd',
     }).setName('health-label');
     this.hearts = this.add.graphics();this.updateHealth();
-    this.hint = this.add.text(20, this.scale.height - 22, 'WASD — движение · Стрелки — жёлудь (8 направлений) · R — новая поляна · Esc — сохранить и выйти', {
-      fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#d3dcba', backgroundColor: '#1b2c20', padding: { x: 8, y: 4 },
-    }).setOrigin(0, 1);
     this.deathOverlay = new DeathOverlay(this);
-    this.hud.add([panel, this.healthLabel, this.hearts, this.hint, this.deathOverlay]);
+    this.hud.add([panel, this.healthLabel, this.hearts, this.deathOverlay]);
   }
 
   private updateHealth() {
