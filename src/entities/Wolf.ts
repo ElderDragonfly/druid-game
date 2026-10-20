@@ -106,7 +106,8 @@ export class Wolf extends Phaser.Physics.Arcade.Sprite implements Damageable {
     const animation: WolfAnimation = phase === 'attack' ? (this.actorState.attackUp ? 'attack-up' : 'attack-down') :
       moving ? (phase === 'chase' ? 'run' : 'walk') : 'idle';
     if (animation !== this.animation) { this.animation = animation; this.clock = 0; }
-    if (phase === 'attack') this.clock = this.actorState.elapsed;
+    if (phase === 'attack') this.clock = this.actorState.elapsed *
+      wolfDurations(animation).reduce((sum, ms) => sum + ms, 0) / WOLF.behavior.attackMs;
     else if (animation === 'run' || animation === 'walk') {
       const reference = animation === 'run' ? WOLF.appearance.runReferenceSpeed : WOLF.appearance.walkReferenceSpeed;
       this.clock += distance / reference * 1000;

@@ -1,6 +1,6 @@
 import { DRUID_HIT_APPEARANCE } from '../rendering/druidHitArt';
+import { entityData } from './entityBalance';
 import { BASE_MOVEMENT_SPEED } from './movement';
-import { BASE_ATTACK_RATE, BASE_ATTACK_RANGE } from './attack';
 import { CAMP_DRUID, DRUID_TEXTURES, DRUID_WALK_ANIMATIONS, GAME_DRUID, type GameSpriteMetrics } from '../rendering/druidArt';
 import type { Facing } from '../input/EightWayFacing';
 import { DRUID_CAST_APPEARANCE } from '../rendering/druidCastArt';
@@ -24,9 +24,9 @@ export interface CharacterDefinition {
 // Порядок массива определяет порядок ячеек; новые персонажи добавляются здесь.
 export const CHARACTERS: readonly CharacterDefinition[] = [
   {
-    stats: { health: 3, speed: BASE_MOVEMENT_SPEED, walkReferenceSpeed: 220,
-      attackRate: BASE_ATTACK_RATE, range: BASE_ATTACK_RANGE },
-    id: 'druid', name: 'Друид', available: true, description: 'Природная магия · 3 HP',
+    get stats() { const d = entityData.druid; return { health: d.health, speed: BASE_MOVEMENT_SPEED * d.speed,
+      walkReferenceSpeed: 220, attackRate: d.attackRate, range: d.range }; },
+    id: 'druid', name: 'Друид', available: true, get description() { return `Природная магия · ${entityData.druid.health} HP`; },
     portrait: { texture: DRUID_TEXTURES.basic, frame: 'figure' },
     camp: { texture: DRUID_TEXTURES.camp, originX: 0, originY: 0, scale: CAMP_DRUID.scale, position: CAMP_DRUID.position,
       // Same bare branch, standing to the right as in the main-menu background.

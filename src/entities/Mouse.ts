@@ -32,6 +32,7 @@ export class Mouse extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(velocity.x, velocity.y).setDepth(this.y);
     if (Math.abs(velocity.x) > 1) this.setFlipX(velocity.x > 0);
     this.play(`mouse-${this.behavior.state}`, true);
+    this.anims.timeScale = this.behavior.state === 'run' ? this.actorState.speed / 90 : 1;
     this.shadow.setPosition(this.x, this.y - 1).setDepth(this.y - .1);
   }
 

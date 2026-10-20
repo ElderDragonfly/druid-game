@@ -5,3 +5,6 @@ test-results/
 *.log
 .env
 .env.*
+
+# Temporary data files used by editor integration checks.
+.editor-test-*/

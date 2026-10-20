@@ -1,3 +1,4 @@
+import { onEntityDataChanged } from '../data/entityBalance';
 import Phaser from 'phaser';
 import { Druid } from '../entities/Druid';
 import { CHARACTERS } from '../data/characters';
@@ -34,6 +35,7 @@ export class RoomScene extends Phaser.Scene {
   private cameraFollow!: EllipticalFollowCamera;
   private feetOffset = 0;
   private healthLabel!: Phaser.GameObjects.Text;
+  private healthPanel!: Phaser.GameObjects.Rectangle;
   private hearts!: Phaser.GameObjects.Graphics;
   private deathOverlay!: DeathOverlay;
   private savedRun?: RunSave;
@@ -66,6 +68,33 @@ export class RoomScene extends Phaser.Scene {
     this.player.on(COMBAT_EVENTS.healthChanged,this.updateHealth,this);
     this.player.once(COMBAT_EVENTS.died,this.endGame,this);
 
+    const unsubscribeBalance = onEntityDataChanged((next, previous) => {
+      if (this.gameOver) return;
+      const adjustHealth = (state: { health: number; maxHealth: number }, maximum: number) => {
+        if (state.health <= 0) return;
+        state.health = Math.max(1, maximum - (state.maxHealth - state.health));
+        state.maxHealth = maximum;
+      };
+      const p = this.player.actorState, before = previous.druid, after = next.druid;
+      // Preserve instance modifiers; changing a baseline is not picking up an item.
+      p.speed *= after.speed / before.speed;
+      p.attackRate *= after.attackRate / before.attackRate;
+      p.range *= after.range / before.range;
+      if (after.health !== before.health) adjustHealth(p, after.health);
+      for (const wolf of this.world.wolves) {
+        if (wolf.dying) continue;
+        const state = wolf.actorState;
+        state.walkSpeed *= next.wolf.walkSpeed / previous.wolf.walkSpeed;
+        state.runSpeed *= next.wolf.runSpeed / previous.wolf.runSpeed;
+        if (next.wolf.health !== previous.wolf.health) adjustHealth(state, next.wolf.health);
+      }
+      for (const mouse of this.world.mice) {
+        mouse.actorState.speed *= next.mouse.speed / previous.mouse.speed;
+        if (next.mouse.speed !== previous.mouse.speed) mouse.behavior.refreshRunLimit(mouse);
+      }
+      this.updateHealth();
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribeBalance);
     const keyboard = this.input.keyboard!;
     this.movement = keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -166,7 +195,7 @@ export class RoomScene extends Phaser.Scene {
 
   private drawHud() {
     this.hud = this.add.container(0, 0).setDepth(100000);
-    const panel = this.add.rectangle(16, 16, 176, 44, 0x132419, 0.85).setOrigin(0);
+    const panel = this.healthPanel = this.add.rectangle(16, 16, 176, 44, 0x132419, 0.85).setOrigin(0);
     this.healthLabel = this.add.text(28, 30, '', {
       fontFamily: 'Arial, sans-serif', fontSize: '14px', color: '#dfdfbd',
     }).setName('health-label');
@@ -180,6 +209,7 @@ export class RoomScene extends Phaser.Scene {
 
   private updateHealth() {
     this.healthLabel.setText(`HP ${this.playerHealth}/${this.player.actorState.maxHealth}`);
+    this.healthPanel.setSize(Math.max(176, 104 + (this.player.actorState.maxHealth - 1) * 26), 44);
     this.hearts.clear();
     for(let i=0;i<this.player.actorState.maxHealth;i++) {
       const x=104+i*26;

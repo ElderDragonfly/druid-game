@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "druid": {
+    "health": 3,
+    "speed": 1,
+    "attackRate": 1,
+    "range": 1,
+    "damage": 1,
+    "projectileSpeed": 1.5
+  },
+  "wolf": {
+    "health": 2,
+    "walkSpeed": 0.45,
+    "runSpeed": 1,
+    "damage": 1,
+    "population": { "min": 0, "max": 18 },
+    "behavior": {
+      "detectionX": 426.6666666666667,
+      "detectionY": 240,
+      "projectileDetectionX": 192,
+      "projectileDetectionY": 108,
+      "wanderMin": 70,
+      "wanderMax": 160,
+      "idleMinMs": 800,
+      "idleMaxMs": 1800,
+      "attackMs": 660,
+      "impactMs": 240,
+      "recoveryMs": 350,
+      "attackGap": 5,
+      "pathRefreshMs": 450
+    }
+  },
+  "mouse": {
+    "speed": 90,
+    "population": { "min": 0, "max": 9 },
+    "runDistance": { "min": 60, "max": 130 },
+    "lookMs": 5400
+  }
+}
