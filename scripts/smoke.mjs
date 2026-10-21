@@ -1081,7 +1081,7 @@ try {
 
   for (const { key, direction, sign, folder, frameCount } of [
     { key: 'a', direction: 'left', sign: -1, folder: 'druid-left-tunic-v1', frameCount: 4 },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v3', frameCount: 8 },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v4', frameCount: 4 },
   ]) {
     const walkPixels = await page.evaluate(async ({ direction, folder, frameCount }) => {
       const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-256x320.png`; await image.decode();
@@ -1151,44 +1151,36 @@ try {
 
   ok(await page.evaluate(async () => {
     const image=async path=>{const i=new Image();i.src=path;await i.decode();return i;};
-    const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=320;
+    const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=320;
     const ctx=canvas.getContext('2d');
-    const read=source=>{ctx.clearRect(0,0,2048,320);ctx.drawImage(source,0,0);return ctx.getImageData(0,0,2048,320).data;};
-    const folder='/docs/art/druid-walk-right-v3';
+    const read=source=>{ctx.clearRect(0,0,1024,320);ctx.drawImage(source,0,0);return ctx.getImageData(0,0,1024,320).data;};
+    const folder='/docs/art/druid-walk-right-v4';
     const actual=read(await image(`${folder}/walk-right-256x320.png`));
     const old=read(await image('/docs/art/druid-eight-way-v1/walk-right-256x320.png'));
-    const nearImage=await image(`${folder}/near-leg-256x320.png`),farImage=await image(`${folder}/far-leg-256x320.png`);
-    const near=read(nearImage),far=read(farImage);
+    const donor=read(await image('/docs/art/druid-side-refinement-v1/walk-left-body-256x320.png'));
+    const mask=read(await image(`${folder}/left-leg-mask-256x320.png`));
+    const legsImage=await image(`${folder}/legs-right-256x320.png`),legs=read(legsImage);
+    const joinImage=await image(`${folder}/hip-join-256x320.png`),join=read(joinImage);
     const garmentsImage=await image(`${folder}/garments-256x320.png`),garments=read(garmentsImage);
     const staff=await image('/docs/art/druid-side-refinement-v1/walk-right-arm-staff-256x320.png');
-    ctx.clearRect(0,0,2048,320);
-    for(let phase=0;phase<8;phase++)ctx.drawImage(staff,Math.floor(phase/2)*256,0,256,320,phase*256,0,256,320);
-    for(const layer of [farImage,nearImage,garmentsImage])ctx.drawImage(layer,0,0);
-    const composed=ctx.getImageData(0,0,2048,320).data;
-    let upper=true,singlePair=true,fullLegs=true;const tips={near:[],far:[]};
-    for(let phase=0;phase<8;phase++) {
-      let nearToe=-1,farToe=-1;
-      for(let y=0;y<320;y++)for(let x=0;x<256;x++) {
-        const i=(y*2048+phase*256+x)*4;
-        const original=(y*2048+Math.floor(phase/2)*256+x)*4;
-        if(y<220)for(let c=0;c<4;c++)upper&&=actual[i+c]===old[original+c];
-        else for(let c=0;c<4;c++)singlePair&&=actual[i+c]===composed[i+c];
-        if(y>=268)singlePair&&=garments[i+3]===0;
-        if(y>=270&&near[i+3])nearToe=Math.max(nearToe,x);
-        if(y>=270&&far[i+3])farToe=Math.max(farToe,x);
+    ctx.clearRect(0,0,1024,320);
+    for(const layer of [staff,legsImage,joinImage,garmentsImage])ctx.drawImage(layer,0,0);
+    const composed=ctx.getImageData(0,0,1024,320).data;
+    let upper=true,singlePair=true,mirrored=true,completeBoots=true;
+    for(let phase=0;phase<4;phase++)for(let y=0;y<320;y++)for(let x=0;x<256;x++) {
+      const i=(y*1024+phase*256+x)*4, reflected=(y*1024+phase*256+255-x)*4;
+      if(y<220)for(let c=0;c<4;c++)upper&&=actual[i+c]===old[i+c];
+      else for(let c=0;c<4;c++)singlePair&&=actual[i+c]===composed[i+c];
+      for(let c=0;c<4;c++)mirrored&&=legs[i+c]===(mask[reflected]?donor[reflected+c]:0);
+      if(y>=268) {
+        singlePair&&=garments[i+3]===0&&join[i+3]===0;
+        completeBoots&&=legs[i+3]===donor[reflected+3];
+        if(donor[reflected+3])for(let c=0;c<4;c++)completeBoots&&=legs[i+c]===donor[reflected+c];
       }
-      for(const leg of [near,far]) {
-        let thighWidth=0;
-        for(let x=0;x<256;x++)if(leg[(240*2048+phase*256+x)*4+3])thighWidth++;
-        fullLegs&&=thighWidth>=34;
-      }
-      tips.near.push(nearToe);tips.far.push(farToe);
+      if(y>=239)singlePair&&=join[i+3]===0;
     }
-    const alternating=tips.near[0]>tips.far[0]&&tips.near[4]<tips.far[4]&&
-      tips.near[0]-tips.near[4]>=48&&tips.far[4]-tips.far[0]>=48;
-    const smooth=Object.values(tips).every(xs=>xs.every((value,i)=>Math.abs(value-xs[(i+1)%8])<=24));
-    return upper&&singlePair&&fullLegs&&alternating&&smooth;
-  }), 'Вправо: обе ноги поочерёдно выходят вперёд/назад, без старой голени и скачков; корпус, руки и посох сохранены');
+    return upper&&singlePair&&mirrored&&completeBoots;
+  }), 'Вправо: четыре принятые левые позы ног отражены 1:1, включая целые сапоги; корпус/руки/посох прежние, старых ног нет');
 
   const clearSquare = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');

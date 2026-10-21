@@ -1,0 +1,23 @@
+{
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "cycleMs": 960,
+  "upperSource": "../druid-eight-way-v1/walk-right-256x320.png",
+  "legSource": "../druid-side-refinement-v1/walk-left-body-256x320.png",
+  "legTransform": "horizontal mirror only",
+  "rgbPreserved": true,
+  "legScale": 1,
+  "legTranslation": [
+    0,
+    0
+  ],
+  "layerOrder": [
+    "far-side staff",
+    "mirrored left legs",
+    "upper trousers join only",
+    "original garments"
+  ],
+  "staticOldLegLayer": false
+}

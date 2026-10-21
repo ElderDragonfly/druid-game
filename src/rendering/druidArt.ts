@@ -4,10 +4,10 @@ import basic from '../../docs/art/druid-sprites-v1/druid-04-basic.png';
 import campSource from '../../docs/art/druid-basic-seated-v1/druid-seated.png';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 
-const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v3,druid-rear-diagonal-walk-v4,druid-left-tunic-v1,druid-walk-right-v3}/{idle,walk}-*-256x320.png',
+const sources = import.meta.glob<string>('../../docs/art/{druid-eight-way-v1,druid-diagonal-legs-v3,druid-rear-diagonal-walk-v4,druid-left-tunic-v1,druid-walk-right-v4}/{idle,walk}-*-256x320.png',
   { eager: true, query: '?url', import: 'default' });
 function sourceUrl(kind: 'idle' | 'walk', direction: Facing) {
-  const folder = kind === 'walk' && direction === 'right' ? 'druid-walk-right-v3'
+  const folder = kind === 'walk' && direction === 'right' ? 'druid-walk-right-v4'
     : direction === 'left' ? 'druid-left-tunic-v1'
     : kind === 'walk' && direction.startsWith('up-') ? 'druid-rear-diagonal-walk-v4'
     : kind === 'walk' && direction.includes('-') ? 'druid-diagonal-legs-v3' : 'druid-eight-way-v1';
@@ -72,7 +72,7 @@ export const DRUID_VIEWS: readonly DruidView[] = FACINGS.map(direction => ({
 }));
 
 export const DRUID_WALKS = FACINGS.map(direction => {
-  const frameCount = direction === 'right' ? 8 : 4;
+  const frameCount = 4;
   return {
     direction, sourceKey: `druid-walk-${direction}-source`, animationKey: `druid-walk-${direction}`,
     frameWidth: 256, frameHeight: 320, frameCount, frameDurationMs: 640 / frameCount,
