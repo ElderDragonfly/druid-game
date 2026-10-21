@@ -1,4 +1,4 @@
-import { FALLEN_LOGS, LOG_MUSHROOMS, FALLEN_LOG_GENERATION as CONFIG } from '../data/fallenLogs';
+import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS, FALLEN_LOG_GENERATION as CONFIG } from '../data/fallenLogs';
 import { seededRandom } from './random';
 import { overlaps, type Rect } from './geometry';
 import type { MeadowLayout } from './meadowLayout';
@@ -34,6 +34,27 @@ export function onMushroomSurface(variant: number, point: { x: number; y: number
       point.x < (bx - ax) * (point.y - ay) / (by - ay) + ax) inside = !inside;
   }
   return inside;
+}
+
+/** Scatter the existing items on a wood surface, preserving species/slot IDs.
+ * Shared by new layouts and migration from retired brown logs. */
+export function scatterLogMushrooms(variant: number, mushrooms: LogMushroom[], random: () => number) {
+  const art=FALLEN_LOGS[variant];
+  const integer=(min:number,max:number)=>min+Math.floor(random()*(max-min+1));
+  const placed: { x:number; y:number }[]=[];
+  for(const mushroom of mushrooms) {
+    let surface: { x:number; y:number } | undefined;
+    for(let attempt=0;attempt<1000;attempt++) {
+      const p={x:integer(1,art.width-2),y:integer(1,art.height-2)};
+      if(onMushroomSurface(variant,p)&&placed.every(other=>
+        Math.hypot(other.x-p.x,other.y-p.y)>=6&&Math.abs(other.x-p.x)>=4)&&
+        (placed.length<2||Math.abs((placed[1].x-placed[0].x)*(p.y-placed[0].y)-
+          (placed[1].y-placed[0].y)*(p.x-placed[0].x))>=6)) {surface=p;break;}
+    }
+    if(!surface)throw new Error('Не удалось разместить грибы на древесине');
+    mushroom.surface=surface;
+    placed.push(surface);
+  }
 }
 
 /** Reserve just four small clearings for the temporary start-screen test. */
@@ -72,29 +93,16 @@ export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[]
   const random = seededRandom(layout.seed ^ 0x4c4f4753);
   const integer = (min:number,max:number)=>min+Math.floor(random()*(max-min+1));
   const count = CONFIG.testAroundSpawn ? CONFIG.testOffsets.length : integer(CONFIG.min,CONFIG.max);
-  const result:FallenLogPlacement[]=[], variants=FALLEN_LOGS.map((_, index)=>index);
+  const result:FallenLogPlacement[]=[];
   const spawn = {x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
   for(let index=0;index<count;index++) {
-    const variant=CONFIG.testAroundSpawn ? variants.splice(integer(0,variants.length-1),1)[0] : integer(0,FALLEN_LOGS.length-1);
+    const variant=ACTIVE_LOG_VARIANTS[integer(0,ACTIVE_LOG_VARIANTS.length-1)];
     const angle=0, flipX=false;
     const mushrooms:FallenLogPlacement['mushrooms']=[];
     if(random()<CONFIG.mushroomChance || (CONFIG.testAroundSpawn && index===0)) {
       const species=integer(0,LOG_MUSHROOMS.length-1), amount=integer(CONFIG.mushroomMin,CONFIG.mushroomMax);
-      const art=FALLEN_LOGS[variant];
-      for(let n=0;n<amount;n++) {
-        let surface: { x: number; y: number } | undefined;
-        for(let attempt=0;attempt<1000;attempt++) {
-          const candidate={x:integer(1,art.width-2),y:integer(1,art.height-2)};
-          if(onMushroomSurface(variant,candidate)&&mushrooms.every(m=>
-            Math.hypot(m.surface!.x-candidate.x,m.surface!.y-candidate.y)>=6&&
-            Math.abs(m.surface!.x-candidate.x)>=4) &&
-            (mushrooms.length<2||Math.abs(
-              (mushrooms[1].surface!.x-mushrooms[0].surface!.x)*(candidate.y-mushrooms[0].surface!.y)-
-              (mushrooms[1].surface!.y-mushrooms[0].surface!.y)*(candidate.x-mushrooms[0].surface!.x))>=6)) {surface=candidate;break;}
-        }
-        if(!surface)throw new Error('Не удалось разместить грибы на древесине');
-        mushrooms.push({variant:species,slot:n,surface});
-      }
+      for(let n=0;n<amount;n++) mushrooms.push({variant:species,slot:n});
+      scatterLogMushrooms(variant,mushrooms,random);
     }
     let placed=false;
     for(let attempt=0;attempt<2000;attempt++) {

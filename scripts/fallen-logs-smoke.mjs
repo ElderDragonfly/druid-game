@@ -3,7 +3,7 @@ export async function testFallenLogs(page,ok) {
   const stats=await page.evaluate(async()=>{
     const {generateMeadow,obstacleRect,obstacleVisualRect,overlaps}=await import('/src/world/meadowLayout.ts');
     const {logVisualRect,logCollisionRects,logPoint,mushroomPoint,onMushroomSurface}=await import('/src/world/fallenLogs.ts');
-    const {FALLEN_LOGS,LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
+    const {FALLEN_LOGS,ACTIVE_LOG_VARIANTS,LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
     const counts=new Set(),amounts=new Set(),species=new Set(),variants=new Set(),angles=new Set();
     let total=0,covered=0,safe=true,repeatable=true,homogeneous=true,native=true,scattered=true,visible=true;
     const points=new Set();
@@ -25,6 +25,12 @@ export async function testFallenLogs(page,ok) {
         amounts.add(log.mushrooms.length);log.mushrooms.forEach(m=>species.add(m.variant));
       }
       if(seed<10)repeatable&&=JSON.stringify(layout)===JSON.stringify(generateMeadow(seed));
+    }
+    let surfaceCapacity=0;
+    for(const variant of ACTIVE_LOG_VARIANTS) {
+      const art=FALLEN_LOGS[variant];
+      for(let y=1;y<art.height-1;y++)for(let x=1;x<art.width-1;x++)
+        if(onMushroomSurface(variant,{x,y}))surfaceCapacity++;
     }
     const scene=window.__smokeGame.scene.getScene('Room');
     let art=true,rendered=true,bodies=true,upright=true;
@@ -61,14 +67,14 @@ export async function testFallenLogs(page,ok) {
       {x:rect.x+30,y:rect.y+rect.height-5},{x:rect.x+rect.width-30,y:rect.y+rect.height-5}];
     const emptyCorners=corners.some(p=>nav.canStand(p)&&mouseCanStand(layout,p));
     const noHint=!scene.hint&&!scene.children.list.some(o=>o.text?.includes('WASD —'))&&scene.hud.list.length===4;
-    return{counts:[...counts].sort(),amounts:[...amounts].sort(),species:species.size,variants:variants.size,angleCount:angles.size,
-      fraction:covered/total,scattered,visible,pointCount:points.size,native,safe,homogeneous,repeatable,art,rendered,bodies,upright,navigation,emptyCorners,noHint};
+    return{counts:[...counts].sort(),amounts:[...amounts].sort(),species:species.size,variants:[...variants],angleCount:angles.size,
+      fraction:covered/total,scattered,visible,pointCount:points.size,surfaceCapacity,native,safe,homogeneous,repeatable,art,rendered,bodies,upright,navigation,emptyCorners,noHint};
   });
   ok(stats.counts.join()==='4'&&stats.safe&&stats.visible,'1500 тестовых локаций: четыре видимых бревна около старта, без крон и с безопасным проходом');
   ok(Math.abs(stats.fraction-.625)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
     `Тест: на первом бревне гарантированы 1–3 гриба, у остальных шанс 50%; один вид на бревно (${(stats.fraction*100).toFixed(1)}%)`);
-  ok(stats.species===2&&stats.variants===5&&stats.angleCount===1&&stats.native&&stats.repeatable,'Все 5 брёвен и 2 новых вида грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
-  ok(stats.scattered&&stats.pointCount>200,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
+  ok(stats.species===2&&stats.variants.join()==='4'&&stats.angleCount===1&&stats.native&&stats.repeatable,'Только серое бревно из отдельного рисунка и 2 новых вида грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
+  ok(stats.scattered&&stats.pointCount>=stats.surfaceCapacity*.9,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
   ok(stats.art,'Вырезанные PNG прозрачны без полупрозрачной каймы; размеры и NEAREST сохранены');
   ok(await page.evaluate(async()=>{
     const {LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
@@ -123,21 +129,28 @@ export async function testFallenLogs(page,ok) {
     delete legacy.layout.logs;delete legacy.layout.counts.logs;
     const corrupt=mutate=>{const saved=structuredClone(snapshot);mutate(saved.layout.logs[0]);return !isRunSave(saved);};
     const oldSet=structuredClone(snapshot);
-    oldSet.layout.logs.forEach(log=>log.mushrooms.forEach(m=>m.variant=6));
+    // A real legacy run: four brown variants, some already collected slots.
+    oldSet.layout.logs.forEach((log,i)=>{
+      log.variant=i%4;
+      log.mushrooms.forEach(m=>{m.variant=6;delete m.surface;});
+    });
     const before=localStorage.getItem(RUN_SAVE_KEY);
     let migrated=false;
     try {
       localStorage.setItem(RUN_SAVE_KEY,JSON.stringify(oldSet));
       const restored=loadRun();
-      migrated=!!restored&&restored.layout.logs.every((log,i)=>
+      const {onMushroomSurface}=await import('/src/world/fallenLogs.ts');
+      migrated=!!restored&&isRunSave(restored)&&restored.layout.logs.every((log,i)=>
+        log.variant===4&&
         log.x===snapshot.layout.logs[i].x&&log.y===snapshot.layout.logs[i].y&&
         log.mushrooms.length===snapshot.layout.logs[i].mushrooms.length&&
-        log.mushrooms.every(m=>m.variant===0));
+        log.mushrooms.every((m,n)=>m.variant===0&&m.slot===snapshot.layout.logs[i].mushrooms[n].slot&&
+          onMushroomSurface(4,m.surface)))&&JSON.stringify(restored)===JSON.stringify(loadRun());
     } finally { if(before===null)localStorage.removeItem(RUN_SAVE_KEY);else localStorage.setItem(RUN_SAVE_KEY,before); }
     return migrated&&valid&&isRunSave(legacy)&&isRunSave(legacySlots)&&corrupt(l=>l.variant=100)&&corrupt(l=>l.mushrooms=[{slot:0,variant:7}])&&corrupt(l=>l.angle=null)&&corrupt(l=>l.flipX='yes')&&
       corrupt(l=>l.mushrooms=[{slot:0,variant:0},{slot:1,variant:1}])&&corrupt(l=>l.mushrooms=[{slot:9,variant:0}])&&
       corrupt(l=>l.mushrooms=[{slot:0,variant:0,surface:{x:0,y:0}}]);
-  }),'Сейвы сохраняют позиции и сбор; прежние семь видов заменяются новыми двумя, неверные данные отклоняются');
+  }),'Сейвы сохраняют позиции и сбор; коричневые брёвна заменяются серыми с новыми точками роста, старые грибы — новыми');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
     const proxies=s.world.obstacles.getChildren().filter(o=>o.getData('kind')==='log');

@@ -2,8 +2,9 @@ import { CHARACTERS } from '../data/characters';
 import { ENVIRONMENT_VARIANTS } from '../data/environment';
 import { FACINGS } from '../input/EightWayFacing';
 import { MEADOW_WORLD } from '../world/meadowLayout';
-import { FALLEN_LOGS, LOG_MUSHROOMS } from '../data/fallenLogs';
-import { onMushroomSurface, logVisualRect } from '../world/fallenLogs';
+import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS } from '../data/fallenLogs';
+import { onMushroomSurface, logVisualRect, scatterLogMushrooms } from '../world/fallenLogs';
+import { seededRandom } from '../world/random';
 import type { PointSave, RunSave } from './snapshots';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
@@ -18,9 +19,15 @@ const facing = (value: RunSave['player']['state']['facing']) => FACINGS.includes
 // indices, then replace their artwork on load without losing collected items.
 const LEGACY_MUSHROOM_COUNT = 7;
 function migrateMushrooms(save: RunSave): RunSave {
-  save.layout.logs?.forEach(log => log.mushrooms.forEach(mushroom => {
-    mushroom.variant %= LOG_MUSHROOMS.length;
-  }));
+  save.layout.logs?.forEach(log => {
+    log.mushrooms.forEach(mushroom => { mushroom.variant %= LOG_MUSHROOMS.length; });
+    if(log.variant !== ACTIVE_LOG_VARIANTS[0]) {
+      log.variant=ACTIVE_LOG_VARIANTS[0];
+      log.angle=0; log.flipX=false;
+      scatterLogMushrooms(log.variant,log.mushrooms,
+        seededRandom(save.layout.seed ^ Math.round(log.x*31+log.y*17)));
+    }
+  });
   return save;
 }
 

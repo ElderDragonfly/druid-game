@@ -47,21 +47,58 @@ trees = {name:cKDTree(colors.astype(float)) for name,colors in palettes.items()}
 
 def leg(phase, near):
     angle = phase * 2 * math.pi / 8 + (0 if near else math.pi)
-    hip_x = 128 if near else 111
+    hip_x = 124 if near else 116
     # Both feet use the same stride centre: the perspective offset between the
     # hips must not give one foot a permanently forward screen position.
-    foot_x = 120 + 18 * math.cos(angle)
-    lift = max(0, -math.sin(angle)) * 5
-    knee_x = hip_x + (foot_x-hip_x)*.55 + max(0,-math.sin(angle))*3
+    foot_x = 120 + 28 * math.cos(angle)
+    lift = max(0, -math.sin(angle)) * 7
+    knee_x = hip_x + (foot_x-hip_x)*.48 + max(0,-math.sin(angle))*7
     target_y = [207, 250-lift*.25, 287-lift, 300-lift]
-    source_y = np.interp(y, target_y, [65,335,460,510])
-    center = np.interp(source_y, [65,335,460,510], [350,445,455,455])
-    target_x = np.interp(y, target_y, [hip_x,knee_x,foot_x,foot_x])
-    source_x = center+(x-target_x)/(.22 if near else .215)
+    # A connected strip mesh rotates the thigh/calf around their joints.
+    # Shared vertices keep the knee sealed; feet roll instead of being sheared.
+    source_rows = np.array([65,220,335,400,510], dtype=float)
+    centers = np.interp(source_rows, [65,335,460,510], [350,445,455,455])
+    rows = np.interp(source_rows, [65,335,460,510], target_y)
+    xs = np.interp(rows, target_y, [hip_x,knee_x,foot_x,foot_x])
+    widths = [.31,.31,.28,.24,.24] if near else [.30,.30,.27,.23,.23]
+    pitch = [-.10,0,0,.22,.28,.24,.02,-.10][(phase+(0 if near else 4))%8]
+    boot_pivot = np.array([foot_x,300-lift])
+    rotation = np.array([[math.cos(pitch),-math.sin(pitch)],
+                         [math.sin(pitch),math.cos(pitch)]])
+    source_nodes, target_nodes = [], []
+    for n,(sy,cx,ty,tx,width) in enumerate(zip(source_rows,centers,rows,xs,widths)):
+        slope = (knee_x-hip_x)/(target_y[1]-target_y[0]) if n<2 else 0
+        cross = np.array([1.,-slope]); cross /= np.linalg.norm(cross)
+        pair = np.array([np.array([tx,ty])+sign*240*width*cross for sign in [-1,1]])
+        if n>=3: pair = (pair-boot_pivot)@rotation.T+boot_pivot
+        source_nodes.extend([[cx-240,sy],[cx+240,sy]])
+        target_nodes.extend(pair)
+    source_nodes=np.array(source_nodes);target_nodes=np.array(target_nodes)
+    source_y=np.full(SIZE[::-1],-100.,dtype=float)
+    source_x=np.full(SIZE[::-1],-100.,dtype=float)
+    points=np.stack([x,y],axis=-1)
+    for row in range(4):
+        for offsets in [(0,1,2),(1,3,2)]:
+            indices=np.array(offsets)+row*2
+            triangle=target_nodes[indices]; origin=triangle[0]
+            matrix=np.column_stack((triangle[1]-origin,triangle[2]-origin))
+            uv=(points-origin)@np.linalg.inv(matrix).T
+            inside=(uv[:,:,0]>=0)&(uv[:,:,1]>=0)&(uv.sum(axis=2)<=1)
+            src=source_nodes[indices]
+            mapped=src[0]+uv[:,:,0,None]*(src[1]-src[0])+uv[:,:,1,None]*(src[2]-src[0])
+            source_x[inside]=mapped[:,:,0][inside];source_y[inside]=mapped[:,:,1][inside]
     coordinates = np.array([source_y,source_x])
     data = np.stack([map_coordinates(master[:,:,c],coordinates,order=0,mode='constant',cval=0)
                      for c in range(4)],axis=2)
-    data[(y<target_y[0])|(y>=target_y[-1])]=0
+    # Keep the support sole on the floor while the other foot passes above it.
+    occupied=np.where(data[:,:,3]>0)[0]
+    if len(occupied):
+        dy=round(300-lift)-int(occupied.max())
+        shifted=np.zeros_like(data)
+        if dy>=0: shifted[dy:]=data[:320-dy] if dy else data
+        else: shifted[:dy]=data[-dy:]
+        data=shifted
+        source_y=np.roll(source_y,dy,axis=0)
     for name, selection in [('pants',source_y<335),('boots',source_y>=335)]:
         selected = selection&(data[:,:,3]>0)
         colors = data[:,:,:3][selected].astype(float) * (1 if near else .92)
@@ -123,6 +160,6 @@ for frame in frames:
 previews[0].save(OUT/'walk-right-preview.gif',save_all=True,append_images=previews[1:],duration=120,loop=0,disposal=2)
 (OUT/'art.json').write_text(json.dumps({'frameWidth':256,'frameHeight':320,'frameCount':8,
     'frameDurationMs':120,'upperSource':'../druid-eight-way-v1/walk-right-256x320.png',
-    'master':'leg-master.png','cycleMs':960,'stridePixels':36,'maxFootLiftPixels':5,
+    'master':'leg-master.png','cycleMs':960,'stridePixels':56,'maxFootLiftPixels':7,
     'layerOrder':['far-side staff','far leg','near leg','original garments'],
     'staticOldLegLayer':False,'poses':registrations},indent=2)+'\n')

@@ -1165,7 +1165,7 @@ try {
     for(let phase=0;phase<8;phase++)ctx.drawImage(staff,Math.floor(phase/2)*256,0,256,320,phase*256,0,256,320);
     for(const layer of [farImage,nearImage,garmentsImage])ctx.drawImage(layer,0,0);
     const composed=ctx.getImageData(0,0,2048,320).data;
-    let upper=true,singlePair=true;const tips={near:[],far:[]};
+    let upper=true,singlePair=true,fullLegs=true;const tips={near:[],far:[]};
     for(let phase=0;phase<8;phase++) {
       let nearToe=-1,farToe=-1;
       for(let y=0;y<320;y++)for(let x=0;x<256;x++) {
@@ -1177,12 +1177,17 @@ try {
         if(y>=270&&near[i+3])nearToe=Math.max(nearToe,x);
         if(y>=270&&far[i+3])farToe=Math.max(farToe,x);
       }
+      for(const leg of [near,far]) {
+        let thighWidth=0;
+        for(let x=0;x<256;x++)if(leg[(240*2048+phase*256+x)*4+3])thighWidth++;
+        fullLegs&&=thighWidth>=34;
+      }
       tips.near.push(nearToe);tips.far.push(farToe);
     }
     const alternating=tips.near[0]>tips.far[0]&&tips.near[4]<tips.far[4]&&
-      tips.near[0]-tips.near[4]>=30&&tips.far[4]-tips.far[0]>=30;
-    const smooth=Object.values(tips).every(xs=>xs.every((value,i)=>Math.abs(value-xs[(i+1)%8])<=15));
-    return upper&&singlePair&&alternating&&smooth;
+      tips.near[0]-tips.near[4]>=48&&tips.far[4]-tips.far[0]>=48;
+    const smooth=Object.values(tips).every(xs=>xs.every((value,i)=>Math.abs(value-xs[(i+1)%8])<=24));
+    return upper&&singlePair&&fullLegs&&alternating&&smooth;
   }), 'Вправо: обе ноги поочерёдно выходят вперёд/назад, без старой голени и скачков; корпус, руки и посох сохранены');
 
   const clearSquare = await page.evaluate(() => {

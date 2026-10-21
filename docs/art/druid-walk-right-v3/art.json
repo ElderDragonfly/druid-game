@@ -6,8 +6,8 @@
   "upperSource": "../druid-eight-way-v1/walk-right-256x320.png",
   "master": "leg-master.png",
   "cycleMs": 960,
-  "stridePixels": 36,
-  "maxFootLiftPixels": 5,
+  "stridePixels": 56,
+  "maxFootLiftPixels": 7,
   "layerOrder": [
     "far-side staff",
     "far leg",
@@ -18,14 +18,14 @@
   "poses": [
     {
       "near": {
-        "hipX": 128,
-        "footX": 138.0,
+        "hipX": 124,
+        "footX": 148.0,
         "soleY": 300,
         "support": true
       },
       "far": {
-        "hipX": 111,
-        "footX": 102.0,
+        "hipX": 116,
+        "footX": 92.0,
         "soleY": 300,
         "support": true
       },
@@ -33,59 +33,59 @@
     },
     {
       "near": {
-        "hipX": 128,
-        "footX": 132.728,
+        "hipX": 124,
+        "footX": 139.799,
         "soleY": 300,
         "support": true
       },
       "far": {
-        "hipX": 111,
-        "footX": 107.272,
-        "soleY": 296.464,
+        "hipX": 116,
+        "footX": 100.201,
+        "soleY": 295.05,
         "support": false
       },
       "upperFrame": 0
     },
     {
       "near": {
-        "hipX": 128,
+        "hipX": 124,
         "footX": 120.0,
         "soleY": 300,
         "support": true
       },
       "far": {
-        "hipX": 111,
+        "hipX": 116,
         "footX": 120.0,
-        "soleY": 295.0,
+        "soleY": 293.0,
         "support": false
       },
       "upperFrame": 1
     },
     {
       "near": {
-        "hipX": 128,
-        "footX": 107.272,
+        "hipX": 124,
+        "footX": 100.201,
         "soleY": 300,
         "support": true
       },
       "far": {
-        "hipX": 111,
-        "footX": 132.728,
-        "soleY": 296.464,
+        "hipX": 116,
+        "footX": 139.799,
+        "soleY": 295.05,
         "support": false
       },
       "upperFrame": 1
     },
     {
       "near": {
-        "hipX": 128,
-        "footX": 102.0,
+        "hipX": 124,
+        "footX": 92.0,
         "soleY": 300,
         "support": true
       },
       "far": {
-        "hipX": 111,
-        "footX": 138.0,
+        "hipX": 116,
+        "footX": 148.0,
         "soleY": 300.0,
         "support": true
       },
@@ -93,14 +93,14 @@
     },
     {
       "near": {
-        "hipX": 128,
-        "footX": 107.272,
-        "soleY": 296.464,
+        "hipX": 124,
+        "footX": 100.201,
+        "soleY": 295.05,
         "support": false
       },
       "far": {
-        "hipX": 111,
-        "footX": 132.728,
+        "hipX": 116,
+        "footX": 139.799,
         "soleY": 300,
         "support": true
       },
@@ -108,13 +108,13 @@
     },
     {
       "near": {
-        "hipX": 128,
+        "hipX": 124,
         "footX": 120.0,
-        "soleY": 295.0,
+        "soleY": 293.0,
         "support": false
       },
       "far": {
-        "hipX": 111,
+        "hipX": 116,
         "footX": 120.0,
         "soleY": 300,
         "support": true
@@ -123,14 +123,14 @@
     },
     {
       "near": {
-        "hipX": 128,
-        "footX": 132.728,
-        "soleY": 296.464,
+        "hipX": 124,
+        "footX": 139.799,
+        "soleY": 295.05,
         "support": false
       },
       "far": {
-        "hipX": 111,
-        "footX": 107.272,
+        "hipX": 116,
+        "footX": 100.201,
         "soleY": 300,
         "support": true
       },
