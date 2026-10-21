@@ -1,0 +1,18 @@
+{
+  "frameWidth": 256,
+  "frameHeight": 320,
+  "frameCount": 4,
+  "frameDurationMs": 240,
+  "cycleMs": 960,
+  "previous": "../druid-walk-right-v4",
+  "completionSource": "completion-source.png",
+  "originalLegPixelsPreserved": true,
+  "bootsBelowY": 268,
+  "upperPreservedAboveY": 220,
+  "layerOrder": [
+    "far-side staff",
+    "complete lower body",
+    "original right garments"
+  ],
+  "oldHipPatchUsed": false
+}
