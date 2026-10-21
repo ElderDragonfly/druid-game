@@ -44,6 +44,7 @@ export async function testFallenLogs(page,ok) {
       for(const [n,m] of log.mushrooms.entries()) {
         const image=scene.children.getByName(`log-mushroom-${index}-${m.slot}`),p=mushroomPoint(log,m);
         upright&&=image.angle===0&&!image.body&&image.texture.key===LOG_MUSHROOMS[m.variant].id&&
+          image.scaleX===LOG_MUSHROOMS[m.variant].scale&&image.scaleY===image.scaleX&&image.originY===1&&
           Math.abs(image.x-p.x)<.001&&Math.abs(image.y-p.y)<.001&&image.depth>scene.children.getByName(`fallen-log-${index}`).depth;
       }
     }
@@ -94,6 +95,12 @@ export async function testFallenLogs(page,ok) {
     return exact&&guard&&clean&&active.length===2&&LOG_MUSHROOMS.length===2;
   }),'Только два новых грибных PNG: пиксели загружены 1:1, края прозрачны, нейтрального белого фона нет');
   ok(stats.rendered&&stats.upright,'В игре стоят выбранные варианты; грибы растут на уменьшенном бревне вертикально');
+  ok(await page.evaluate(async()=>{
+    const {LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
+    const original=(await import('/docs/art/log-mushrooms-v3/sprites.json')).default.mushrooms;
+    return LOG_MUSHROOMS.length===2&&LOG_MUSHROOMS.every((sprite,index)=>
+      Math.abs(sprite.scale-original[index].scale*(2/3)*2)<1e-12);
+  }),'Оба вида грибов увеличены ровно вдвое, основание остаётся на древесине');
   ok(stats.bodies&&stats.navigation&&stats.emptyCorners,'Коллизии, обход волка и маршрут мыши учитывают древесину, пустые углы проходимы');
   ok(await page.evaluate(async()=>{
     const {FALLEN_LOGS}=await import('/src/data/fallenLogs.ts');

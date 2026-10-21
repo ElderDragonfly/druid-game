@@ -1079,30 +1079,30 @@ try {
   }
   ok(true, 'Остановка в каждой из четырёх фаз W возвращает отдельную стоящую позу');
 
-  for (const { key, direction, sign, folder } of [
-    { key: 'a', direction: 'left', sign: -1, folder: 'druid-left-tunic-v1' },
-    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v2' },
+  for (const { key, direction, sign, folder, frameCount } of [
+    { key: 'a', direction: 'left', sign: -1, folder: 'druid-left-tunic-v1', frameCount: 4 },
+    { key: 'd', direction: 'right', sign: 1, folder: 'druid-walk-right-v3', frameCount: 8 },
   ]) {
-    const walkPixels = await page.evaluate(async ({ direction, folder }) => {
+    const walkPixels = await page.evaluate(async ({ direction, folder, frameCount }) => {
       const image = new Image(); image.src = `/docs/art/${folder}/walk-${direction}-256x320.png`; await image.decode();
       const texture = window.__smokeGame.textures.get(`druid-walk-${direction}-source`);
       const runtime = window.__smokeGame.textures.get(`druid-walk-${direction}-source-runtime`);
       const read = source => {
-        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 320;
+        const canvas = document.createElement('canvas'); canvas.width = 256 * frameCount; canvas.height = 320;
         const context = canvas.getContext('2d'); context.drawImage(source, 0, 0);
-        return context.getImageData(0, 0, 1024, 320).data;
+        return context.getImageData(0, 0, canvas.width, 320).data;
       };
       const expected = read(image);
       return [texture, runtime].every(source => read(source.getSourceImage()).every((value, index) => value === expected[index]));
-    }, { direction, folder });
-    ok(walkPixels, `${direction}: все четыре принятых подробных кадра сохранены 1:1 в исходной и игровой текстурах`);
-    const rawBasic = await page.evaluate(direction => {
+    }, { direction, folder, frameCount });
+    ok(walkPixels, `${direction}: все ${frameCount} подробных кадров сохранены 1:1 в исходной и игровой текстурах`);
+    const rawBasic = await page.evaluate(({ direction, frameCount }) => {
       const scene = window.__smokeGame.scene.getScene('Room');
       const animation = scene.anims.get(`druid-walk-${direction}`);
       const texture = scene.textures.get(animation.frames[0].textureKey);
       return texture.key === `druid-walk-${direction}-source-runtime` && texture.source[0].scaleMode === 1 &&
-        animation.frames.length === 4 && animation.msPerFrame === 160;
-    }, direction);
+        animation.frames.length === frameCount && animation.msPerFrame === 640 / frameCount;
+    }, { direction, frameCount });
     ok(rawBasic, `${direction}: Basic сохраняется с NEAREST, прежним размером в мире и без перекраски сапог`);
     const corridorFound = await page.evaluate(sign => {
       const scene = window.__smokeGame.scene.getScene('Room');
@@ -1135,9 +1135,9 @@ try {
       return { frames, geometryPreserved, distance: (p.x - startX) * sign, playing: p.anims.isPlaying };
     }, sign);
     const indices = cycle.frames.map(frame => Number(frame.replace(`walk-${direction}-`, '')));
-    ok(new Set(indices).size === 4 && indices.length >= 5 && indices.every((value, index) =>
-      value >= 0 && value < 4 && (!index || value === (indices[index - 1] + 1) % 4)),
-      `Удержание ${key.toUpperCase()} повторяет четыре кадра: ${cycle.frames.join(', ')}`);
+    ok(new Set(indices).size === frameCount && indices.length >= frameCount + 1 && indices.every((value, index) =>
+      value >= 0 && value < frameCount && (!index || value === (indices[index - 1] + 1) % frameCount)),
+      `Удержание ${key.toUpperCase()} повторяет ${frameCount} кадров: ${cycle.frames.join(', ')}`);
     ok(cycle.playing && cycle.distance > 150 && cycle.geometryPreserved,
       `${direction}: сохраняются размер, движение, опора ног и физическое тело`);
     if (direction === 'right') {
@@ -1150,32 +1150,40 @@ try {
   }
 
   ok(await page.evaluate(async () => {
-    const read = async path => {
-      const image = new Image(); image.src = path; await image.decode();
-      const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
-      const ctx = c.getContext('2d'); ctx.drawImage(image, 0, 0); return ctx.getImageData(0, 0, c.width, c.height).data;
-    };
-    const updated = await read('/docs/art/druid-walk-right-v2/walk-right-256x320.png');
-    const previous = await read('/docs/art/druid-eight-way-v1/walk-right-256x320.png');
-    let upperUnchanged = true, connected = true; const toes = [];
-    for (let frame = 0; frame < 4; frame++) {
-      let toe = 0;
-      for (let y = 0; y < 320; y++) for (let x = 0; x < 256; x++) {
-        const i = (y * 1024 + frame * 256 + x) * 4;
-        if (y < 220) for (let c = 0; c < 4; c++) upperUnchanged &&= updated[i+c] === previous[i+c];
-        if (y >= 278 && x < 200 && updated[i+3] === 255) toe = Math.max(toe,x);
+    const image=async path=>{const i=new Image();i.src=path;await i.decode();return i;};
+    const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=320;
+    const ctx=canvas.getContext('2d');
+    const read=source=>{ctx.clearRect(0,0,2048,320);ctx.drawImage(source,0,0);return ctx.getImageData(0,0,2048,320).data;};
+    const folder='/docs/art/druid-walk-right-v3';
+    const actual=read(await image(`${folder}/walk-right-256x320.png`));
+    const old=read(await image('/docs/art/druid-eight-way-v1/walk-right-256x320.png'));
+    const nearImage=await image(`${folder}/near-leg-256x320.png`),farImage=await image(`${folder}/far-leg-256x320.png`);
+    const near=read(nearImage),far=read(farImage);
+    const garmentsImage=await image(`${folder}/garments-256x320.png`),garments=read(garmentsImage);
+    const staff=await image('/docs/art/druid-side-refinement-v1/walk-right-arm-staff-256x320.png');
+    ctx.clearRect(0,0,2048,320);
+    for(let phase=0;phase<8;phase++)ctx.drawImage(staff,Math.floor(phase/2)*256,0,256,320,phase*256,0,256,320);
+    for(const layer of [farImage,nearImage,garmentsImage])ctx.drawImage(layer,0,0);
+    const composed=ctx.getImageData(0,0,2048,320).data;
+    let upper=true,singlePair=true;const tips={near:[],far:[]};
+    for(let phase=0;phase<8;phase++) {
+      let nearToe=-1,farToe=-1;
+      for(let y=0;y<320;y++)for(let x=0;x<256;x++) {
+        const i=(y*2048+phase*256+x)*4;
+        const original=(y*2048+Math.floor(phase/2)*256+x)*4;
+        if(y<220)for(let c=0;c<4;c++)upper&&=actual[i+c]===old[original+c];
+        else for(let c=0;c<4;c++)singlePair&&=actual[i+c]===composed[i+c];
+        if(y>=268)singlePair&&=garments[i+3]===0;
+        if(y>=270&&near[i+3])nearToe=Math.max(nearToe,x);
+        if(y>=270&&far[i+3])farToe=Math.max(farToe,x);
       }
-      toes.push(toe);
-      for(let y=258;y<264;y++)for(let x=76;x<83;x++)connected&&=updated[(y*1024+frame*256+x)*4+3]===255;
-      // These trousers belonged to the approved right body and must remain
-      // opaque when the opposite leg donor is occluded by its original cloak.
-      for(let y=230;y<252;y++) for(let x=78;x<95;x++) {
-        const i=(y*1024+frame*256+x)*4;
-        if(previous[i+3]===255) connected &&= updated[i+3]===255;
-      }
+      tips.near.push(nearToe);tips.far.push(farToe);
     }
-    return upperUnchanged && connected && Math.abs(toes[0]-toes[1]) >= 10 && Math.abs(toes[2]-toes[3]) >= 10;
-  }), 'Вправо: ноги проходят разные фазы шага; принятые верх, рука и посох сохранены точно');
+    const alternating=tips.near[0]>tips.far[0]&&tips.near[4]<tips.far[4]&&
+      tips.near[0]-tips.near[4]>=30&&tips.far[4]-tips.far[0]>=30;
+    const smooth=Object.values(tips).every(xs=>xs.every((value,i)=>Math.abs(value-xs[(i+1)%8])<=15));
+    return upper&&singlePair&&alternating&&smooth;
+  }), 'Вправо: обе ноги поочерёдно выходят вперёд/назад, без старой голени и скачков; корпус, руки и посох сохранены');
 
   const clearSquare = await page.evaluate(() => {
     const scene = window.__smokeGame.scene.getScene('Room');
