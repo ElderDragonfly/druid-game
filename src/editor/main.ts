@@ -26,6 +26,7 @@ document.querySelector('#editor')!.innerHTML = `
 <h3>Поведение</h3><p id="behavior"></p><details><summary>Скрытые и технические свойства</summary><p id="facts"></p></details><h3>Лут</h3><p>Система выпадения лута ещё не реализована. У этих существ нет таблиц выпадения.</p></section>
 <section class="parameters"><h2>Параметры</h2><p class="muted">Изменения формы — черновик. «Сохранить в проект» запишет их в общий файл и отправит открытой игре.</p><form id="fields" novalidate></form></section></div>
 <section id="guide" class="guide"><h2>Как пользоваться</h2><ol><li>Открой игру соседней вкладкой и начни забег.</li><li>Выбери существо слева. Измени числа справа. Анимации можно ставить на паузу и смотреть по кадрам.</li><li>Нажми «Сохранить в проект». Изменения запишутся в <code>src/data/entities.json</code>; открытая игра обновит живых существ без перезапуска.</li><li>Для нового количества волков/мышей нажми <kbd>R</kbd> в игре. Старые снаряды завершают полёт по прежней скорости и дальности; новые используют новые значения.</li></ol>
+<p>Дробные параметры можно уменьшать до 0; стрелки поля меняют их с шагом 0,1. HP и количество существ задаются целыми числами. Нулевая скорость останавливает перемещение, нулевая скорострельность отключает каст.</p>
 <p>Все скорости с «×» отсчитываются от 146⅔ единиц/с. Скорость друида 1 и волка 1 равны; изменение скорости друида не меняет единицу измерения. У мыши скорость указана прямо в единицах/с.</p>
 <p>При изменении максимума HP сохраняется число потерянных HP, с минимумом 1 для живого существа. Погибшие не оживают. Модификаторы скорости/дальности в текущем забеге сохраняются. «Продолжить» восстанавливает записанные в сейве характеристики; для проверки новых стартовых значений создай новый забег.</p>
 <p>«Отменить несохранённое» возвращает форму к последним загруженным значениям. «Загрузить с диска» перечитывает файл и отменяет черновик после подтверждения. Отменить уже сохранённое можно, вернув прежние числа и сохранив их снова.</p><p>Сохранение здесь локальное. Для передачи изменений в GitHub нужен отдельный коммит. Подробная инструкция: <code>docs/entity-editor.md</code>. Запуск: <code>npm run editor</code> или <code>npm run dev</code>.</p>
@@ -59,7 +60,7 @@ function renderFields() {
   if (!draft) return;
   const fields = ENTITY_FIELDS.filter(f=>f.entity===selected), groups = [...new Set(fields.map(f=>f.group))];
   el('fields').innerHTML = groups.map(group=>`<fieldset><legend>${group}</legend>${fields.filter(f=>f.group===group).map(f=>
-    `<label class="field"><span>${f.label} <small>${f.unit}</small></span><input type="number" name="${f.path}" min="${f.min}" max="${f.max}" step="any" value="${readField(draft!,selected,f.path)}" inputmode="decimal"><small>${f.help}</small></label>`).join('')}</fieldset>`).join('');
+    `<label class="field"><span>${f.label} <small>${f.unit}</small></span><input type="number" name="${f.path}" min="${f.min}" max="${f.max}" step="${f.step}" value="${readField(draft!,selected,f.path)}" inputmode="decimal"><small>${f.help}</small></label>`).join('')}</fieldset>`).join('');
   invalidInput = false;
   el('fields').querySelectorAll<HTMLInputElement>('input').forEach(input=>input.addEventListener('input', ()=>{
     writeField(draft!, selected, input.name, input.value === '' ? NaN : input.valueAsNumber);

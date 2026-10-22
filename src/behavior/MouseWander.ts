@@ -48,7 +48,7 @@ export class MouseWander {
 
   refreshRunLimit(position: MousePoint) {
     if (this.state === 'run') this.runLimit = this.elapsed +
-      Math.hypot(this.target.x - position.x, this.target.y - position.y) / this.actorState.speed * 1000 + 350;
+      (this.actorState.speed>0 ? Math.hypot(this.target.x-position.x,this.target.y-position.y)/this.actorState.speed*1000 : 0)+350;
   }
 
   restore(state: MouseActorState, runLimit: number) {
@@ -62,10 +62,10 @@ export class MouseWander {
       const angle = this.random() * Math.PI * 2;
       const distance = MOUSE.runDistance.min + this.random() * (MOUSE.runDistance.max - MOUSE.runDistance.min);
       const point = { x: start.x + Math.cos(angle) * distance, y: start.y + Math.sin(angle) * distance };
-      const steps = Math.ceil(distance / 6);
+      const steps = Math.max(1,Math.ceil(distance / 6));
       if (Array.from({ length: steps + 1 }, (_, i) => ({ x: start.x + (point.x - start.x) * i / steps,
         y: start.y + (point.y - start.y) * i / steps })).every(p => mouseCanStand(this.layout, p))) {
-        this.runLimit = distance / this.actorState.speed * 1000 + 350;
+        this.runLimit = (this.actorState.speed>0 ? distance/this.actorState.speed*1000 : 0)+350;
         return point;
       }
     }

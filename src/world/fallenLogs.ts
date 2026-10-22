@@ -13,11 +13,12 @@ export interface FallenLogPlacement {
   x: number; y: number; variant: number; angle: number; flipX: boolean;
   mushrooms: LogMushroom[];
 }
-/** Native sprite orientation, including logs restored from older rotated saves. */
+/** Rotate all native wood/mushroom anchors around the sprite centre. */
 export function logPoint(log: FallenLogPlacement, x: number, y: number) {
   const art = FALLEN_LOGS[log.variant];
-  return { x: log.x + (x - art.width / 2) * art.scale,
-    y: log.y + (y - art.height / 2) * art.scale };
+  const angle=log.angle*Math.PI/180, dx=(x-art.width/2)*art.scale, dy=(y-art.height/2)*art.scale;
+  return { x:log.x+dx*Math.cos(angle)-dy*Math.sin(angle),
+    y:log.y+dx*Math.sin(angle)+dy*Math.cos(angle) };
 }
 export function mushroomPoint(log: FallenLogPlacement, mushroom: LogMushroom) {
   const fallback = FALLEN_LOGS[log.variant].mushroomSpots[mushroom.slot];
@@ -57,13 +58,6 @@ export function scatterLogMushrooms(variant: number, mushrooms: LogMushroom[], r
   }
 }
 
-/** Reserve just four small clearings for the temporary start-screen test. */
-export function logTestAreas(spawn: { x: number; y: number }): Rect[] {
-  return CONFIG.testAroundSpawn ? CONFIG.testOffsets.map(offset => ({
-    x: spawn.x + offset.x - 88, y: spawn.y + offset.y - 62, width: 176, height: 124,
-  })) : [];
-}
-
 export function logVisualRect(log: FallenLogPlacement): Rect {
   const a = FALLEN_LOGS[log.variant];
   const points = [[0,0],[a.width,0],[a.width,a.height],[0,a.height]].map(([x,y])=>logPoint(log,x,y));
@@ -92,23 +86,22 @@ export function distanceToLog(log: FallenLogPlacement, point: { x: number; y: nu
 export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[], canopies: readonly Rect[]): FallenLogPlacement[] {
   const random = seededRandom(layout.seed ^ 0x4c4f4753);
   const integer = (min:number,max:number)=>min+Math.floor(random()*(max-min+1));
-  const count = CONFIG.testAroundSpawn ? CONFIG.testOffsets.length : integer(CONFIG.min,CONFIG.max);
+  const count = integer(CONFIG.min,CONFIG.max);
   const result:FallenLogPlacement[]=[];
   const spawn = {x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
   for(let index=0;index<count;index++) {
     const variant=ACTIVE_LOG_VARIANTS[integer(0,ACTIVE_LOG_VARIANTS.length-1)];
-    const angle=0, flipX=false;
+    const angle=random()*360-180, flipX=false;
     const mushrooms:FallenLogPlacement['mushrooms']=[];
-    if(random()<CONFIG.mushroomChance || (CONFIG.testAroundSpawn && index===0)) {
+    if(random()<CONFIG.mushroomChance) {
       const species=integer(0,LOG_MUSHROOMS.length-1), amount=integer(CONFIG.mushroomMin,CONFIG.mushroomMax);
       for(let n=0;n<amount;n++) mushrooms.push({variant:species,slot:n});
       scatterLogMushrooms(variant,mushrooms,random);
     }
     let placed=false;
     for(let attempt=0;attempt<2000;attempt++) {
-      const offset=CONFIG.testOffsets[index];
-      const x=CONFIG.testAroundSpawn ? layout.spawn.x+offset.x+integer(-12,12) : 160+random()*(layout.width-320);
-      const y=CONFIG.testAroundSpawn ? layout.spawn.y+offset.y+integer(-10,10) : 160+random()*(layout.height-320);
+      const x=160+random()*(layout.width-320);
+      const y=160+random()*(layout.height-320);
       const log={x,y,variant,angle,flipX,mushrooms};
       const visual=logVisualRect(log), bodies=logCollisionRects(log);
       if(visual.x<24||visual.y<24||visual.x+visual.width>layout.width-24||visual.y+visual.height>layout.height-24||overlaps(visual,spawn))continue;

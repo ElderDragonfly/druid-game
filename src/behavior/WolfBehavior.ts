@@ -33,6 +33,7 @@ export class WolfBehavior {
   }
 
   detects(position: WolfPoint, player: WolfPoint) {
+    if(WOLF.behavior.detectionX<=0||WOLF.behavior.detectionY<=0)return false;
     return ((position.x - player.x) / WOLF.behavior.detectionX) ** 2 +
       ((position.y - player.y) / WOLF.behavior.detectionY) ** 2 <= 1;
   }

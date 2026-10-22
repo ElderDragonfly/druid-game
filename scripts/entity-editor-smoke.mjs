@@ -26,6 +26,17 @@ try {
   const put=(body,origin=base)=>fetch(`${base}/__editor/entities`,{method:'PUT',headers:{'Content-Type':'application/json',...(origin?{Origin:origin}:{})},body:JSON.stringify(body)});
   let baseline=await read();
   ok(JSON.stringify(baseline.data)===JSON.stringify(JSON.parse(baselineSource)),'Редактор читает общий файл; исходный баланс сохранён');
+  await choose('wolf');
+  ok(await editor.locator('[name="runSpeed"]').getAttribute('min')==='0'&&
+    await editor.locator('[name="runSpeed"]').getAttribute('step')==='0.1'&&
+    Number(await editor.locator('[name="runSpeed"]').inputValue())===.9,'Погоня волка начинается с 0,9; минимум поля 0, шаг 0,1');
+  await editor.locator('[name="runSpeed"]').focus();await editor.locator('[name="runSpeed"]').press('ArrowDown');
+  ok(Number(await editor.locator('[name="runSpeed"]').inputValue())===.8,'Стрелка поля уменьшает скорость с 0,9 до 0,8');
+  await editor.locator('#discard').click();await choose('druid');
+  ok(await editor.evaluate(async()=>{
+    const {ENTITY_FIELDS}=await import('/src/data/entitySchema.ts');
+    return ENTITY_FIELDS.every(f=>f.integer?f.step===1:f.min===0&&f.step===.1);
+  }),'Все дробные параметры имеют минимум 0 и шаг 0,1; HP и количества сохраняют целочисленный шаг');
   const game=await context.newPage();await game.goto(base);
   await game.evaluate(async()=>{window.__game=(await import('/src/main.ts')).game;});
   await game.waitForFunction(()=>window.__game.scene.isActive('MainMenu'));
@@ -54,6 +65,37 @@ try {
   ok(await game.evaluate(async()=>{
     const {ACORN}=await import('/src/data/acorn.ts'),{WOLF}=await import('/src/data/wolf.ts');return ACORN.damage===2&&WOLF.combat.damage===0&&WOLF.behavior.detectionX===500;
   }),'Атаки и обнаружение читают те же данные, что редактор');
+  const positive=await read();
+  await choose('druid');
+  for(const key of ['speed','attackRate','range','projectileSpeed'])await fill(key,0);
+  await choose('wolf');await editor.locator('[name="runSpeed"]').focus();
+  for(let i=0;i<8;i++)await editor.locator('[name="runSpeed"]').press('ArrowDown');
+  ok(Number(await editor.locator('[name="runSpeed"]').inputValue())===0,'Восемь нажатий по 0,1 снижают скорость с 0,8 до нуля');
+  for(const key of ['walkSpeed','behavior.detectionX','behavior.detectionY','behavior.projectileDetectionX','behavior.projectileDetectionY'])await fill(key,0);
+  await choose('mouse');for(const key of ['speed','runDistance.min','runDistance.max','lookMs'])await fill(key,0);
+  await editor.locator('#animation').selectOption('run');
+  await editor.locator('#save').click();await editor.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Сохранено в src/'));
+  await game.waitForFunction(()=>window.__game.scene.getScene('Room').player.actorState.speed===0);
+  ok(await game.evaluate(async()=>{
+    const s=window.__game.scene.getScene('Room'),p=s.player.actorState;
+    s.player.casting.update(100,'down');
+    const {isRunSave}=await import('/src/persistence/runSave.ts');
+    const snapshot={version:1,savedAt:Date.now(),characterId:s.characterId,layout:structuredClone(s.layout),
+      player:s.player.snapshot(),camera:{x:s.cameras.main.midPoint.x,y:s.cameras.main.midPoint.y},world:s.world.snapshot(),shots:[]};
+    return p.speed===0&&p.range===0&&p.attackRate===0&&!s.player.casting.active&&
+      s.world.wolves.every(w=>w.actorState.runSpeed===0&&w.actorState.walkSpeed===0&&!w.behavior.detects(w,s.player))&&
+      s.world.mice.every(m=>m.actorState.speed===0&&Number.isFinite(m.behavior.runTimeLimit))&&isRunSave(snapshot);
+  }),'Нули применяются без Infinity/NaN: перемещение и каст отключены, таймеры конечны, забег можно сохранить');
+  const zero=await read();ok((await put({revision:zero.revision,data:positive.data})).status===200,'Положительные характеристики восстанавливаются после нулевых');
+  await game.waitForFunction(()=>window.__game.scene.getScene('Room').player.actorState.attackRate===1.25);
+  ok(await game.evaluate(()=>{
+    const s=window.__game.scene.getScene('Room');
+    return Math.abs(s.player.actorState.speed-220*2/3*2*.8)<.001&&s.player.actorState.range===1.2&&
+      s.world.wolves.every(w=>Math.abs(w.actorState.runSpeed-220*2/3*.8)<.001)&&
+      s.world.mice.every(m=>m.actorState.speed===135&&Number.isFinite(m.behavior.runTimeLimit));
+  }),'Переход 0 → положительное значение сохраняет модификаторы, движение и конечные таймеры');
+  await editor.waitForFunction(()=>Number(document.querySelector('[name="speed"]').value)===135);
+  await choose('druid');baseline=await read();
   await game.bringToFront();await game.keyboard.press('r');
   await game.waitForFunction(()=>window.__game.scene.getScene('Room').player!==window.__originalPlayer);
   ok(await game.evaluate(()=>{
@@ -84,7 +126,7 @@ try {
   await editor.locator('#animation').selectOption('walk');await editor.locator('#step').click();await editor.waitForTimeout(50);
   ok((await editor.locator('#frame').textContent()).includes('Кадр 2 из 4'),'Можно переключать исходные кадры вручную');
   await fill('speed',-1);
-  ok(await editor.locator('#save').isDisabled()&&(await editor.locator('#status').textContent()).includes('от 0.1'),'Неверная скорость не сохраняется и не зависает просмотр');
+  ok(await editor.locator('#save').isDisabled()&&(await editor.locator('#status').textContent()).includes('от 0 до'),'Неверная скорость не сохраняется и не зависает просмотр');
   await editor.locator('#discard').click();ok(Number(await editor.locator('[name="speed"]').inputValue())===.8,'Отмена черновика возвращает последнее сохранение');
   await fill('speed',.9);
   await game.evaluate(()=>{const s=window.__game.scene.getScene('Room');window.__deadWolf=s.world.wolves[0];window.__deadWolf.takeDamage(100);});

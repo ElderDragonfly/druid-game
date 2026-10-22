@@ -1,4 +1,4 @@
-import { logTestAreas, generateFallenLogs, type FallenLogPlacement } from './fallenLogs';
+import { generateFallenLogs, type FallenLogPlacement } from './fallenLogs';
 import { seededRandom } from './random';
 import { overlaps, type Rect } from './geometry';
 export { seededRandom } from './random';
@@ -49,7 +49,6 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
   const treeVariants = ENVIRONMENT_VARIANTS.tree.flatMap((art, index) => treePool.includes(art.id) ? [index] : []);
   const trees = treeVariants.length ? integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max) : 0;
   const spawn = { x: width / 2, y: height / 2 };
-  const testAreas = logTestAreas(spawn);
   const spawnArea = { x: spawn.x - 64, y: spawn.y - 58, width: 128, height: 128 };
   // Counts are drawn once; retries preserve the chosen range and deterministic seed.
   for (let layoutAttempt = 0; layoutAttempt < 32; layoutAttempt++) {
@@ -58,7 +57,6 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       const rect = obstacleRect(object);
       return !overlaps(rect, spawnArea, MEADOW_GENERATION.spawnClearance) &&
         !overlaps(obstacleVisualRect(object), spawnArea) &&
-        !testAreas.some(area => overlaps(obstacleVisualRect(object), area, 24)) &&
         obstacles.every(other => !overlaps(rect, obstacleRect(other), MEADOW_GENERATION.obstacleGap));
     };
     for (const [kind, count] of [['tree', trees]] as const) {

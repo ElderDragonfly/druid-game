@@ -5,15 +5,16 @@ export async function testFallenLogs(page,ok) {
     const {logVisualRect,logCollisionRects,logPoint,mushroomPoint,onMushroomSurface}=await import('/src/world/fallenLogs.ts');
     const {FALLEN_LOGS,ACTIVE_LOG_VARIANTS,LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
     const counts=new Set(),amounts=new Set(),species=new Set(),variants=new Set(),angles=new Set();
-    let total=0,covered=0,safe=true,repeatable=true,homogeneous=true,native=true,scattered=true,visible=true;
-    const points=new Set();
+    let total=0,covered=0,safe=true,repeatable=true,homogeneous=true,native=true,scattered=true;
+    const points=new Set(),regions=new Set(),quadrants=new Set();
     for(let seed=0;seed<1500;seed++) {
       const layout=generateMeadow(seed);counts.add(layout.logs.length);total+=layout.logs.length;
-      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length===4&&layout.logs[0].mushrooms.length>0;
+      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length>=2&&layout.logs.length<=4;
       const spawn={x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
       for(const log of layout.logs) {
-        native&&=log.angle===0&&log.flipX===false;variants.add(log.variant);angles.add(log.angle);const bounds=logVisualRect(log),body=logCollisionRects(log);
-        visible&&=Math.abs(log.x-layout.spawn.x)<=240&&Math.abs(log.y-layout.spawn.y)<=155;
+        native&&=log.angle>=-180&&log.angle<180&&log.flipX===false;variants.add(log.variant);angles.add(log.angle);const bounds=logVisualRect(log),body=logCollisionRects(log);
+        regions.add(`${Math.min(2,Math.floor(log.x/layout.width*3))}:${Math.min(2,Math.floor(log.y/layout.height*3))}`);
+        quadrants.add(Math.floor((log.angle+180)/90));
         for(const m of log.mushrooms) {
           scattered&&=onMushroomSurface(log.variant,m.surface)&&log.mushrooms.every(other=>other===m||Math.hypot(other.surface.x-m.surface.x,other.surface.y-m.surface.y)>=6);
           points.add(`${log.variant}:${m.surface.x}:${m.surface.y}`);
@@ -33,6 +34,9 @@ export async function testFallenLogs(page,ok) {
         if(onMushroomSurface(variant,{x,y}))surfaceCapacity++;
     }
     const scene=window.__smokeGame.scene.getScene('Room');
+    const generated=generateMeadow(scene.layout.seed);
+    const rotationsKept=scene.layout.logs.every((log,index)=>log.angle===generated.logs[index].angle)&&
+      scene.layout.logs.some(log=>Math.abs(log.angle)>1);
     let art=true,rendered=true,bodies=true,upright=true;
     for(const sprite of [...FALLEN_LOGS,...LOG_MUSHROOMS]) {
       const t=scene.textures.get(sprite.id),source=t.getSourceImage(),c=document.createElement('canvas');c.width=source.width;c.height=source.height;
@@ -42,7 +46,7 @@ export async function testFallenLogs(page,ok) {
     }
     for(const [index,log] of scene.layout.logs.entries()) {
       const image=scene.children.getByName(`fallen-log-${index}`),a=FALLEN_LOGS[log.variant];
-      rendered&&=image.texture.key===a.id&&image.angle===log.angle&&image.flipX===log.flipX&&image.scaleX===a.scale;
+      rendered&&=image.texture.key===a.id&&Math.abs(image.angle-log.angle)<1e-8&&image.flipX===log.flipX&&image.scaleX===a.scale;
       const expected=logCollisionRects(log),actual=scene.world.obstacles.getChildren().filter(o=>o.name.startsWith(`fallen-log-collider-${index}-`));
       bodies&&=actual.length===expected.length&&actual.every((o,n)=>!o.visible&&o.body.enable&&
         Math.abs(o.body.x-expected[n].x)<.001&&Math.abs(o.body.y-expected[n].y)<.001&&
@@ -56,25 +60,32 @@ export async function testFallenLogs(page,ok) {
     }
     const {WolfNavigation}=await import('/src/world/WolfNavigation.ts');
     const {mouseCanStand}=await import('/src/behavior/MouseWander.ts');
-    const log={x:500,y:400,variant:0,angle:0,flipX:false,mushrooms:[]};
+    const log={x:500,y:400,variant:4,angle:90,flipX:false,mushrooms:[]};
     const layout={width:1000,height:800,seed:0,spawn:{x:100,y:100},counts:{trees:0,logs:1},obstacles:[],logs:[log]};
     const nav=new WolfNavigation(layout),line=logCollisionRects(log),center=line[Math.floor(line.length/2)];
     const target={x:center.x+center.width/2,y:center.y+center.height};
     const route=nav.route({x:320,y:400},{x:680,y:400});
     const navigation=!nav.canStand(target)&&!mouseCanStand(layout,target)&&route.length>0&&route.every(p=>nav.canStand(p));
     const rect=logVisualRect(log);
-    const corners=[{x:rect.x+30,y:rect.y+20},{x:rect.x+rect.width-30,y:rect.y+20},
-      {x:rect.x+30,y:rect.y+rect.height-5},{x:rect.x+rect.width-30,y:rect.y+rect.height-5}];
+    const corners=[{x:rect.x+1,y:rect.y+1},{x:rect.x+rect.width-1,y:rect.y+1},
+      {x:rect.x+1,y:rect.y+rect.height-1},{x:rect.x+rect.width-1,y:rect.y+rect.height-1}];
     const emptyCorners=corners.some(p=>nav.canStand(p)&&mouseCanStand(layout,p));
     const noHint=!scene.hint&&!scene.children.list.some(o=>o.text?.includes('WASD —'))&&scene.hud.list.length===4;
     return{counts:[...counts].sort(),amounts:[...amounts].sort(),species:species.size,variants:[...variants],angleCount:angles.size,
-      fraction:covered/total,scattered,visible,pointCount:points.size,surfaceCapacity,native,safe,homogeneous,repeatable,art,rendered,bodies,upright,navigation,emptyCorners,noHint};
+      fraction:covered/total,scattered,regions:regions.size,quadrants:quadrants.size,pointCount:points.size,surfaceCapacity,native,safe,homogeneous,repeatable,art,rendered,rotationsKept,bodies,upright,navigation,emptyCorners,noHint};
   });
-  ok(stats.counts.join()==='4'&&stats.safe&&stats.visible,'1500 тестовых локаций: четыре видимых бревна около старта, без крон и с безопасным проходом');
-  ok(Math.abs(stats.fraction-.625)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
-    `Тест: на первом бревне гарантированы 1–3 гриба, у остальных шанс 50%; один вид на бревно (${(stats.fraction*100).toFixed(1)}%)`);
-  ok(stats.species===2&&stats.variants.join()==='4'&&stats.angleCount===1&&stats.native&&stats.repeatable,'Только серое бревно из отдельного рисунка и 2 новых вида грибов доступны; только исходный ракурс без отражения, seed воспроизводится');
+  ok(stats.counts.join()==='2,3,4'&&stats.safe&&stats.regions===9,'1500 локаций: 2–4 бревна по всему миру, без крон, пересечений и привязки к старту');
+  ok(Math.abs(stats.fraction-.5)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
+    `На каждом бревне шанс грибов 50%, при успехе 1–3 одного вида (${(stats.fraction*100).toFixed(1)}%)`);
+  ok(stats.species===2&&stats.variants.join()==='4'&&stats.angleCount>100&&stats.quadrants===4&&stats.native&&stats.repeatable,'Только серое бревно из отдельного рисунка и 2 новых вида грибов доступны; случайный поворот на полный круг без отражения, seed воспроизводится');
   ok(stats.scattered&&stats.pointCount>=stats.surfaceCapacity*.9,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
+  ok(await page.evaluate(async()=>{
+    const {mushroomPoint}=await import('/src/world/fallenLogs.ts');
+    const log={x:500,y:400,variant:4,angle:0,flipX:false,mushrooms:[]};
+    const mushroom={variant:0,slot:0,surface:{x:29,y:18}};
+    const a=mushroomPoint(log,mushroom),b=mushroomPoint({...log,angle:90},mushroom);
+    return Math.abs(b.x-(500-(a.y-400)))<1e-9&&Math.abs(b.y-(400+a.x-500))<1e-9;
+  }),'При повороте бревна крепления грибов поворачиваются с древесиной, сами грибы остаются вертикальными');
   ok(stats.art,'Вырезанные PNG прозрачны без полупрозрачной каймы; размеры и NEAREST сохранены');
   ok(await page.evaluate(async()=>{
     const {LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
@@ -100,7 +111,7 @@ export async function testFallenLogs(page,ok) {
     const active=game.textures.getTextureKeys().filter(key=>/^mushroom-\d+$/.test(key));
     return exact&&guard&&clean&&active.length===2&&LOG_MUSHROOMS.length===2;
   }),'Только два новых грибных PNG: пиксели загружены 1:1, края прозрачны, нейтрального белого фона нет');
-  ok(stats.rendered&&stats.upright,'В игре стоят выбранные варианты; грибы растут на уменьшенном бревне вертикально');
+  ok(stats.rendered&&stats.rotationsKept&&stats.upright,'Комната сохраняет углы генератора и поворачивает рисунки брёвен; грибы остаются вертикальными');
   ok(await page.evaluate(async()=>{
     const {LOG_MUSHROOMS}=await import('/src/data/fallenLogs.ts');
     const original=(await import('/docs/art/log-mushrooms-v3/sprites.json')).default.mushrooms;
@@ -113,12 +124,17 @@ export async function testFallenLogs(page,ok) {
     const {logPoint,logCollisionRects}=await import('/src/world/fallenLogs.ts');
     return FALLEN_LOGS.every((art,variant)=>{
       const log={x:500,y:400,variant,angle:0,flipX:false,mushrooms:[]};
-      const legacy={...log,angle:35,flipX:true};
       return art.scale===2&&Math.abs(art.width*art.scale-art.previousWorldWidth*2/3)<=1&&
-        JSON.stringify(logPoint(log,0,0))===JSON.stringify(logPoint(legacy,0,0))&&
-        JSON.stringify(logCollisionRects(log))===JSON.stringify(logCollisionRects(legacy));
+        [-179,-90,-35,0,35,90,179].every(angle=>{
+          const rotated={...log,angle},p=logPoint(log,0,0),actual=logPoint(rotated,0,0),r=angle*Math.PI/180;
+          const expected={x:500+(p.x-500)*Math.cos(r)-(p.y-400)*Math.sin(r),
+            y:400+(p.x-500)*Math.sin(r)+(p.y-400)*Math.cos(r)};
+          const plain=logCollisionRects(log),bodies=logCollisionRects(rotated);
+          return Math.hypot(actual.x-expected.x,actual.y-expected.y)<1e-9&&bodies.every(b=>
+            Math.abs(b.width-plain[0].width)<1e-9&&Math.abs(b.height-plain[0].height)<1e-9);
+        });
     });
-  }),'Брёвна уменьшены на треть на сетке 2 ед./пиксель; старые повороты не меняют новую геометрию');
+  }),'Полный поворот вращает точки древесины и коллизии вокруг центра, сетка и размер сохраняются');
   ok(stats.noHint,'Нижняя серая подсказка управления удалена из игрового HUD');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room');const {isRunSave,loadRun,RUN_SAVE_KEY}=await import('/src/persistence/runSave.ts');

@@ -28,9 +28,12 @@ export async function testAcornAttack(page,ok) {
     cast.cancel();rate=2;cast.update(0,'down');cast.update(376);
     const early=cast.consumeRelease()===undefined;
     cast.update(.875);const faster=cast.active&&cast.consumeRelease()==='down';
-    rate=0;const frame=cast.frameIndex;cast.update(5000);
-    return baseline&&repeated&&early&&faster&&cast.frameIndex===frame;
-  }),'Базовая скорострельность 1: цикл 1005 мс; значение 2 удваивает темп жеста и выпуска, 0 приостанавливает таймер');
+    rate=0;cast.update(5000,'down');
+    const disabled=!cast.active&&cast.consumeRelease()===undefined;
+    rate=1;cast.update(0,'down');cast.update(753.75);
+    const resumed=cast.active&&cast.consumeRelease()==='down';
+    return baseline&&repeated&&early&&faster&&disabled&&resumed;
+  }),'Базовая скорострельность 1: цикл 1005 мс; значение 2 удваивает темп, 0 отключает каст; положительное значение снова разрешает атаку');
   ok(await page.evaluate(async()=>{
     const{sweptRect,worldExit}=await import('/src/physics/projectileSweep.ts');
     const from={x:20,y:50},to={x:200,y:50},rect={x:100,y:40,width:1,height:20};

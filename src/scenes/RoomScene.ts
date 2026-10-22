@@ -1,3 +1,4 @@
+import { BASE_MOVEMENT_SPEED } from '../data/movement';
 import { onEntityDataChanged } from '../data/entityBalance';
 import Phaser from 'phaser';
 import { Druid } from '../entities/Druid';
@@ -67,6 +68,14 @@ export class RoomScene extends Phaser.Scene {
     this.player.on(COMBAT_EVENTS.healthChanged,this.updateHealth,this);
     this.player.once(COMBAT_EVENTS.died,this.endGame,this);
 
+    type StatKey='speed'|'attackRate'|'range'|'walkSpeed'|'runSpeed';
+    const modifiers=new WeakMap<object,Map<StatKey,number>>();
+    const rescale=(state:Partial<Record<StatKey,number>>,key:StatKey,before:number,after:number,unit=1)=>{
+      let cached=modifiers.get(state);
+      if(!cached){cached=new Map();modifiers.set(state,cached);}
+      const factor=before>0 ? state[key]!/(before*unit) : cached.get(key)??1;
+      cached.set(key,factor);state[key]=after*unit*factor;
+    };
     const unsubscribeBalance = onEntityDataChanged((next, previous) => {
       if (this.gameOver) return;
       const adjustHealth = (state: { health: number; maxHealth: number }, maximum: number) => {
@@ -76,19 +85,19 @@ export class RoomScene extends Phaser.Scene {
       };
       const p = this.player.actorState, before = previous.druid, after = next.druid;
       // Preserve instance modifiers; changing a baseline is not picking up an item.
-      p.speed *= after.speed / before.speed;
-      p.attackRate *= after.attackRate / before.attackRate;
-      p.range *= after.range / before.range;
+      rescale(p,'speed',before.speed,after.speed,BASE_MOVEMENT_SPEED);
+      rescale(p,'attackRate',before.attackRate,after.attackRate);
+      rescale(p,'range',before.range,after.range);
       if (after.health !== before.health) adjustHealth(p, after.health);
       for (const wolf of this.world.wolves) {
         if (wolf.dying) continue;
         const state = wolf.actorState;
-        state.walkSpeed *= next.wolf.walkSpeed / previous.wolf.walkSpeed;
-        state.runSpeed *= next.wolf.runSpeed / previous.wolf.runSpeed;
+        rescale(state,'walkSpeed',previous.wolf.walkSpeed,next.wolf.walkSpeed,BASE_MOVEMENT_SPEED);
+        rescale(state,'runSpeed',previous.wolf.runSpeed,next.wolf.runSpeed,BASE_MOVEMENT_SPEED);
         if (next.wolf.health !== previous.wolf.health) adjustHealth(state, next.wolf.health);
       }
       for (const mouse of this.world.mice) {
-        mouse.actorState.speed *= next.mouse.speed / previous.mouse.speed;
+        rescale(mouse.actorState,'speed',previous.mouse.speed,next.mouse.speed);
         if (next.mouse.speed !== previous.mouse.speed) mouse.behavior.refreshRunLimit(mouse);
       }
       this.updateHealth();
@@ -166,8 +175,8 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
-    // Old saves retain positions and mushrooms, but use the accepted native poses.
-    this.layout.logs?.forEach(log => { log.angle = 0; log.flipX = false; });
+    // Keep generated/saved angles; mirrored log artwork is still disabled.
+    this.layout.logs?.forEach(log => { log.flipX = false; });
     const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;
     this.physics.world.setBounds(0, 0, width, height);
     this.cameras.main.setBounds(0, 0, width, height);

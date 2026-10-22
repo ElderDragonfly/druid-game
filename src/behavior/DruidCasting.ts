@@ -17,6 +17,7 @@ export class DruidCasting {
   constructor(readonly releaseAtMs = CAST_RELEASE_MS, private readonly attackRate: () => number = () => BASE_ATTACK_RATE) {}
 
   update(delta: number, requested?: Facing) {
+    if(this.attackRate()<=0) { this.cancel(); return; }
     if (this.active) {
       if (requested) this.facing = requested;
       this.elapsed += Math.max(0, delta) * Math.max(0, this.attackRate()) / BASE_CAST_DURATION_SCALE;
