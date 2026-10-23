@@ -3,7 +3,7 @@ import { CHARACTERS } from '../data/characters';
 import { ENVIRONMENT_VARIANTS } from '../data/environment';
 import { FACINGS } from '../input/EightWayFacing';
 import { MEADOW_WORLD } from '../world/meadowLayout';
-import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS } from '../data/fallenLogs';
+import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS, FALLEN_LOG_GENERATION } from '../data/fallenLogs';
 import { onMushroomSurface, logVisualRect, scatterLogMushrooms } from '../world/fallenLogs';
 import { seededRandom } from '../world/random';
 import type { PointSave, RunSave } from './snapshots';
@@ -21,6 +21,9 @@ const facing = (value: RunSave['player']['state']['facing']) => FACINGS.includes
 const LEGACY_MUSHROOM_COUNT = 7;
 function migrateMushrooms(save: RunSave): RunSave {
   save.layout.logs?.forEach(log => {
+    // Keep old runs, collected items and log positions; limit legacy rotation.
+    const tilt=FALLEN_LOG_GENERATION.maxTiltDegrees;
+    log.angle=Math.max(-tilt,Math.min(tilt,log.angle));
     log.mushrooms.forEach(mushroom => { mushroom.variant %= LOG_MUSHROOMS.length; });
     if(log.variant !== ACTIVE_LOG_VARIANTS[0]) {
       log.variant=ACTIVE_LOG_VARIANTS[0];

@@ -22,7 +22,18 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
   readonly castVisual: Phaser.GameObjects.Image;
   private activeWalk?: Facing;
   private nextWalkFrame: Partial<Record<Facing, number>> = {};
+  private interactionLocked = false;
   get dead() { return this.actorState.health <= 0; }
+  /** Shared gate for player actions, including future abilities/use actions. */
+  get canStartAction() { return !this.dead && !this.interactionLocked && !this.hitReaction.active; }
+
+  setInteractionLocked(locked: boolean) {
+    if (this.interactionLocked === locked) return;
+    this.interactionLocked = locked;
+    if (locked) {
+      this.cancelCast(); this.setVelocity(0, 0); this.updateAppearance(true);
+    }
+  }
 
   get wolfContactBounds() {
     return wolfContactBounds(this.body as Phaser.Physics.Arcade.Body, this.appearance.wolfContactPadding);
@@ -56,7 +67,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
   }
 
   move(x: number, y: number, facing: Facing) {
-    if (this.dead) { this.setVelocity(0, 0); return; }
+    if (this.dead || this.interactionLocked) { this.setVelocity(0, 0); return; }
     if (this.hitReaction.active) {
       this.setVelocity(0, 0); this.actorState.facing = this.hitReaction.facing; return;
     }
@@ -128,6 +139,7 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
     this.hitReaction.update(delta);
     if (this.hitReaction.active) { this.showHit(); return; }
     this.hitVisual.setVisible(false);
+    if (this.interactionLocked) { this.cancelCast(); this.updateAppearance(true); return; }
     this.casting.update(delta, requested && this.appearance.casts?.[requested] ? requested : undefined);
     if (this.casting.active) {
       this.rememberStep();

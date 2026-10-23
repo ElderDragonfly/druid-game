@@ -1,5 +1,22 @@
 /** Start-view placement, shared collision, real held E and persistent activation. */
 export async function testStump(page,ok,click,waitScene) {
+  ok(await page.evaluate(async()=>{
+    const {HoldInteraction}=await import('/src/interaction/HoldInteraction.ts');
+    const hold=new HoldInteraction();let first=0,second=0;
+    const a={completeInteraction:()=>first++},b={holdDurationMs:500,completeInteraction:()=>second++};
+    for(let n=0;n<9;n++)hold.update(100,a,true);
+    if(first||Math.abs(hold.progress-.9)>1e-9)return false;
+    hold.update(100,a,true);for(let n=0;n<10;n++)hold.update(100,a,true);
+    if(first!==1)return false;
+    hold.reset();for(let n=0;n<4;n++)hold.update(100,a,true);
+    hold.update(100,b,true);
+    if(Math.abs(hold.progress-.2)>1e-9||second)return false;
+    hold.update(100,b,false);
+    if(hold.progress!==0)return false;
+    for(let n=0;n<5;n++)hold.update(100,b,true);
+    hold.update(100,undefined,true);
+    return first===1&&second===1&&hold.progress===0&&!hold.visible;
+  }),'Общее удержание: по умолчанию 1 с, своё время у другого объекта, однократное действие, смена цели и отпускание сбрасывают прогресс');
   const placement=await page.evaluate(async()=>{
     const {generateMeadow,obstacleVisualRect,overlaps}=await import('/src/world/meadowLayout.ts');
     const {stumpClearing,stumpVisualRect}=await import('/src/world/stump.ts');
@@ -28,8 +45,9 @@ export async function testStump(page,ok,click,waitScene) {
       Math.abs(proxy.body.x-bounds.x)<.001&&Math.abs(proxy.body.y-bounds.y)<.001&&
       proxy.body.width===bounds.width&&proxy.body.height===bounds.height&&
       !new WolfNavigation(s.layout).canStand(p)&&!mouseCanStand(s.layout,p)&&
-      [image,s.children.getByName('ritual-stump-ring'),s.children.getByName('ritual-stump-key')].every(o=>o.cameraFilter&s.hudCamera.id);
-  }),'Пень — отдельный спрайт с коллизией для друида/волка/мыши; HUD-камера не дублирует рисунок и кольцо');
+      [image,s.children.getByName('ritual-stump-aura'),s.holdIndicator].every(o=>o.cameraFilter&s.hudCamera.id)&&
+      !s.children.getByName('ritual-stump-key');
+  }),'Пень и общий индикатор — отдельные слои; общая коллизия и фильтр HUD сохранены, старой подписи E у пня нет');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.children.getByName('ritual-stump-collider').body;
     const {AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
@@ -41,7 +59,7 @@ export async function testStump(page,ok,click,waitScene) {
     const s=window.__smokeGame.scene.getScene('Room');s.physics.pause();return s.layout.seed;
   });
   await page.keyboard.down('e');await page.waitForTimeout(1100);await page.keyboard.up('e');
-  ok(await page.evaluate(()=>{const r=window.__smokeGame.scene.getScene('Room').world.ritual;return !r.activated&&r.progress===0;}),
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.world.ritual.activated&&s.holdInteraction.progress===0&&!s.holdIndicator.visible;}),
     'Удержание E вдали не активирует пень');
   const near=await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.layout.stump;
@@ -54,31 +72,59 @@ export async function testStump(page,ok,click,waitScene) {
     return {x:c.x,y:c.y,clear:!s.physics.overlap(s.player,s.world.obstacles),inRange:s.world.ritual.canInteract(s.player.body.center)};
   });
   ok(near.clear&&near.inRange,'Для E достаточно подойти на 25 единиц от древесины; вплотную к коллизии прижиматься не нужно');
+  await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').physics.resume());
+  await page.keyboard.down('ArrowDown');await page.waitForTimeout(100);await page.keyboard.up('ArrowDown');
+  ok(await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').player.casting.active),'До взаимодействия каст запускается обычным образом');
+  const beforeHold=await page.evaluate(()=>{const p=window.__smokeGame.scene.getScene('Room').player;return {x:p.x,y:p.y};});
+  await page.keyboard.down('e');await page.keyboard.down('w');await page.keyboard.down('ArrowLeft');await page.waitForTimeout(180);
+  ok(await page.evaluate(before=>{
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player;
+    p.move(1,0,'right');p.updateCasting(0,'right');
+    return Math.hypot(p.x-before.x,p.y-before.y)<1&&p.body.velocity.length()===0&&!p.casting.active&&
+      !p.canStartAction&&s.holdInteraction.progress>0;
+  },beforeHold),'Удержание E прерывает начатый каст и блокирует WASD/стрелки: при работающей физике друид неподвижен');
+  await page.keyboard.up('ArrowLeft');await page.keyboard.up('e');await page.waitForTimeout(120);
+  ok(await page.evaluate(before=>{const p=window.__smokeGame.scene.getScene('Room').player;return p.canStartAction&&p.y<before.y-3;},beforeHold),
+    'После отпускания E удерживаемая W снова двигает друида');
+  await page.keyboard.up('w');
+  await page.evaluate(c=>{const s=window.__smokeGame.scene.getScene('Room');s.physics.pause();s.player.body.reset(c.x,c.y-10);s.player.body.updateFromGameObject();},near);
   await page.keyboard.down('e');await page.waitForTimeout(280);
-  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.world.ritual.activated&&s.world.ritual.progress>0&&s.world.ritual.progress<1&&s.children.getByName('ritual-stump-key').visible;}),
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.world.ritual.activated&&s.holdInteraction.progress>0&&s.holdInteraction.progress<1&&s.holdIndicator.visible;}),
     'При удержании заполняется кольцо, короткого нажатия недостаточно');
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),v=s.holdIndicator,c=s.cameras.main;
+    const sx=c.x+(v.x-c.worldView.x)*c.zoom,sy=c.y+(v.y-c.worldView.y)*c.zoom;
+    const ctx=window.__smokeGame.canvas.getContext('2d');
+    if(!ctx)throw new Error('Для проверки рисунка нужен Canvas renderer');
+    const sample=angle=>{
+      const x=Math.round(sx+14*Math.cos(angle)*c.zoom),y=Math.round(sy+14*Math.sin(angle)*c.zoom);
+      const rgb=ctx.getImageData(x,y,1,1).data;return rgb[0]>180&&rgb[1]>170;
+    };
+    return Math.abs(v.x-s.player.x-42)<.01&&Math.abs(v.y-s.player.getTopLeft().y-10)<.01&&
+      sample(-Math.PI*.8)&&!sample(-Math.PI*.2);
+  }),'Толстое круглое кольцо справа у головы: при четверти заполнения светится верхняя левая дуга, правая ещё тёмная');
   await page.keyboard.up('e');await page.waitForTimeout(60);
-  ok(await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').world.ritual.progress===0),'Отпускание E сбрасывает неполный прогресс');
+  ok(await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').holdInteraction.progress===0),'Отпускание E сбрасывает неполный прогресс');
   await page.keyboard.down('e');await page.waitForTimeout(230);
   await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');s.player.body.reset(s.layout.spawn.x,s.layout.spawn.y);});
   await page.waitForTimeout(80);await page.keyboard.up('e');
-  ok(await page.evaluate(()=>{const r=window.__smokeGame.scene.getScene('Room').world.ritual;return !r.activated&&r.progress===0;}),'Отход от пня прерывает удержание');
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.world.ritual.activated&&s.holdInteraction.progress===0&&!s.holdIndicator.visible;}),'Отход от пня прерывает удержание');
   await page.evaluate(c=>{const s=window.__smokeGame.scene.getScene('Room');s.player.body.reset(c.x,c.y-10);s.player.body.updateFromGameObject();},near);
   await page.keyboard.down('e');await page.waitForTimeout(230);
-  await page.keyboard.down('ArrowDown');await page.waitForTimeout(80);await page.keyboard.up('ArrowDown');await page.keyboard.up('e');
-  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return s.player.casting.active&&!s.world.ritual.activated&&s.world.ritual.progress===0;}),'Каст прерывает начатое удержание пня');
-  await page.waitForFunction(()=>!window.__smokeGame.scene.getScene('Room').player.casting.active);
+  await page.keyboard.down('ArrowDown');await page.waitForTimeout(80);
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.player.casting.active&&!s.world.ritual.activated&&s.holdInteraction.progress>.2;}),'Стрелка во время удержания E не запускает каст и не сбивает прогресс');
+  await page.keyboard.up('ArrowDown');await page.keyboard.up('e');await page.waitForTimeout(60);
   await page.keyboard.down('e');await page.waitForTimeout(200);
   await page.evaluate(()=>window.__smokeGame.events.emit('blur'));await page.waitForTimeout(60);await page.keyboard.up('e');
-  ok(await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').world.ritual.progress===0),'Потеря фокуса сбрасывает удержание');
+  ok(await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').holdInteraction.progress===0),'Потеря фокуса сбрасывает удержание');
   await page.evaluate(()=>window.__smokeGame.events.emit('focus'));
   await page.keyboard.down('e');
   await page.waitForFunction(()=>window.__smokeGame.scene.getScene('Room').world.ritual.activated);
   await page.keyboard.up('e');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.world.ritual.progress===1&&window.__stumpActivations===1&&
-      s.children.getByName('ritual-stump-glow').alpha>0&&!s.children.getByName('ritual-stump-key').visible&&
+    return s.world.ritual.activated&&window.__stumpActivations===1&&
+      s.children.getByName('ritual-stump-glow').alpha>0&&!s.holdIndicator.visible&&
       JSON.stringify(s.world.wolves.map(w=>w.actorState.alerted))===JSON.stringify(window.__wolfAlertBefore);
   }),'Полная секунда включает свечение и одно событие; волки не проклинаются и не получают принудительный агр');
   await page.keyboard.down('e');await page.waitForTimeout(1100);await page.keyboard.up('e');

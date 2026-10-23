@@ -15,6 +15,8 @@ import { DeathOverlay } from '../ui/DeathOverlay';
 import { clearRun, saveRun } from '../persistence/runSave';
 import type { RunSave } from '../persistence/snapshots';
 import { menuMusic } from '../audio/MenuMusic';
+import { HoldInteraction } from '../interaction/HoldInteraction';
+import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -28,6 +30,8 @@ export class RoomScene extends Phaser.Scene {
   private movement!: MovementKeys;
   private attackKeys!: MovementKeys;
   private interactionKey!:Phaser.Input.Keyboard.Key;
+  private readonly holdInteraction = new HoldInteraction();
+  private holdIndicator!:HoldInteractionIndicator;
   private queuedAttack?: Facing;
   facing: Facing = 'down';
   private shadow!: Phaser.GameObjects.Image;
@@ -62,6 +66,8 @@ export class RoomScene extends Phaser.Scene {
     this.queuedAttack = undefined;
     this.feetOffset = art.bodyCenterY + art.bodyHeight / 2;
     this.player = new Druid(this, character);
+    this.holdInteraction.reset();
+    this.holdIndicator=new HoldInteractionIndicator(this);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
     this.acorns = new AcornAttack(this,this.player,Math.random,(from,to)=>this.world.noticeProjectile(from,to));
@@ -117,11 +123,14 @@ export class RoomScene extends Phaser.Scene {
     const handleKeyDown = (event: KeyboardEvent) => {
       if(this.gameOver)return;
       if (event.code === 'KeyE') {
+        const canInteract=this.player.canStartAction;
+        this.queuedAttack=undefined;
+        this.player.setInteractionLocked(true);
         const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
-        if (!event.repeat&&!this.world.ritual?.canInteract(point)) this.world.collectMushroom(point);
+        if (!event.repeat&&canInteract&&!this.world.ritual?.canInteract(point)) this.world.collectMushroom(point);
         return;
       }
-      if (!event.code.startsWith('Arrow') || event.repeat) return;
+      if (!event.code.startsWith('Arrow') || event.repeat || !this.player.canStartAction) return;
       const arrows = this.attackKeys;
       this.queuedAttack = facingFromVector(Number(arrows.right.isDown) - Number(arrows.left.isDown),
         Number(arrows.down.isDown) - Number(arrows.up.isDown));
@@ -133,8 +142,13 @@ export class RoomScene extends Phaser.Scene {
       this.player.syncCastVisual();
       this.world.update(delta);
       if(this.gameOver)return;
-      this.world.ritual?.update(delta,(this.player.body as Phaser.Physics.Arcade.Body).center,this.interactionKey.isDown,
-        !this.player.dead&&!this.player.hitReaction.active&&!this.player.casting.active);
+      const ritual=this.world.ritual;
+      const available=!this.player.dead&&!this.player.hitReaction.active&&!this.player.casting.active;
+      const target=available&&ritual?.canInteract((this.player.body as Phaser.Physics.Arcade.Body).center)?ritual:undefined;
+      this.holdInteraction.update(delta,target,this.interactionKey.isDown);
+      this.holdIndicator.updatePosition(this.player.x,this.player.getTopLeft().y,
+        this.holdInteraction.visible,this.holdInteraction.progress);
+      ritual?.update(delta);
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
@@ -143,7 +157,8 @@ export class RoomScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => {
       keyboard.resetKeys(); this.queuedAttack = undefined;
-      this.world.ritual?.cancelHold();
+      this.player.setInteractionLocked(false);
+      this.resetInteraction();
       if(this.gameOver)return;
       this.player.cancelHit(); this.player.cancelCast();
       this.player.setVelocity(0, 0); this.player.updateAppearance(true);
@@ -153,6 +168,7 @@ export class RoomScene extends Phaser.Scene {
     this.scale.on(Phaser.Scale.Events.RESIZE, resize);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.acorns.destroy();
+      this.holdInteraction.reset();
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
       this.game.events.off(Phaser.Core.Events.BLUR, resetInput);
       this.scale.off(Phaser.Scale.Events.RESIZE, resize);
@@ -163,6 +179,7 @@ export class RoomScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     if(this.gameOver)return;
     const keys = this.movement;
+    this.player.setInteractionLocked(this.interactionKey.isDown);
     const x = Number(keys.right.isDown) - Number(keys.left.isDown);
     const y = Number(keys.down.isDown) - Number(keys.up.isDown);
     const arrows = this.attackKeys;
@@ -237,7 +254,7 @@ export class RoomScene extends Phaser.Scene {
   private endGame() {
     if(this.gameOver)return;
     this.gameOver=true;this.queuedAttack=undefined;clearRun();
-    this.world.ritual?.cancelHold();
+    this.resetInteraction();
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
@@ -251,5 +268,10 @@ export class RoomScene extends Phaser.Scene {
       world: this.world.snapshot(), shots: this.acorns.snapshot() });
     this.input.keyboard?.resetKeys();
     this.scene.start(SCENES.mainMenu, { sessionOnlySave: !persistent });
+  }
+
+  private resetInteraction() {
+    this.holdInteraction.reset();
+    this.holdIndicator.setVisible(false);
   }
 }

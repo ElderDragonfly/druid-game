@@ -91,7 +91,7 @@ export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[]
   const spawn = {x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
   for(let index=0;index<count;index++) {
     const variant=ACTIVE_LOG_VARIANTS[integer(0,ACTIVE_LOG_VARIANTS.length-1)];
-    const angle=random()*360-180, flipX=false;
+    const angle=(random()*2-1)*CONFIG.maxTiltDegrees, flipX=false;
     const mushrooms:FallenLogPlacement['mushrooms']=[];
     if(random()<CONFIG.mushroomChance) {
       const species=integer(0,LOG_MUSHROOMS.length-1), amount=integer(CONFIG.mushroomMin,CONFIG.mushroomMax);
