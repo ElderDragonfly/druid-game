@@ -1,0 +1,17 @@
+{
+  "source": "docs/art/f5420a528a7b5430d756f6ade291bd90.jpg",
+  "sourceSha256": "401679cc189c8b7af352a135fd645353625f2340f6514ea21f1697b615dc9cb0",
+  "sourceCrop": [
+    100,
+    145,
+    552,
+    572
+  ],
+  "width": 452,
+  "height": 427,
+  "scale": 0.25,
+  "anchorX": 226.0,
+  "anchorY": 419,
+  "rgbPreserved": true,
+  "retainedPixels": 114913
+}

@@ -1,3 +1,4 @@
+import { testStump } from './stump-smoke.mjs';
 import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
 import { testFallenLogs } from './fallen-logs-smoke.mjs';
 import assert from 'node:assert/strict';
@@ -354,6 +355,7 @@ try {
 
   await testFallenLogs(page,ok);
   await testMushroomInteraction(page,ok,clickNamed,waitScene);
+  await testStump(page,ok,clickNamed,waitScene);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');

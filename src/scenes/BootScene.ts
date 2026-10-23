@@ -1,3 +1,5 @@
+import stump from '../../docs/art/ritual-stump-v1/stump.png';
+import { STUMP } from '../data/stump';
 import Phaser from 'phaser';
 import { CAMP_ATMOSPHERE_ART } from '../rendering/CampAtmosphere';
 import { SELECTION_CAMP_ART, prepareSelectionCampTextures } from '../rendering/selectionCampArt';
@@ -32,6 +34,7 @@ export class BootScene extends Phaser.Scene {
       progress.fillStyle(0xb8aa75).fillRect(340, 350, 280 * value, 3);
     });
     this.load.once('loaderror', () => { this.failed = true; });
+    this.load.image(STUMP.texture,stump);
     this.load.audio(MENU_MUSIC.key, MENU_MUSIC.urls);
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));
     ACORN_ART.forEach(art => this.load.image(art.key, art.url));

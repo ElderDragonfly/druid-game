@@ -17,7 +17,7 @@ export interface WolfSave extends PointSave {
 export interface MouseSave extends PointSave {
   state: MouseActorState; runLimit: number; frameIndex: number; flipX: boolean;
 }
-export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[] }
+export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean} }
 export interface ProjectileSave extends PointSave {
   direction: PointSave; range: number; distance: number; ageMs: number; nextLeafDistance: number;
 }

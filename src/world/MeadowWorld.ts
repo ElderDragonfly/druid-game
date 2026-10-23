@@ -1,3 +1,5 @@
+import { StumpRitual } from './StumpRitual';
+import { stumpRect } from './stump';
 import { FALLEN_LOG_GENERATION } from '../data/fallenLogs';
 import { drawFallenLog } from '../rendering/fallenLogArt';
 import { distanceToLog, logCollisionRects } from './fallenLogs';
@@ -20,6 +22,7 @@ import { generateMousePopulation } from './mousePopulation';
 import type { WorldSave } from '../persistence/snapshots';
 
 export class MeadowWorld {
+  readonly ritual?:StumpRitual;
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
@@ -55,6 +58,13 @@ export class MeadowWorld {
           .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
       });
     });
+    if(layout.stump) {
+      const bounds=stumpRect(layout.stump);
+      const proxy=this.obstacles.create(bounds.x,bounds.y,'__WHITE') as Phaser.Physics.Arcade.Image;
+      proxy.setName('ritual-stump-collider').setData('kind','stump').setOrigin(0)
+        .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
+      this.ritual=new StumpRitual(scene,layout.stump,saved?.stump?.activated??false);
+    }
     this.mice = (saved?.mice ?? generateMousePopulation(layout)).map((start, index) => {
       const mouse = new Mouse(scene, layout, this.obstacles, start, index + 1);
       if (saved) mouse.restore(saved.mice[index]);
@@ -127,10 +137,11 @@ export class MeadowWorld {
     this.logArt.forEach(image=>image.destroy());this.logArt=[];
     this.floor.destroy();
     this.grass.destroy();
+    this.ritual?.destroy();
   }
 
   snapshot(): WorldSave {
-    return { mice: this.mice.map(mouse => mouse.snapshot()),
+    return { stump:this.ritual?{activated:this.ritual.activated}:undefined, mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 

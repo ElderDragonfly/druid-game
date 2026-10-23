@@ -1,3 +1,4 @@
+import { stumpVisualRect } from '../world/stump';
 import { CHARACTERS } from '../data/characters';
 import { ENVIRONMENT_VARIANTS } from '../data/environment';
 import { FACINGS } from '../input/EightWayFacing';
@@ -62,6 +63,12 @@ export function isRunSave(value: unknown): value is RunSave {
                 onMushroomSurface(log.variant,m.surface))));
         })) return false;
     } else if (s.layout.counts.logs !== undefined) return false;
+    if(s.layout.stump!==undefined) {
+      if(!point(s.layout.stump))return false;
+      const bounds=stumpVisualRect(s.layout.stump);
+      if(bounds.x<0||bounds.y<0||bounds.x+bounds.width>s.layout.width||bounds.y+bounds.height>s.layout.height)return false;
+    }
+    if(s.world?.stump!==undefined&&(!s.layout.stump||!flag(s.world.stump.activated)))return false;
     const p = s.player, state = p?.state;
     if (!point(p) || !state || !Number.isInteger(state.health) || state.health < 1 || state.health > state.maxHealth ||
       !Number.isInteger(state.maxHealth) || state.maxHealth > 10000 || !nonnegative(state.speed) ||

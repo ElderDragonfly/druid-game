@@ -27,6 +27,7 @@ export class RoomScene extends Phaser.Scene {
   private seed = 0;
   private movement!: MovementKeys;
   private attackKeys!: MovementKeys;
+  private interactionKey!:Phaser.Input.Keyboard.Key;
   private queuedAttack?: Facing;
   facing: Facing = 'down';
   private shadow!: Phaser.GameObjects.Image;
@@ -112,10 +113,12 @@ export class RoomScene extends Phaser.Scene {
       up: Phaser.Input.Keyboard.KeyCodes.UP, down: Phaser.Input.Keyboard.KeyCodes.DOWN,
       left: Phaser.Input.Keyboard.KeyCodes.LEFT, right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
     }) as MovementKeys;
+    this.interactionKey=keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     const handleKeyDown = (event: KeyboardEvent) => {
       if(this.gameOver)return;
       if (event.code === 'KeyE') {
-        if (!event.repeat) this.world.collectMushroom((this.player.body as Phaser.Physics.Arcade.Body).center);
+        const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
+        if (!event.repeat&&!this.world.ritual?.canInteract(point)) this.world.collectMushroom(point);
         return;
       }
       if (!event.code.startsWith('Arrow') || event.repeat) return;
@@ -130,6 +133,8 @@ export class RoomScene extends Phaser.Scene {
       this.player.syncCastVisual();
       this.world.update(delta);
       if(this.gameOver)return;
+      this.world.ritual?.update(delta,(this.player.body as Phaser.Physics.Arcade.Body).center,this.interactionKey.isDown,
+        !this.player.dead&&!this.player.hitReaction.active&&!this.player.casting.active);
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
@@ -138,6 +143,7 @@ export class RoomScene extends Phaser.Scene {
     bindSceneKey(this, 'keyup-R', () => this.scene.restart({ characterId: this.characterId }));
     const resetInput = () => {
       keyboard.resetKeys(); this.queuedAttack = undefined;
+      this.world.ritual?.cancelHold();
       if(this.gameOver)return;
       this.player.cancelHit(); this.player.cancelCast();
       this.player.setVelocity(0, 0); this.player.updateAppearance(true);
@@ -231,6 +237,7 @@ export class RoomScene extends Phaser.Scene {
   private endGame() {
     if(this.gameOver)return;
     this.gameOver=true;this.queuedAttack=undefined;clearRun();
+    this.world.ritual?.cancelHold();
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
