@@ -2,6 +2,8 @@ import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS, FALLEN_LOG_GENERATION 
 import { seededRandom } from './random';
 import { overlaps, type Rect } from './geometry';
 import type { MeadowLayout } from './meadowLayout';
+import { ROOM_SCENARIOS } from '../data/roomScenarios';
+import { roomBounds } from './rooms';
 
 export interface LogMushroom {
   variant: number; slot: number;
@@ -86,25 +88,37 @@ export function distanceToLog(log: FallenLogPlacement, point: { x: number; y: nu
 export function generateFallenLogs(layout: MeadowLayout, trunks: readonly Rect[], canopies: readonly Rect[]): FallenLogPlacement[] {
   const random = seededRandom(layout.seed ^ 0x4c4f4753);
   const integer = (min:number,max:number)=>min+Math.floor(random()*(max-min+1));
-  const count = integer(CONFIG.min,CONFIG.max);
+  const room=layout.rooms?.find(room=>room.scenario==='wolves');
+  if(layout.rooms&&!room)return [];
+  const scenario=ROOM_SCENARIOS.wolves;
+  const count = room ? integer(scenario.logs.min,scenario.logs.max) : integer(CONFIG.min,CONFIG.max);
+  const bounds=room ? roomBounds(layout,room.id) : {x:0,y:0,width:layout.width,height:layout.height};
+  // A total for the room, distributed among its logs; not a quota per log.
+  const amounts=Array.from({length:count},()=>0);
+  if(room) {
+    const total=integer(scenario.mushrooms.min,scenario.mushrooms.max);
+    for(let n=0;n<total;n++)amounts[integer(0,count-1)]++;
+  }
   const result:FallenLogPlacement[]=[];
   const spawn = {x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
   for(let index=0;index<count;index++) {
     const variant=ACTIVE_LOG_VARIANTS[integer(0,ACTIVE_LOG_VARIANTS.length-1)];
     const angle=(random()*2-1)*CONFIG.maxTiltDegrees, flipX=false;
     const mushrooms:FallenLogPlacement['mushrooms']=[];
-    if(random()<CONFIG.mushroomChance) {
-      const species=integer(0,LOG_MUSHROOMS.length-1), amount=integer(CONFIG.mushroomMin,CONFIG.mushroomMax);
+    const amount=room ? amounts[index] : random()<CONFIG.mushroomChance ? integer(CONFIG.mushroomMin,CONFIG.mushroomMax) : 0;
+    if(amount) {
+      const species=integer(0,LOG_MUSHROOMS.length-1);
       for(let n=0;n<amount;n++) mushrooms.push({variant:species,slot:n});
       scatterLogMushrooms(variant,mushrooms,random);
     }
     let placed=false;
     for(let attempt=0;attempt<2000;attempt++) {
-      const x=160+random()*(layout.width-320);
-      const y=160+random()*(layout.height-320);
+      const x=bounds.x+160+random()*(bounds.width-320);
+      const y=bounds.y+160+random()*(bounds.height-320);
       const log={x,y,variant,angle,flipX,mushrooms};
       const visual=logVisualRect(log), bodies=logCollisionRects(log);
       if(visual.x<24||visual.y<24||visual.x+visual.width>layout.width-24||visual.y+visual.height>layout.height-24||overlaps(visual,spawn))continue;
+      if(room&&(visual.x<bounds.x+24||visual.y<bounds.y+24||visual.x+visual.width>bounds.x+bounds.width-24||visual.y+visual.height>bounds.y+bounds.height-24))continue;
       // A handful of logs should be readable, rather than entirely hidden by
       // foreground canopies. Padding leaves room for the upright mushroom caps.
       if(canopies.some(rect=>overlaps(visual,rect,24)))continue;

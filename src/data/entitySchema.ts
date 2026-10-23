@@ -1,7 +1,7 @@
 import type defaults from './entities.json';
 
 export type EntityData = typeof defaults;
-export type EntityId = 'druid' | 'wolf' | 'mouse';
+export type EntityId = 'druid' | 'wolf' | 'mouse' | 'forestInsect';
 export interface EntityField {
   entity: EntityId; path: string; label: string; group: string;
   min: number; max: number; step: number; unit: string; help: string; integer?: boolean;
@@ -21,9 +21,14 @@ field('wolf', 'health', 'Максимум здоровья', 'Характери
 for (const [key, label] of [['walkSpeed', 'Скорость прогулки'], ['runSpeed', 'Скорость погони']])
   field('wolf', key, label, 'Характеристики', 0, 4, .1, '×', '1 = базовая скорость друида (146⅔ единиц/с), независимо от его текущих усилений.');
 field('wolf', 'damage', 'Урон укуса', 'Атака', 0, 10, 1, 'HP', '0 позволяет проверять атаки без потери здоровья друида.', true);
+field('forestInsect','health','Максимум здоровья','Характеристики',1,100,1,'HP','Враг появляется при очищении дерева. Погибшие существа не оживают.',true);
+field('forestInsect','walkSpeed','Скорость прогулки','Характеристики',0,4,.1,'×','1 = 146⅔ единиц/с.');
+field('forestInsect','runSpeed','Скорость погони','Характеристики',0,4,.1,'×','1 = базовая скорость друида; взмахи при движении следуют пройденной дистанции.');
+field('forestInsect','damage','Урон атаки','Атака',0,10,1,'HP','Урон один раз на активной фазе удара хвостом.',true);
 for (const entity of ['wolf', 'mouse'] as const) {
-  field(entity, 'population.min', 'Минимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', 'Случайное число на всю локацию, без квот по экранам. Только при новой генерации.', true);
-  field(entity, 'population.max', 'Максимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', 'Генератор старается разместить выбранное число в свободных местах; иногда может поместиться меньше.', true);
+  const help=entity==='wolf'?'Свободная популяция для старых забегов. В новых комнатах количество задаёт сценарий: 2–3 волка в нижней правой.':'Случайное число на всю локацию, без квот по экранам. Только при новой генерации.';
+  field(entity, 'population.min', 'Минимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', help, true);
+  field(entity, 'population.max', 'Максимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', help, true);
 }
 for (const [key, label, max, help] of [
   ['detectionX', 'Обнаружение друида по горизонтали', 1500, 'Горизонтальная полуось овала обнаружения вокруг волка.'],

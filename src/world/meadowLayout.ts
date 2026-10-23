@@ -1,7 +1,8 @@
 import { generateStump, stumpClearing, type StumpPlacement } from './stump';
-import { generateFallenLogs, type FallenLogPlacement } from './fallenLogs';
+import { generateFallenLogs, logVisualRect, type FallenLogPlacement } from './fallenLogs';
 import { seededRandom } from './random';
 import { overlaps, type Rect } from './geometry';
+import { generateRooms, ritualTreeClearing, type RoomPlan } from './rooms';
 export { seededRandom } from './random';
 export { overlaps, type Rect } from './geometry';
 import { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL, environmentVariant, type EnvironmentKind } from '../data/environment';
@@ -16,6 +17,8 @@ export interface MeadowLayout {
   /** Missing only in older saved runs. */
   logs?: FallenLogPlacement[];
   stump?: StumpPlacement;
+  /** Absent in saves created before room scenarios were introduced. */
+  rooms?: RoomPlan[];
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -52,6 +55,11 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
   const trees = treeVariants.length ? integer(MEADOW_GENERATION.trees.min, MEADOW_GENERATION.trees.max) : 0;
   const spawn = { x: width / 2, y: height / 2 };
   const stump=generateStump(seed,spawn),clearing=stumpClearing(stump);
+  const rooms=generateRooms(seed,{width,height});
+  const ritualClearings=rooms.flatMap(room=>room.tree?[ritualTreeClearing(room.tree)]:[]);
+  const logs=generateFallenLogs({width,height,seed,counts:{trees},spawn,obstacles:[],stump,rooms},
+    [clearing,...ritualClearings],[]);
+  const logAreas=logs.map(logVisualRect);
   const spawnArea = { x: spawn.x - 64, y: spawn.y - 58, width: 128, height: 128 };
   // Counts are drawn once; retries preserve the chosen range and deterministic seed.
   for (let layoutAttempt = 0; layoutAttempt < 32; layoutAttempt++) {
@@ -61,6 +69,8 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       return !overlaps(rect, spawnArea, MEADOW_GENERATION.spawnClearance) &&
         !overlaps(obstacleVisualRect(object), spawnArea) &&
         !overlaps(obstacleVisualRect(object),clearing,8) &&
+        ritualClearings.every(area=>!overlaps(obstacleVisualRect(object),area,8)) &&
+        logAreas.every(area=>!overlaps(obstacleVisualRect(object),area,24)) &&
         obstacles.every(other => !overlaps(rect, obstacleRect(other), MEADOW_GENERATION.obstacleGap));
     };
     for (const [kind, count] of [['tree', trees]] as const) {
@@ -81,8 +91,8 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       if (placed !== count) break;
     }
     if (obstacles.length === trees) {
-      const layout:MeadowLayout={ width, height, seed, counts: { trees }, spawn, obstacles,stump };
-      layout.logs=generateFallenLogs(layout,[...obstacles.map(obstacleRect),stumpClearing(stump)],obstacles.map(obstacleVisualRect));
+      const layout:MeadowLayout={ width, height, seed, counts: { trees }, spawn, obstacles,stump,rooms };
+      layout.logs=logs;
       layout.counts.logs=layout.logs.length;
       return layout;
     }

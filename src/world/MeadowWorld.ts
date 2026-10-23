@@ -1,4 +1,7 @@
 import { StumpRitual } from './StumpRitual';
+import { ROOM_SCENARIOS, ROOM_GRID } from '../data/roomScenarios';
+import { CleansingEncounter } from './CleansingEncounter';
+import { ritualTreeRect } from './rooms';
 import { stumpRect } from './stump';
 import { FALLEN_LOG_GENERATION } from '../data/fallenLogs';
 import { drawFallenLog } from '../rendering/fallenLogArt';
@@ -23,6 +26,7 @@ import type { WorldSave } from '../persistence/snapshots';
 
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
+  cleansing?:CleansingEncounter;
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
@@ -32,11 +36,24 @@ export class MeadowWorld {
   private collider?: Phaser.Physics.Arcade.Collider;
   private grass: GrassForeground;
   private player?: Druid;
+  private roomGrid?: Phaser.GameObjects.Graphics;
 
   constructor(private scene: Phaser.Scene, readonly layout: MeadowLayout, private readonly saved?: WorldSave) {
     const surface = this.drawFloor();
     this.floor = surface.floor;
     this.grass = new GrassForeground(scene, surface.raster);
+    if(layout.rooms) {
+      this.roomGrid=scene.add.graphics().setName('room-grid').setDepth(-.5);
+      this.roomGrid.lineStyle(2,0xb5bea0,.5);
+      for(let column=1;column<ROOM_GRID.columns;column++) {
+        const x=layout.width*column/ROOM_GRID.columns;
+        this.roomGrid.lineBetween(x,0,x,layout.height);
+      }
+      for(let row=1;row<ROOM_GRID.rows;row++) {
+        const y=layout.height*row/ROOM_GRID.rows;
+        this.roomGrid.lineBetween(0,y,layout.width,y);
+      }
+    }
     this.obstacles = scene.physics.add.staticGroup();
     layout.obstacles.forEach((object, index) => {
       const art = environmentVariant(object.kind, object.variant);
@@ -65,6 +82,12 @@ export class MeadowWorld {
         .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
       this.ritual=new StumpRitual(scene,layout.stump,saved?.stump?.activated??false);
     }
+    for(const room of layout.rooms??[])if(room.tree) {
+      const bounds=ritualTreeRect(room.tree);
+      const proxy=this.obstacles.create(bounds.x,bounds.y,'__WHITE') as Phaser.Physics.Arcade.Image;
+      proxy.setName('cleansing-tree-collider').setData('kind','ritual-tree').setOrigin(0)
+        .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
+    }
     this.mice = (saved?.mice ?? generateMousePopulation(layout)).map((start, index) => {
       const mouse = new Mouse(scene, layout, this.obstacles, start, index + 1);
       if (saved) mouse.restore(saved.mice[index]);
@@ -82,11 +105,13 @@ export class MeadowWorld {
       if (saved) wolf.restore(saved);
       (saved?.corpse ? this.corpses : this.wolves).push(wolf);
     });
+    const room=this.layout.rooms?.find(room=>room.scenario==='cleansing-tree');
+    if(room)this.cleansing=new CleansingEncounter(this.scene,this.layout,room,this.obstacles,player,this.saved?.cleansing);
   }
 
   /** The log is the interaction target; mushroom sprite positions never limit reach. */
   collectMushroom(point: Point) {
-    if (this.player?.dead) return false;
+    if (!this.player || this.player.dead || this.player.actorState.health>=this.player.actorState.maxHealth) return false;
     let logIndex = -1, distance: number = FALLEN_LOG_GENERATION.interactionRadius;
     (this.layout.logs ?? []).forEach((log, index) => {
       if (!log.mushrooms.length) return;
@@ -94,6 +119,7 @@ export class MeadowWorld {
       if (current <= distance) { distance=current; logIndex=index; }
     });
     if (logIndex < 0) return false;
+    if(!this.player.heal(ROOM_SCENARIOS.mushroomHealing))return false;
     const mushroom = this.layout.logs![logIndex].mushrooms.shift()!;
     const imageIndex = this.logArt.findIndex(image=>image.getData('logIndex')===logIndex&&image.getData('mushroomSlot')===mushroom.slot);
     if (imageIndex >= 0) this.logArt.splice(imageIndex,1)[0].destroy();
@@ -105,6 +131,11 @@ export class MeadowWorld {
       if(!wolf.active||wolf.dying||!wolf.body?.enable||wolf.actorState.alerted)continue;
       if(segmentTouchesEllipse(from,to,(wolf.body as Phaser.Physics.Arcade.Body).center,
         WOLF.behavior.projectileDetectionX,WOLF.behavior.projectileDetectionY))wolf.behavior.alert();
+    }
+    for(const enemy of this.cleansing?.enemies??[]) {
+      if(!enemy.active||enemy.dying||enemy.actorState.alerted)continue;
+      if(segmentTouchesEllipse(from,to,(enemy.body as Phaser.Physics.Arcade.Body).center,
+        WOLF.behavior.projectileDetectionX,WOLF.behavior.projectileDetectionY))enemy.behavior.alert();
     }
   }
 
@@ -125,6 +156,7 @@ export class MeadowWorld {
         this.wolves.splice(index,1);
       }
     }
+    if(!this.player?.dead)this.cleansing?.update(delta);
   }
 
   destroy() {
@@ -138,10 +170,12 @@ export class MeadowWorld {
     this.floor.destroy();
     this.grass.destroy();
     this.ritual?.destroy();
+    this.cleansing?.destroy();
+    this.roomGrid?.destroy();
   }
 
   snapshot(): WorldSave {
-    return { stump:this.ritual?{activated:this.ritual.activated}:undefined, mice: this.mice.map(mouse => mouse.snapshot()),
+    return { stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 

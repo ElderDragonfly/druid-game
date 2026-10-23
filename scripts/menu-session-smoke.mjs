@@ -79,7 +79,7 @@ export async function testMenuSession(page, ok) {
     const {loadRun}=await import('/src/persistence/runSave.ts');return loadRun();
   });
   ok(saved?.player.state.health===2&&saved.player.state.range===1.4&&saved.player.cast.active&&
-    saved.world.wolves.length===18&&saved.world.wolves.filter(w=>w.corpse).length===1&&saved.shots.length===1,
+    saved.world.wolves.length===3&&saved.world.wolves.filter(w=>w.corpse).length===1&&saved.shots.length===1,
     'Escape сохраняет живого друида, изменённые характеристики, незавершённый каст, летящий жёлудь, волков и труп');
   ok(await page.evaluate(async saved=>{
     const {isRunSave}=await import('/src/persistence/runSave.ts');
@@ -104,7 +104,7 @@ export async function testMenuSession(page, ok) {
       layout:JSON.stringify(s.layout)===JSON.stringify(saved.layout),
       position:p.x===saved.player.x&&p.y===saved.player.y,
       stats:JSON.stringify(p.actorState)===JSON.stringify(saved.player.state)&&s.healthLabel.text==='HP 2/3',
-      counts:s.world.wolves.length===17&&s.world.corpses.length===1,
+      counts:s.world.wolves.length===2&&s.world.corpses.length===1,
       corpse:s.world.corpses[0]?.visible&&!s.world.corpses[0]?.body.enable,
       wolves:saved.world.wolves.filter(w=>!w.corpse).every((w,i)=>s.world.wolves[i].x===w.x&&s.world.wolves[i].y===w.y&&
         s.world.wolves[i].actorState.health===w.state.health&&s.world.wolves[i].actorState.alerted===w.state.alerted),

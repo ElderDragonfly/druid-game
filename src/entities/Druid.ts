@@ -123,6 +123,13 @@ export class Druid extends Phaser.Physics.Arcade.Sprite implements Damageable {
     return true;
   }
 
+  heal(amount: number) {
+    if(this.dead||!Number.isFinite(amount)||amount<=0||this.actorState.health>=this.actorState.maxHealth)return false;
+    this.actorState.health=Math.min(this.actorState.maxHealth,this.actorState.health+amount);
+    this.emit(COMBAT_EVENTS.healthChanged);
+    return true;
+  }
+
   cancelHit() {
     this.hitReaction.cancel(); this.hitVisual.setVisible(false); this.setVisible(!this.casting.active);
   }

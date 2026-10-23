@@ -107,6 +107,13 @@ export class RoomScene extends Phaser.Scene {
         rescale(mouse.actorState,'speed',previous.mouse.speed,next.mouse.speed);
         if (next.mouse.speed !== previous.mouse.speed) mouse.behavior.refreshRunLimit(mouse);
       }
+      for(const enemy of this.world.cleansing?.enemies??[]) {
+        if(enemy.dying)continue;
+        const state=enemy.actorState;
+        rescale(state,'walkSpeed',previous.forestInsect.walkSpeed,next.forestInsect.walkSpeed,BASE_MOVEMENT_SPEED);
+        rescale(state,'runSpeed',previous.forestInsect.runSpeed,next.forestInsect.runSpeed,BASE_MOVEMENT_SPEED);
+        if(next.forestInsect.health!==previous.forestInsect.health)adjustHealth(state,next.forestInsect.health);
+      }
       this.updateHealth();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribeBalance);
@@ -127,7 +134,7 @@ export class RoomScene extends Phaser.Scene {
         this.queuedAttack=undefined;
         this.player.setInteractionLocked(true);
         const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
-        if (!event.repeat&&canInteract&&!this.world.ritual?.canInteract(point)) this.world.collectMushroom(point);
+        if (!event.repeat&&canInteract&&!this.world.ritual?.canInteract(point)&&!this.world.cleansing?.tree.canInteract(point)) this.world.collectMushroom(point);
         return;
       }
       if (!event.code.startsWith('Arrow') || event.repeat || !this.player.canStartAction) return;
@@ -143,12 +150,13 @@ export class RoomScene extends Phaser.Scene {
       this.world.update(delta);
       if(this.gameOver)return;
       const ritual=this.world.ritual;
+      const tree=this.world.cleansing?.tree;
       const available=!this.player.dead&&!this.player.hitReaction.active&&!this.player.casting.active;
-      const target=available&&ritual?.canInteract((this.player.body as Phaser.Physics.Arcade.Body).center)?ritual:undefined;
+      const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
+      const target=available?(ritual?.canInteract(point)?ritual:tree?.canInteract(point)?tree:undefined):undefined;
       this.holdInteraction.update(delta,target,this.interactionKey.isDown);
       this.holdIndicator.updatePosition(this.player.x,this.player.getTopLeft().y,
         this.holdInteraction.visible,this.holdInteraction.progress);
-      ritual?.update(delta);
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
@@ -258,6 +266,7 @@ export class RoomScene extends Phaser.Scene {
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
+    for(const enemy of this.world.cleansing?.enemies??[])enemy.setVelocity(0,0);
     this.physics.pause();this.deathOverlay.show();
   }
 

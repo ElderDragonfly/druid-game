@@ -45,8 +45,8 @@ export async function testStump(page,ok,click,waitScene) {
       Math.abs(proxy.body.x-bounds.x)<.001&&Math.abs(proxy.body.y-bounds.y)<.001&&
       proxy.body.width===bounds.width&&proxy.body.height===bounds.height&&
       !new WolfNavigation(s.layout).canStand(p)&&!mouseCanStand(s.layout,p)&&
-      [image,s.children.getByName('ritual-stump-aura'),s.holdIndicator].every(o=>o.cameraFilter&s.hudCamera.id)&&
-      !s.children.getByName('ritual-stump-key');
+      [image,s.holdIndicator].every(o=>o.cameraFilter&s.hudCamera.id)&&
+      !s.children.getByName('ritual-stump-key')&&!s.children.getByName('ritual-stump-aura')&&!s.children.getByName('ritual-stump-glow');
   }),'Пень и общий индикатор — отдельные слои; общая коллизия и фильтр HUD сохранены, старой подписи E у пня нет');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.children.getByName('ritual-stump-collider').body;
@@ -124,9 +124,9 @@ export async function testStump(page,ok,click,waitScene) {
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
     return s.world.ritual.activated&&window.__stumpActivations===1&&
-      s.children.getByName('ritual-stump-glow').alpha>0&&!s.holdIndicator.visible&&
+      s.world.ritual.image.tintTopLeft===0xffffff&&!s.holdIndicator.visible&&
       JSON.stringify(s.world.wolves.map(w=>w.actorState.alerted))===JSON.stringify(window.__wolfAlertBefore);
-  }),'Полная секунда включает свечение и одно событие; волки не проклинаются и не получают принудительный агр');
+  }),'Полная секунда испускает одно событие; пень не меняет цвет и не получает круг/свечение, волки не агрятся');
   await page.keyboard.down('e');await page.waitForTimeout(1100);await page.keyboard.up('e');
   ok(await page.evaluate(()=>window.__stumpActivations===1),'Активированный пень не запускается повторно');
   await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').events.off('stump-activated',window.__stumpListener));
@@ -140,7 +140,7 @@ export async function testStump(page,ok,click,waitScene) {
     return isRunSave(legacy)&&!isRunSave(bad)&&!isRunSave(outside);
   }),'Сейв сохраняет активацию; старые забеги без пня совместимы, некорректное состояние отклоняется');
   await click('MainMenu','continue-run');await waitScene('Room');
-  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return s.world.ritual.activated&&s.children.getByName('ritual-stump-glow').alpha>0;}),'После «Продолжить» пень остаётся активным и светится');
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return s.world.ritual.activated&&s.world.ritual.image.tintTopLeft===0xffffff&&!s.children.getByName('ritual-stump-glow');}),'После «Продолжить» состояние пня сохраняется, его изображение не меняется');
   const previous=await page.evaluateHandle(()=>window.__smokeGame.scene.getScene('Room').world.ritual.image);
   await page.keyboard.press('r');await waitScene('Room');
   await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.ritual.image!==old,previous);

@@ -22,7 +22,7 @@ export async function testWolfPack(page,ok) {
       valid&&=JSON.stringify(points)===JSON.stringify(generateWolfPopulation(nav));
       for(let i=0;i<points.length;i++){
         const p=points[i];cells[Math.floor(p.y/(layout.height/3))*3+Math.floor(p.x/(layout.width/3))]++;
-        valid&&=nav.canStand(p)&&nav.route(p,center).length>0&&
+        valid&&=p.x>=layout.width*2/3&&p.y>=layout.height*2/3&&nav.canStand(p)&&nav.route(p,center).length>0&&
           Math.hypot((p.x-center.x)/(1280/3),(p.y-center.y)/240)>1&&
           points.slice(0,i).every(q=>Math.hypot(p.x-q.x,p.y-q.y)>=100);
       }
@@ -30,26 +30,26 @@ export async function testWolfPack(page,ok) {
     }
     return{valid,cluster,min:Math.min(...counts),max:Math.max(...counts),mean:counts.reduce((a,b)=>a+b)/counts.length};
   });
-  ok(population.valid&&population.cluster&&population.min===0&&population.max===18&&population.mean>6&&population.mean<12,
-    `Волки свободно распределены по миру: 0–18, без квот участков, среднее на 32 seed ${population.mean.toFixed(2)}; без стволов, пересечений и агрессии у старта`);
+  ok(population.valid&&population.cluster&&population.min===2&&population.max===3&&population.mean>2&&population.mean<3,
+    `Волки в нижней правой комнате: 2–3, среднее на 32 seed ${population.mean.toFixed(2)}; без стволов, пересечений и агрессии у старта`);
 
   const old=await page.evaluateHandle(()=>{const s=window.__smokeGame.scene.getScene('Room'),p=s.player;s.scene.restart({seed:0});return p;});
   await page.waitForFunction(p=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.player!==p&&s.world?.wolves?.length===18;
+    const s=window.__smokeGame.scene.getScene('Room');return s.player!==p&&s.world?.wolves?.length===3;
   },old);await old.dispose();
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.world.wolves.length===18&&s.world.wolves.every(w=>w.actorState.health===2&&w.body.enable&&
+    return s.world.wolves.length===3&&s.world.wolves.every(w=>w.actorState.health===2&&w.body.enable&&
       [w,w.shadow].every(o=>o.cameraFilter&s.cameras.getCamera('hud').id));
-  }),'В реальной сцене все 18 волков имеют собственные HP, физику и тень, скрытую от HUD-камеры');
+  }),'В реальной сцене все 3 волка имеют собственные HP, физику и тень, скрытую от HUD-камеры');
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),world=s.world,old=world.wolves.slice(0,2);
+    const s=window.__smokeGame.scene.getScene('Room'),world=s.world,old=world.wolves.slice(0,1);
     old.forEach(w=>w.takeDamage(2));world.update(1820);
     world.update(10000);
-    return world.wolves.length===16&&world.corpses.length===2&&
+    return world.wolves.length===2&&world.corpses.length===1&&
       old.every(w=>w.scene===s&&w.shadow.scene===s&&!w.active&&!w.body.enable&&w.visible&&w.frame.name==='6')&&
       world.wolves.every(w=>!old.includes(w));
-  }),'После смерти двух волков остаются 16 живых и два неподвижных трупа с тенями; новых волков нет');
+  }),'После смерти одного волка остаются два живых и неподвижный труп с тенями; новых волков нет');
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,nav=world.wolves[0].behavior.navigation;
     for(const w of world.wolves){w.setActive(false).setVelocity(0,0);w.body.enable=false;}
@@ -126,9 +126,9 @@ export async function testWolfPack(page,ok) {
   ok(true,'Esc после гибели возвращает к выбору персонажа');
   await page.evaluate(()=>window.__smokeGame.scene.getScene('CharacterSelect').scene.start('Room',{seed:3}));
   await page.waitForFunction(()=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.sys.isActive()&&s.layout.seed===3&&s.world.wolves.length===0;
+    const s=window.__smokeGame.scene.getScene('Room');return s.sys.isActive()&&s.layout.seed===3&&s.world.wolves.length>=2;
   });
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.playerHealth===3&&!s.gameOver&&!s.physics.world.isPaused;
-  }),'Нулевая популяция — рабочая случайная поляна; выход из экрана гибели не оставляет замороженную физику');
+    const s=window.__smokeGame.scene.getScene('Room');s.world.wolves.forEach(w=>w.takeDamage(100));s.world.update(2000);return s.world.wolves.length===0&&s.playerHealth===3&&!s.gameOver&&!s.physics.world.isPaused;
+  }),'После убийства всех волков поляна работает без респавна; выход из экрана гибели не оставляет замороженную физику');
 }

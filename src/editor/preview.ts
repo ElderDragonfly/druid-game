@@ -9,12 +9,14 @@ import mouseSource from '../../docs/art/mouse-v1/source.json';
 import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { BASE_MOVEMENT_SPEED } from '../data/movement';
 import type { EntityData, EntityId } from '../data/entitySchema';
+import { INSECT_ART, INSECT_METRICS, insectDurations, type InsectAnimation } from '../rendering/forestInsectArt';
 
 export const DIRECTIONS = FACINGS;
 export const ANIMATIONS: Record<EntityId, [string, string][]> = {
   druid: [['idle', 'Стоит'], ['walk', 'Ходьба'], ['cast', 'Каст'], ['hit', 'Попадание']],
   wolf: [['idle', 'Стоит'], ['walk', 'Прогулка'], ['run', 'Погоня'], ['attack-down', 'Укус вниз'], ['attack-up', 'Укус вверх'], ['death', 'Смерть']],
   mouse: [['run', 'Пробежка'], ['rise', 'Поднимается'], ['look', 'Осматривается'], ['lower', 'Опускается']],
+  forestInsect:[['idle','Парит'],['run','Преследование'],['attack','Атака'],['death','Смерть']],
 };
 const idleKeys: Record<Facing, string> = { down: 'druid-game-source', up: 'druid-back-source', left: 'druid-left-source', right: 'druid-right-source',
   'up-left': 'druid-up-left-source', 'up-right': 'druid-up-right-source', 'down-left': 'druid-down-left-source', 'down-right': 'druid-down-right-source' };
@@ -59,6 +61,17 @@ export class SpritePreview {
         shadow: WOLF_ART.find(a => a.key === `wolf-${state}-shadow`)!.url,
         width: 128, height: 112, footY: 100, scale: 2.4, durations };
     }
+    if(this.entity==='forestInsect') {
+      const animation:InsectAnimation=this.animation==='attack'?`attack-${direction as 'up'|'down'|'left'|'right'}`:
+        this.animation==='idle'&&(direction==='up'||direction==='down')?`idle-${direction}`:this.animation as InsectAnimation;
+      let durations=insectDurations(animation);
+      if(this.animation==='run')durations=durations.map(ms=>ms*.9/data.forestInsect.runSpeed);
+      if(this.animation==='attack') {
+        const total=durations.reduce((a,b)=>a+b,0);durations=durations.map(ms=>ms/total*data.wolf.behavior.attackMs);
+      }
+      return {url:INSECT_ART.find(a=>a.key===`insect-${animation}`)!.url,shadow:INSECT_ART.find(a=>a.key==='insect-shadow')!.url,
+        width:INSECT_METRICS.width,height:INSECT_METRICS.height,footY:INSECT_METRICS.feetY,scale:2.4,durations};
+    }
     const state = this.animation;
     return { url: MOUSE_ART.find(a => a.key === (state === 'lower' ? 'mouse-rise' : `mouse-${state}`))!.url,
       width: 32, height: 32, footY: 25, scale: 7, reverse: state === 'lower',
@@ -80,12 +93,19 @@ export class SpritePreview {
       const sourceIndex = (sheet.start ?? 0) + (sheet.reverse ? count - 1 - index : index);
       ctx.save(); ctx.imageSmoothingEnabled = false;
       ctx.translate(256, 352);
-      if (this.entity !== 'druid' && (this.entity === 'wolf' ? this.direction === 'left' : this.direction === 'right')) ctx.scale(-1, 1);
+      if (this.entity === 'wolf'&&this.direction==='left'||this.entity==='mouse'&&this.direction==='right'||
+        this.entity==='forestInsect'&&this.direction==='left'&&this.animation!=='attack') ctx.scale(-1, 1);
       const draw = (img: HTMLImageElement) => {
         if (img.complete && img.naturalWidth) ctx.drawImage(img, sourceIndex * sheet.width, 0, sheet.width, sheet.height,
           -sheet.width * sheet.scale / 2, -sheet.footY * sheet.scale, sheet.width * sheet.scale, sheet.height * sheet.scale);
       };
-      if (sheet.shadow) draw(this.image(sheet.shadow)); draw(image); ctx.restore();
+      if (sheet.shadow) {
+        if(this.entity==='forestInsect') {
+          const img=this.image(sheet.shadow);
+          if(img.complete&&img.naturalWidth)ctx.drawImage(img,0,0,sheet.width,sheet.height,-sheet.width*sheet.scale/2,-sheet.footY*sheet.scale,sheet.width*sheet.scale,sheet.height*sheet.scale);
+        } else draw(this.image(sheet.shadow));
+      }
+      draw(image); ctx.restore();
       this.label.textContent = this.failed.has(sheet.url) ? 'Не удалось загрузить изображение.' :
         `Кадр ${index + 1} из ${count} · ${this.playing ? 'воспроизведение' : 'пауза'} · темп по значениям формы`;
     }

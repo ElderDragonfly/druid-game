@@ -4,6 +4,8 @@ import type { MouseActorState } from '../behavior/MouseWander';
 import type { Facing } from '../input/EightWayFacing';
 import type { MeadowLayout } from '../world/meadowLayout';
 import type { WolfAnimation } from '../rendering/wolfArt';
+import type { InsectDirection, InsectAnimation } from '../rendering/forestInsectArt';
+import type { CleansingStatus } from '../world/CleansingTree';
 
 export interface PointSave { x: number; y: number }
 export interface CastSave { active: boolean; facing: Facing; elapsed: number; released: boolean; pendingRelease?: Facing }
@@ -17,7 +19,9 @@ export interface WolfSave extends PointSave {
 export interface MouseSave extends PointSave {
   state: MouseActorState; runLimit: number; frameIndex: number; flipX: boolean;
 }
-export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean} }
+export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection }
+export interface CleansingSave {roomId:number;status:CleansingStatus;enemies:ForestInsectSave[]}
+export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean};cleansing?:CleansingSave }
 export interface ProjectileSave extends PointSave {
   direction: PointSave; range: number; distance: number; ageMs: number; nextLeafDistance: number;
 }

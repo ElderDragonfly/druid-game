@@ -1,0 +1,158 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 112,
+  "feetX": 64,
+  "feetY": 88,
+  "source": "docs/art/dragonfly_animation_reel_3x.gif",
+  "sourceFrameCount": 80,
+  "animations": {
+    "idle": {
+      "frames": 16,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    "walk": {
+      "frames": 16,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    "run": {
+      "frames": 16,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    "attack-right": {
+      "frames": 16,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    "attack-up": {
+      "frames": 4,
+      "durations": [
+        165,
+        165,
+        165,
+        165
+      ]
+    },
+    "attack-down": {
+      "frames": 4,
+      "durations": [
+        165,
+        165,
+        165,
+        165
+      ]
+    },
+    "attack-left": {
+      "frames": 16,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    "idle-up": {
+      "frames": 2,
+      "durations": [
+        40,
+        40
+      ]
+    },
+    "idle-down": {
+      "frames": 2,
+      "durations": [
+        40,
+        40
+      ]
+    },
+    "death": {
+      "frames": 6,
+      "durations": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ]
+    }
+  }
+}

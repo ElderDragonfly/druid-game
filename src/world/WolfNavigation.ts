@@ -11,7 +11,7 @@ export class WolfNavigation {
   private readonly rows: number;
   private readonly free: Uint8Array;
 
-  constructor(readonly layout: MeadowLayout) {
+  constructor(readonly layout: MeadowLayout, private readonly footprint: {width:number;height:number}=WOLF.body) {
     this.trunks = layoutCollisionRects(layout);
     this.columns = Math.ceil(layout.width / this.cell);
     this.rows = Math.ceil(layout.height / this.cell);
@@ -19,7 +19,7 @@ export class WolfNavigation {
   }
 
   canStand(p: WolfPoint, gap = 2) {
-    const { width, height } = WOLF.body;
+    const { width, height } = this.footprint;
     const rect = { x: p.x - width / 2, y: p.y - height, width, height };
     return rect.x >= gap && rect.y >= gap && rect.x + width <= this.layout.width - gap &&
       rect.y + height <= this.layout.height - gap && !this.trunks.some(tree => overlaps(rect, tree, gap));

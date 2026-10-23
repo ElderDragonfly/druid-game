@@ -35,5 +35,11 @@
     "population": { "min": 0, "max": 9 },
     "runDistance": { "min": 60, "max": 130 },
     "lookMs": 5400
+  },
+  "forestInsect": {
+    "health": 2,
+    "walkSpeed": 0.45,
+    "runSpeed": 0.9,
+    "damage": 1
   }
 }

@@ -7,6 +7,9 @@ import { FALLEN_LOGS, ACTIVE_LOG_VARIANTS, LOG_MUSHROOMS, FALLEN_LOG_GENERATION 
 import { onMushroomSurface, logVisualRect, scatterLogMushrooms } from '../world/fallenLogs';
 import { seededRandom } from '../world/random';
 import type { PointSave, RunSave } from './snapshots';
+import { ROOM_ASSIGNMENTS, ROOM_SCENARIOS } from '../data/roomScenarios';
+import { roomAt, roomBounds } from '../world/rooms';
+import insectArt from '../../docs/art/forest-insect-v1/animations.json';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -47,9 +50,18 @@ export function isRunSave(value: unknown): value is RunSave {
       s.layout.obstacles.length > 4096 || s.layout.counts?.trees !== s.layout.obstacles.length) return false;
     if (!s.layout.obstacles.every(o => o.kind === 'tree' && point(o) && Number.isInteger(o.variant) &&
       !!ENVIRONMENT_VARIANTS.tree[o.variant])) return false;
+    if(s.layout.rooms!==undefined) {
+      if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
+        if(room.id!==index||room.scenario!==ROOM_ASSIGNMENTS[index])return false;
+        if(room.scenario!=='cleansing-tree')return room.tree===undefined;
+        if(!room.tree||!point(room.tree)||roomAt(s.layout,room.tree)!==index)return false;
+        const r=roomBounds(s.layout,index);
+        return room.tree.x-100>=r.x&&room.tree.x+100<=r.x+r.width&&room.tree.y-248>=r.y&&room.tree.y+2<=r.y+r.height;
+      }))return false;
+    }
     if (s.layout.logs !== undefined) {
       const logs = s.layout.logs;
-      if (!Array.isArray(logs) || logs.length < 2 || logs.length > 4 || s.layout.counts.logs !== logs.length ||
+      if (!Array.isArray(logs) || logs.length < (s.layout.rooms?1:2) || logs.length > (s.layout.rooms?2:4) || s.layout.counts.logs !== logs.length ||
         !logs.every(log => {
           if (!point(log) || !Number.isInteger(log.variant) || !FALLEN_LOGS[log.variant] ||
             !Number.isFinite(log.angle) || Math.abs(log.angle) > 180 || !flag(log.flipX) ||
@@ -72,6 +84,11 @@ export function isRunSave(value: unknown): value is RunSave {
       if(bounds.x<0||bounds.y<0||bounds.x+bounds.width>s.layout.width||bounds.y+bounds.height>s.layout.height)return false;
     }
     if(s.world?.stump!==undefined&&(!s.layout.stump||!flag(s.world.stump.activated)))return false;
+    if(s.layout.rooms) {
+      if(s.layout.logs!.some(log=>roomAt(s.layout,log)!==8)||
+        s.layout.logs!.reduce((n,log)=>n+log.mushrooms.length,0)>ROOM_SCENARIOS.wolves.mushrooms.max)return false;
+      if(!s.world?.cleansing)return false;
+    }
     const p = s.player, state = p?.state;
     if (!point(p) || !state || !Number.isInteger(state.health) || state.health < 1 || state.health > state.maxHealth ||
       !Number.isInteger(state.maxHealth) || state.maxHealth > 10000 || !nonnegative(state.speed) ||
@@ -79,18 +96,28 @@ export function isRunSave(value: unknown): value is RunSave {
       !flag(p.cast?.active) || !facing(p.cast.facing) || !nonnegative(p.cast.elapsed) || !flag(p.cast.released) ||
       (p.cast.pendingRelease !== undefined && !facing(p.cast.pendingRelease)) ||
       !flag(p.hit?.active) || !facing(p.hit.facing) || !nonnegative(p.hit.elapsed)) return false;
-    if (!Array.isArray(s.world?.wolves) || s.world.wolves.length > 128 ||
-      !s.world.wolves.every(w => point(w) && !!w.state && Number.isInteger(w.state.health) &&
+    const validCreature=(w:RunSave['world']['wolves'][number],animations:readonly string[])=>point(w) && !!w.state && Number.isInteger(w.state.health) &&
         Number.isInteger(w.state.maxHealth) && w.state.maxHealth > 0 && w.state.maxHealth <= 10000 &&
         w.state.health >= 0 && w.state.health <= w.state.maxHealth &&
         ['idle', 'wander', 'chase', 'attack'].includes(w.state.phase) && flag(w.state.alerted) &&
         nonnegative(w.state.elapsed) && nonnegative(w.state.walkSpeed) && nonnegative(w.state.runSpeed) &&
         point(w.state.target) && flag(w.state.facingLeft) && flag(w.state.attackUp) &&
         !!w.timers && [w.timers.idleMs, w.timers.wanderMs, w.timers.recoveryMs].every(nonnegative) &&
-        ['idle', 'walk', 'run', 'attack-up', 'attack-down', 'death'].includes(w.animation) &&
+        animations.includes(w.animation) &&
         nonnegative(w.clock) && (w.hitElapsed === null || nonnegative(w.hitElapsed)) &&
         nonnegative(w.deathElapsed) && flag(w.attackConnected) && flag(w.corpse) &&
-        (!w.corpse || w.state.health === 0))) return false;
+        (!w.corpse || w.state.health === 0);
+    if (!Array.isArray(s.world?.wolves) || s.world.wolves.length > 128 ||
+      !s.world.wolves.every(w=>validCreature(w,['idle','walk','run','attack-up','attack-down','death'])))return false;
+    if(s.world.cleansing!==undefined) {
+      const c=s.world.cleansing;
+      if(!s.layout.rooms?.some(room=>room.id===c.roomId&&room.scenario==='cleansing-tree')||
+        !['dormant','active','cleansed'].includes(c.status)||!Array.isArray(c.enemies)||
+        c.enemies.length!==(c.status==='dormant'?0:ROOM_SCENARIOS.cleansing.enemyCount)||
+        !c.enemies.every(enemy=>['up','down','left','right'].includes(enemy.facing)&&
+          validCreature(enemy as unknown as RunSave['world']['wolves'][number],Object.keys(insectArt.animations)))||
+        c.status==='cleansed'&&!c.enemies.every(enemy=>enemy.corpse))return false;
+    }
     if (!Array.isArray(s.world.mice) || s.world.mice.length > 32 ||
       !s.world.mice.every(m => point(m) && !!m.state && ['run', 'rise', 'look', 'lower'].includes(m.state.phase) &&
         nonnegative(m.state.elapsed) && nonnegative(m.state.speed) && point(m.state.target) &&

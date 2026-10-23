@@ -9,7 +9,7 @@ export async function testFallenLogs(page,ok) {
     const points=new Set(),regions=new Set(),tiltBands=new Set();
     for(let seed=0;seed<1500;seed++) {
       const layout=generateMeadow(seed);counts.add(layout.logs.length);total+=layout.logs.length;
-      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length>=2&&layout.logs.length<=4;
+      safe&&=layout.counts.logs===layout.logs.length&&layout.logs.length>=1&&layout.logs.length<=2;
       const spawn={x:layout.spawn.x-80,y:layout.spawn.y-80,width:160,height:160};
       for(const log of layout.logs) {
         native&&=log.angle>=-15&&log.angle<=15&&log.flipX===false;variants.add(log.variant);angles.add(log.angle);const bounds=logVisualRect(log),body=logCollisionRects(log);
@@ -74,9 +74,9 @@ export async function testFallenLogs(page,ok) {
     return{counts:[...counts].sort(),amounts:[...amounts].sort(),species:species.size,variants:[...variants],angleCount:angles.size,
       fraction:covered/total,scattered,regions:regions.size,tiltBands:tiltBands.size,pointCount:points.size,surfaceCapacity,native,safe,homogeneous,repeatable,art,rendered,rotationsKept,bodies,upright,navigation,emptyCorners,noHint};
   });
-  ok(stats.counts.join()==='2,3,4'&&stats.safe&&stats.regions===9,'1500 локаций: 2–4 бревна по всему миру, без крон, пересечений и привязки к старту');
-  ok(Math.abs(stats.fraction-.5)<.025&&stats.amounts.join()==='0,1,2,3'&&stats.homogeneous,
-    `На каждом бревне шанс грибов 50%, при успехе 1–3 одного вида (${(stats.fraction*100).toFixed(1)}%)`);
+  ok(stats.counts.join()==='1,2'&&stats.safe&&stats.regions===1,'1500 локаций: 1–2 бревна в нижней правой комнате, без крон, пересечений и привязки к старту');
+  ok(stats.amounts.join()==='0,1,2'&&stats.homogeneous,
+    `На брёвнах 0–2 группы грибов, один вид на бревне (${(stats.fraction*100).toFixed(1)}%)`);
   ok(stats.species===2&&stats.variants.join()==='4'&&stats.angleCount>100&&stats.tiltBands===6&&stats.native&&stats.repeatable,'Только серое бревно и 2 вида грибов; случайный наклон −15…+15° без отражения, весь диапазон используется, seed воспроизводится');
   ok(stats.scattered&&stats.pointCount>=stats.surfaceCapacity*.9,'Грибы разбросаны по древесине в двух измерениях, с промежутками; позиции не ограничены тремя гнёздами');
   ok(await page.evaluate(async()=>{
@@ -142,7 +142,7 @@ export async function testFallenLogs(page,ok) {
       player:s.player.snapshot(),camera:{x:s.cameras.main.midPoint.x,y:s.cameras.main.midPoint.y},world:s.world.snapshot(),shots:[]};
     const valid=isRunSave(snapshot),legacySlots=structuredClone(snapshot),legacy=structuredClone(snapshot);
     legacySlots.layout.logs.forEach(l=>l.mushrooms.forEach(m=>delete m.surface));
-    delete legacy.layout.logs;delete legacy.layout.counts.logs;
+    delete legacy.layout.logs;delete legacy.layout.counts.logs;delete legacy.layout.rooms;delete legacy.world.cleansing;
     const corrupt=mutate=>{const saved=structuredClone(snapshot);mutate(saved.layout.logs[0]);return !isRunSave(saved);};
     const oldSet=structuredClone(snapshot);
     // A real legacy run: four brown variants, some already collected slots.

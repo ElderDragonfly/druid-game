@@ -1,4 +1,5 @@
 import { testStump } from './stump-smoke.mjs';
+import { testRoomScenarios } from './room-scenarios-smoke.mjs';
 import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
 import { testFallenLogs } from './fallen-logs-smoke.mjs';
 import assert from 'node:assert/strict';
@@ -56,7 +57,8 @@ try {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1 + active[0].world.wolves.length * 2);
+      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1 +
+        [...active[0].world.wolves,...(active[0].world.cleansing?.enemies??[])].filter(a=>!a.dying).length * 2);
   }, key); if (key === 'Room') await isolateWolf(); };
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -356,6 +358,7 @@ try {
   await testFallenLogs(page,ok);
   await testMushroomInteraction(page,ok,clickNamed,waitScene);
   await testStump(page,ok,clickNamed,waitScene);
+  await testRoomScenarios(page,ok,clickNamed,waitScene);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
