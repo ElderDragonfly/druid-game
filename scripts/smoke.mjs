@@ -1,4 +1,6 @@
 import { testStump } from './stump-smoke.mjs';
+import { testInsectFlight } from './insect-flight-smoke.mjs';
+import { testEnemyCollisions } from './enemy-collision-smoke.mjs';
 import { testRoomScenarios } from './room-scenarios-smoke.mjs';
 import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
 import { testFallenLogs } from './fallen-logs-smoke.mjs';
@@ -57,7 +59,7 @@ try {
     const game = window.__smokeGame;
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
-      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 1 +
+      (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 2 +
         [...active[0].world.wolves,...(active[0].world.cleansing?.enemies??[])].filter(a=>!a.dying).length * 2);
   }, key); if (key === 'Room') await isolateWolf(); };
   const activeScenes = () => page.evaluate(async () => {
@@ -359,6 +361,11 @@ try {
   await testMushroomInteraction(page,ok,clickNamed,waitScene);
   await testStump(page,ok,clickNamed,waitScene);
   await testRoomScenarios(page,ok,clickNamed,waitScene);
+  await testInsectFlight(page,ok);
+  // Reset after the flight fixture activates its tree.
+  await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');s.scene.restart({seed:s.layout.seed});});
+  await page.waitForTimeout(100);await waitScene('Room');
+  await testEnemyCollisions(page,ok,waitScene);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');
@@ -739,7 +746,7 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === current.mouseCount + 1 + current.wolfCount * 2 && current.mouseCount >= 0 && current.mouseCount <= 9,
+    ok(current.colliders === current.mouseCount + 2 + current.wolfCount * 2 && current.mouseCount >= 0 && current.mouseCount <= 9,
       `0–9 мышей; деревья и столкновения всех волков: ${current.mouseCount}, ${current.colliders}`);
   };
 
@@ -1505,7 +1512,7 @@ try {
         speedReset: scene.player.actorState.speed === scene.player.definition.stats.speed };
     });
     ok(lifecycle.count === (seed === populationSeeds[0] ? 0 : 9) && lifecycle.sprites === lifecycle.count &&
-      lifecycle.colliders === lifecycle.count + 1 + lifecycle.wolfCount * 2 && lifecycle.cleared && lifecycle.speedReset,
+      lifecycle.colliders === lifecycle.count + 2 + lifecycle.wolfCount * 2 && lifecycle.cleared && lifecycle.speedReset,
       `Перезапуск с ${lifecycle.count} мышами: нет старых спрайтов/коллайдеров, характеристики героя восстановлены`);
   }
 

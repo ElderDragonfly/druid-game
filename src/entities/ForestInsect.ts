@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { FOREST_INSECT as CONFIG } from '../data/forestInsect';
-import { WolfBehavior } from '../behavior/WolfBehavior';
+import { InsectFlight } from '../behavior/InsectFlight';
 import type { WolfNavigation, WolfPoint } from '../world/WolfNavigation';
 import { createDruidWolfCollider } from '../physics/wolfContact';
 import { INSECT_METRICS as ART, insectDurations, type InsectAnimation, type InsectDirection } from '../rendering/forestInsectArt';
@@ -10,7 +10,7 @@ import type { ForestInsectSave } from '../persistence/snapshots';
 
 /** Flight, four-direction tail strikes, hit pause and persistent fallen body. */
 export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damageable {
-  readonly behavior:WolfBehavior;
+  readonly behavior:InsectFlight;
   readonly shadow:Phaser.GameObjects.Image;
   get actorState(){return this.behavior.actorState;}
   get dying(){return this.actorState.health<=0;}
@@ -32,7 +32,7 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
     this.setName('forest-insect').setOrigin(ART.feetX/ART.width,ART.feetY/ART.height).setScale(scale)
       .setSize(b.width/scale,b.height/scale).setOffset(ART.feetX-b.width/scale/2,ART.feetY-b.height/scale)
       .setCollideWorldBounds(true).setPushable(false);
-    this.behavior=new WolfBehavior(navigation,start,identity,CONFIG);this.previous={...start};
+    this.behavior=new InsectFlight(navigation,start,identity);this.previous={...start};
     this.shadow=scene.add.image(start.x,start.y,'insect-shadow').setName('forest-insect-shadow')
       .setOrigin(this.originX,this.originY).setScale(scale);
     this.treeCollider=scene.physics.add.collider(this,obstacles);
@@ -44,7 +44,7 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
     this.actorState.health=Math.max(0,this.actorState.health-amount);
     this.behavior.alert();this.setVelocity(0,0);this.previous={x:this.x,y:this.y};
     if(this.dying) {
-      this.hitElapsed=null;this.deathElapsed=0;(this.body as Phaser.Physics.Arcade.Body).enable=false;
+      this.behavior.restoreFlight();this.hitElapsed=null;this.deathElapsed=0;(this.body as Phaser.Physics.Arcade.Body).enable=false;
       this.treeCollider?.destroy();this.playerCollider?.destroy();this.treeCollider=undefined;this.playerCollider=undefined;
       this.show('death',0);
     } else {this.hitElapsed=0;this.setTint(0xd9efbe);}
@@ -93,17 +93,17 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
     this.facing=Math.abs(dx)>Math.abs(dy)?dx<0?'left':'right':dy<0?'up':'down';
   }
   private show(animation:InsectAnimation,frame:number) {
-    this.animation=animation;this.setTexture(`insect-${animation}`,String(frame)).setDepth(this.y);
+    this.animation=animation;this.setTexture(`insect-${animation}`,String(frame)).setDepth(this.behavior.launching?Math.max(this.y,this.behavior.launchDepth):this.y);
     this.setFlipX((animation==='idle'||animation==='walk'||animation==='run'||animation==='death')&&this.facing==='left');
     this.shadow.setPosition(this.x,this.y).setDepth(this.y-.1);
   }
   snapshot():ForestInsectSave {
     return {x:this.x,y:this.y,state:{...this.actorState,target:{...this.actorState.target}},timers:this.behavior.snapshotTimers(),
       animation:this.animation,facing:this.facing,clock:this.clock,hitElapsed:this.hitElapsed,deathElapsed:this.deathElapsed,
-      attackConnected:this.attackConnected,corpse:this.deathFinished};
+      attackConnected:this.attackConnected,corpse:this.deathFinished,flight:this.behavior.snapshotFlight()};
   }
   restore(saved:ForestInsectSave) {
-    Object.assign(this.actorState,saved.state,{target:{...saved.state.target}});this.behavior.restoreTimers(saved.timers);
+    Object.assign(this.actorState,saved.state,{target:{...saved.state.target}});this.behavior.restoreTimers(saved.timers);this.behavior.restoreFlight(saved.flight);
     const body=this.body as Phaser.Physics.Arcade.Body;body.reset(saved.x,saved.y);body.updateFromGameObject();
     body.prev.copy(body.position);body.prevFrame.copy(body.position);this.previous={x:saved.x,y:saved.y};
     this.facing=saved.facing;this.clock=saved.clock;this.hitElapsed=saved.hitElapsed;

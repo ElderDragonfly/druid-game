@@ -23,6 +23,7 @@ import { GrassForeground } from '../rendering/GrassForeground';
 import { Mouse } from '../entities/Mouse';
 import { generateMousePopulation } from './mousePopulation';
 import type { WorldSave } from '../persistence/snapshots';
+import { EnemyCollisions } from '../physics/EnemyCollisions';
 
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
@@ -31,6 +32,7 @@ export class MeadowWorld {
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
   readonly corpses: Wolf[] = [];
+  readonly enemyCollisions:EnemyCollisions;
   private logArt: Phaser.GameObjects.Image[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
@@ -42,6 +44,7 @@ export class MeadowWorld {
     const surface = this.drawFloor();
     this.floor = surface.floor;
     this.grass = new GrassForeground(scene, surface.raster);
+    this.enemyCollisions=new EnemyCollisions(scene);
     if(layout.rooms) {
       this.roomGrid=scene.add.graphics().setName('room-grid').setDepth(-.5);
       this.roomGrid.lineStyle(2,0xb5bea0,.5);
@@ -103,10 +106,12 @@ export class MeadowWorld {
       const wolf = new Wolf(this.scene,navigation,this.obstacles,player,start,index+1);
       const saved = this.saved?.wolves[index];
       if (saved) wolf.restore(saved);
+      this.enemyCollisions.add(wolf);
       (saved?.corpse ? this.corpses : this.wolves).push(wolf);
     });
     const room=this.layout.rooms?.find(room=>room.scenario==='cleansing-tree');
-    if(room)this.cleansing=new CleansingEncounter(this.scene,this.layout,room,this.obstacles,player,this.saved?.cleansing);
+    if(room)this.cleansing=new CleansingEncounter(this.scene,this.layout,room,this.obstacles,player,this.saved?.cleansing,
+      enemy=>this.enemyCollisions.add(enemy));
   }
 
   /** The log is the interaction target; mushroom sprite positions never limit reach. */
@@ -160,6 +165,7 @@ export class MeadowWorld {
   }
 
   destroy() {
+    this.enemyCollisions.destroy();
     this.wolves.forEach(wolf=>wolf.destroy());this.wolves.length=0;
     this.corpses.forEach(wolf=>wolf.destroy());this.corpses.length=0;
     this.mice.forEach(mouse => mouse.destroy());

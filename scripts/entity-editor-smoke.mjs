@@ -41,7 +41,7 @@ try {
   await game.evaluate(async()=>{window.__game=(await import('/src/main.ts')).game;});
   await game.waitForFunction(()=>window.__game.scene.isActive('MainMenu'));
   await game.evaluate(()=>window.__game.scene.getScene('MainMenu').scene.start('Room',{seed:0}));
-  await game.waitForFunction(()=>window.__game.scene.getScene('Room').world?.wolves.length===3);
+  await game.waitForFunction(()=>window.__game.scene.getScene('Room').world?.wolves.length===4);
   await game.evaluate(()=>{
     const s=window.__game.scene.getScene('Room');s.physics.pause();window.__originalGame=window.__game;window.__originalPlayer=s.player;
     s.player.actorState.health=2;s.player.actorState.speed*=2;s.world.wolves[0].actorState.health=1;
@@ -58,7 +58,7 @@ try {
     const s=window.__game.scene.getScene('Room'),p=s.player.actorState,w=s.world.wolves[0].actorState;
     return window.__game===window.__originalGame&&s.player===window.__originalPlayer&&p.health===4&&p.maxHealth===5&&
       Math.abs(p.speed-220*2/3*2*.8)<.001&&p.range===1.2&&p.attackRate===1.25&&w.health===3&&w.maxHealth===4&&
-      Math.abs(w.runSpeed-220*2/3*.8)<.001&&s.world.mice.every(m=>m.actorState.speed===135)&&s.world.wolves.length===3&&s.world.mice.length!==1;
+      Math.abs(w.runSpeed-220*2/3*.8)<.001&&s.world.mice.every(m=>m.actorState.speed===135)&&s.world.wolves.length===4&&s.world.mice.length!==1;
   }),'Сохранение обновляет живых существ без reload/рестарта: HP с потерями, скорости с модификаторами, дальность и темп; популяция пока прежняя');
   baseline=await read();
   ok(JSON.parse(await readFile(file,'utf8')).druid.speed===.8&&baseline.data.wolf.behavior.detectionX===500,'Значения действительно записаны в файл, включая поведение');
@@ -99,7 +99,7 @@ try {
   await game.bringToFront();await game.keyboard.press('r');
   await game.waitForFunction(()=>window.__game.scene.getScene('Room').player!==window.__originalPlayer);
   ok(await game.evaluate(()=>{
-    const s=window.__game.scene.getScene('Room');s.physics.pause();return s.player.actorState.health===5&&s.world.wolves.length>=2&&s.world.wolves.length<=3&&s.world.mice.length===1;
+    const s=window.__game.scene.getScene('Room');s.physics.pause();return s.player.actorState.health===5&&s.world.wolves.length>=3&&s.world.wolves.length<=4&&s.world.mice.length===1;
   }),'R создаёт новую поляну с новым стартовым HP и диапазонами количества');
   const freshGame=await context.newPage();await freshGame.goto(base);
   await freshGame.waitForFunction(async()=>{const {entityData}=await import('/src/data/entityBalance.ts');return entityData.druid.health===5&&entityData.druid.speed===.8;});
@@ -111,11 +111,14 @@ try {
     const options=await editor.locator('#animation option').evaluateAll(list=>list.map(o=>o.value));
     const directions=await editor.locator('#direction option').evaluateAll(list=>list.map(o=>o.value));
     for(const anim of options) for(const direction of directions) {
-      await editor.locator('#animation').selectOption(anim);await editor.locator('#direction').selectOption(direction);await editor.waitForTimeout(120);
-      ok(await editor.locator('#sprite').evaluate(canvas=>{
-        const data=canvas.getContext('2d').getImageData(0,0,512,384).data;let pixels=0;
+      await editor.locator('#animation').selectOption(anim);await editor.locator('#direction').selectOption(direction);
+      // Let the preview clear the previous selection before testing the new image.
+      await editor.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      await editor.waitForFunction(()=>{
+        const data=document.querySelector('#sprite').getContext('2d').getImageData(0,0,512,384).data;let pixels=0;
         for(let i=3;i<data.length;i+=4)if(data[i])pixels++;return pixels>500;
-      }),`${id}: ${anim}, ${direction} — реальные кадры загружаются и рисуются`);
+      });
+      ok(true,`${id}: ${anim}, ${direction} — реальные кадры загружаются и рисуются`);
     }
   }
   await choose('druid'); await editor.locator('#pause').click();

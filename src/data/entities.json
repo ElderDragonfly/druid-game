@@ -39,7 +39,7 @@
   "forestInsect": {
     "health": 2,
     "walkSpeed": 0.45,
-    "runSpeed": 0.9,
+    "runSpeed": 0.8,
     "damage": 1
   }
 }

@@ -19,7 +19,11 @@ export interface WolfSave extends PointSave {
 export interface MouseSave extends PointSave {
   state: MouseActorState; runLimit: number; frameIndex: number; flipX: boolean;
 }
-export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection }
+export interface InsectFlightSave {
+  launch?:PointSave;launchDepth?:number;waypoint?:PointSave;
+  randomIndex:number;legMs:number;pauseMs:number;
+}
+export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection;flight?:InsectFlightSave }
 export interface CleansingSave {roomId:number;status:CleansingStatus;enemies:ForestInsectSave[]}
 export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean};cleansing?:CleansingSave }
 export interface ProjectileSave extends PointSave {

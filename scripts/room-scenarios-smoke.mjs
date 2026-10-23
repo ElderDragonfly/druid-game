@@ -16,14 +16,14 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
       if(l.logs.length<1||l.logs.length>2||l.logs.some(g=>roomAt(l,g)!==8))return false;
       const amount=l.logs.reduce((n,g)=>n+g.mushrooms.length,0);mushrooms.add(amount);if(amount>2)return false;
       const wolves=generateWolfPopulation(nav);counts.add(wolves.length);
-      if(wolves.length<2||wolves.length>3||wolves.some(p=>roomAt(l,p)!==8))return false;
+      if(wolves.length<3||wolves.length>4||wolves.some(p=>roomAt(l,p)!==8))return false;
       if(l.obstacles.some(o=>overlaps(obstacleVisualRect(o),area,8)))return false;
       const enemyNav=new WolfNavigation(l,FOREST_INSECT.body),player={x:room.tree.x+65,y:room.tree.y};
       const enemies=cleansingEnemySpawns(l,room,enemyNav,player);
       if(enemies.length!==3||enemies.some(p=>roomAt(l,p)!==7||!enemyNav.canStand(p)))return false;
     }
     return counts.size===2&&mushrooms.size===3;
-  }),'100 seed: центр без сценария, нижняя правая с 2–3 волками/1–2 брёвнами/0–2 грибами всего, нижняя центральная с деревом и местами для 3 врагов');
+  }),'100 seed: центр без сценария, нижняя правая с 3–4 волками/1–2 брёвнами/0–2 грибами всего, нижняя центральная с деревом и местами для 3 врагов');
   const seed=await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').layout.seed);
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),tree=s.world.cleansing.tree;
@@ -44,11 +44,13 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),c=s.world.cleansing;
     return c.tree.status==='active'&&c.tree.image.texture.key==='ritual-tree-corrupted'&&c.enemies.every(e=>
-      e.actorState.health===2&&e.actorState.alerted&&Math.abs(e.actorState.runSpeed-132)<.001&&e.body.enable&&
+      e.actorState.health===2&&e.actorState.alerted&&Math.abs(e.actorState.runSpeed-220*2/3*.8)<.001&&e.body.enable&&
+      e.behavior.launching&&e.y===s.layout.rooms[7].tree.y-150&&
       [e,e.shadow].every(o=>o.cameraFilter&s.hudCamera.id));
-  }),'Полная секунда E создаёт ровно 3 врагов: HP 2, скорость 0,9, сразу преследуют, физика и тени не дублируются HUD');
+  }),'Секунда E выпускает из кроны 3 врагов: HP 2, скорость 0,8, полёт наружу, физика и тени не дублируются HUD');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,e=s.world.cleansing.enemies[0];
+    e.behavior.restoreFlight();
     const contact=p.wolfContactBounds,ground=p.body.bottom;
     for(const [direction,x,y] of [['right',contact.x-19,ground],['left',contact.x+contact.width+19,ground],
       ['down',p.body.center.x,p.body.y-3],['up',p.body.center.x,ground+21]]) {

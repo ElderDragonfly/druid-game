@@ -114,7 +114,13 @@ export function isRunSave(value: unknown): value is RunSave {
       if(!s.layout.rooms?.some(room=>room.id===c.roomId&&room.scenario==='cleansing-tree')||
         !['dormant','active','cleansed'].includes(c.status)||!Array.isArray(c.enemies)||
         c.enemies.length!==(c.status==='dormant'?0:ROOM_SCENARIOS.cleansing.enemyCount)||
-        !c.enemies.every(enemy=>['up','down','left','right'].includes(enemy.facing)&&
+        !c.enemies.every(enemy=>(enemy.flight===undefined||(!!enemy.flight&&
+          Number.isInteger(enemy.flight.randomIndex)&&nonnegative(enemy.flight.randomIndex)&&
+          nonnegative(enemy.flight.legMs)&&nonnegative(enemy.flight.pauseMs)&&
+          (enemy.flight.launch===undefined||point(enemy.flight.launch))&&
+          (enemy.flight.launchDepth===undefined||nonnegative(enemy.flight.launchDepth))&&
+          (enemy.flight.waypoint===undefined||point(enemy.flight.waypoint))))&&
+          ['up','down','left','right'].includes(enemy.facing)&&
           validCreature(enemy as unknown as RunSave['world']['wolves'][number],Object.keys(insectArt.animations)))||
         c.status==='cleansed'&&!c.enemies.every(enemy=>enemy.corpse))return false;
     }

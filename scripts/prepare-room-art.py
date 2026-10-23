@@ -70,3 +70,8 @@ for name,poses in animations.items():
         previews[0].save(insect/(name+'-preview.gif'),save_all=True,append_images=previews[1:],duration=durations,loop=0,disposal=2)
 (insect/'animations.json').write_text(json.dumps(metadata,indent=2)+'\n')
 print('Prepared two tree states and',len(animations),'insect sprite sheets.')
+
+# Keep the drawing intact while exposing its ground patch as a separate layer.
+import runpy
+runpy.run_path(str(ROOT/"scripts/split-cleansing-tree-layers.py"),run_name="__main__")
+runpy.run_path(str(ROOT/"scripts/animate-insect-attack-wings.py"),run_name="__main__")

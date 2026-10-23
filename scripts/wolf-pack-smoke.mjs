@@ -30,26 +30,26 @@ export async function testWolfPack(page,ok) {
     }
     return{valid,cluster,min:Math.min(...counts),max:Math.max(...counts),mean:counts.reduce((a,b)=>a+b)/counts.length};
   });
-  ok(population.valid&&population.cluster&&population.min===2&&population.max===3&&population.mean>2&&population.mean<3,
-    `Волки в нижней правой комнате: 2–3, среднее на 32 seed ${population.mean.toFixed(2)}; без стволов, пересечений и агрессии у старта`);
+  ok(population.valid&&population.cluster&&population.min===3&&population.max===4&&population.mean>3&&population.mean<4,
+    `Волки в нижней правой комнате: 3–4, среднее на 32 seed ${population.mean.toFixed(2)}; без стволов, пересечений и агрессии у старта`);
 
   const old=await page.evaluateHandle(()=>{const s=window.__smokeGame.scene.getScene('Room'),p=s.player;s.scene.restart({seed:0});return p;});
   await page.waitForFunction(p=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.player!==p&&s.world?.wolves?.length===3;
+    const s=window.__smokeGame.scene.getScene('Room');return s.player!==p&&s.world?.wolves?.length===4;
   },old);await old.dispose();
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.world.wolves.length===3&&s.world.wolves.every(w=>w.actorState.health===2&&w.body.enable&&
+    return s.world.wolves.length===4&&s.world.wolves.every(w=>w.actorState.health===2&&w.body.enable&&
       [w,w.shadow].every(o=>o.cameraFilter&s.cameras.getCamera('hud').id));
-  }),'В реальной сцене все 3 волка имеют собственные HP, физику и тень, скрытую от HUD-камеры');
+  }),'В реальной сцене все 4 волка имеют собственные HP, физику и тень, скрытую от HUD-камеры');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,old=world.wolves.slice(0,1);
     old.forEach(w=>w.takeDamage(2));world.update(1820);
     world.update(10000);
-    return world.wolves.length===2&&world.corpses.length===1&&
+    return world.wolves.length===3&&world.corpses.length===1&&
       old.every(w=>w.scene===s&&w.shadow.scene===s&&!w.active&&!w.body.enable&&w.visible&&w.frame.name==='6')&&
       world.wolves.every(w=>!old.includes(w));
-  }),'После смерти одного волка остаются два живых и неподвижный труп с тенями; новых волков нет');
+  }),'После смерти одного волка остаются три живых и неподвижный труп с тенями; новых волков нет');
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,nav=world.wolves[0].behavior.navigation;
     for(const w of world.wolves){w.setActive(false).setVelocity(0,0);w.body.enable=false;}

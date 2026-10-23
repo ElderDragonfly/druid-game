@@ -7,11 +7,14 @@ export type CleansingStatus='dormant'|'active'|'cleansed';
 
 export class CleansingTree implements HoldInteractionTarget {
   readonly image:Phaser.GameObjects.Image;
+  readonly ground:Phaser.GameObjects.Image;
   constructor(private scene:Phaser.Scene,readonly room:RoomPlan,public status:CleansingStatus,
     private readonly startEncounter:()=>void) {
     const p=room.tree!;
     this.image=scene.add.image(p.x,p.y,'ritual-tree-corrupted').setName('cleansing-tree')
       .setOrigin(ART.anchorX/ART.width,ART.anchorY/ART.height).setScale(ART.scale).setDepth(p.y);
+    this.ground=scene.add.image(p.x,p.y,'ritual-tree-corrupted-ground').setName('cleansing-tree-ground')
+      .setOrigin(this.image.originX,this.image.originY).setScale(ART.scale).setDepth(-1);
     this.refresh();
   }
   canInteract(point:{x:number;y:number}) {
@@ -29,6 +32,9 @@ export class CleansingTree implements HoldInteractionTarget {
     // Reward design is intentionally open; this is the future reward hook.
     this.scene.events.emit('tree-cleansed',{roomId:this.room.id});
   }
-  private refresh(){this.image.setTexture(this.status==='cleansed'?'ritual-tree-cleansed':'ritual-tree-corrupted');}
-  destroy(){this.image.destroy();}
+  private refresh(){
+    const texture=this.status==='cleansed'?'ritual-tree-cleansed':'ritual-tree-corrupted';
+    this.image.setTexture(texture);this.ground.setTexture(texture+'-ground');
+  }
+  destroy(){this.image.destroy();this.ground.destroy();}
 }
