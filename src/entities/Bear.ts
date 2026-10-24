@@ -73,7 +73,14 @@ export class Bear extends Phaser.Physics.Arcade.Sprite implements Damageable {
  }
  snapshot():BearSave{return {x:this.x,y:this.y,state:{...this.actorState},animation:this.animation,clock:this.clock,hitElapsed:this.hitElapsed};}
  restore(saved:BearSave){
-  Object.assign(this.actorState,saved.state);const body=this.body as Phaser.Physics.Arcade.Body;
+  Object.assign(this.actorState,saved.state);
+  // Saves from the timed-pursuit version have no rage flag. Resume them calmly,
+  // carrying any old speed modifier over to the new base run speed.
+  if(saved.state.enraged===undefined){
+   this.actorState.enraged=false;
+   this.actorState.runSpeed=saved.state.runSpeed/BEAR.appearance.runReferenceSpeed*BEAR.stats.runSpeed;
+  }
+  const body=this.body as Phaser.Physics.Arcade.Body;
   body.reset(saved.x,saved.y);body.updateFromGameObject();body.prev.copy(body.position);body.prevFrame.copy(body.position);
   this.previous={x:saved.x,y:saved.y};this.clock=saved.clock;this.hitElapsed=saved.hitElapsed;this.behavior.navigator.invalidate();
   const animation=this.dying?'sleep':saved.animation;

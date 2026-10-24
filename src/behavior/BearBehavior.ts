@@ -7,14 +7,14 @@ import { seededRandom } from '../world/random';
 export type BearPhase='sleep'|'wake'|'walk'|'run'|'attack'|'dead';
 export interface BearState {
  health:number;maxHealth:number;walkSpeed:number;runSpeed:number;phase:BearPhase;elapsed:number;
- pursuitElapsed:number;cooldownMs:number;facingLeft:boolean;attack:BearAttack;attackIndex:number;attackConnected:boolean;
+ pursuitElapsed:number;enraged:boolean;cooldownMs:number;facingLeft:boolean;attack:BearAttack;attackIndex:number;attackConnected:boolean;
 }
 export class BearBehavior {
  readonly actorState:BearState;
  readonly navigator:EnemyNavigator;
  impactReady=false;
  constructor(readonly navigation:WolfNavigation){
-  const stats=BEAR.stats;this.actorState={...stats,maxHealth:stats.health,phase:'sleep',elapsed:0,pursuitElapsed:0,cooldownMs:0,
+  const stats=BEAR.stats;this.actorState={...stats,maxHealth:stats.health,phase:'sleep',elapsed:0,pursuitElapsed:0,enraged:false,cooldownMs:0,
    facingLeft:true,attack:'swipe',attackIndex:0,attackConnected:false};
   this.navigator=new EnemyNavigator(navigation,BEAR.body);
  }
@@ -34,15 +34,15 @@ export class BearBehavior {
   }
   if(s.phase==='wake'){
    s.elapsed+=dt;if(s.elapsed<bearDuration('wake'))return {x:0,y:0};
-   dt=s.elapsed-bearDuration('wake');s.phase='walk';s.elapsed=0;this.navigator.invalidate();
+   dt=s.elapsed-bearDuration('wake');s.phase=s.enraged?'run':'walk';s.elapsed=0;this.navigator.invalidate();
   }
   s.pursuitElapsed+=dt;s.cooldownMs=Math.max(0,s.cooldownMs-dt);s.elapsed+=dt;
   if(s.phase==='attack'){
    if(!s.attackConnected&&s.elapsed>=bearImpact(s.attack)){s.attackConnected=true;this.impactReady=true;}
    if(s.elapsed<bearDuration(s.attack))return {x:0,y:0};
-   s.phase=s.pursuitElapsed<BEAR.walkMs?'walk':'run';s.elapsed=0;s.cooldownMs=BEAR.recoveryMs;
+   s.enraged=false;s.phase='walk';s.elapsed=0;s.cooldownMs=BEAR.recoveryMs;
   }
-  s.phase=s.pursuitElapsed<BEAR.walkMs?'walk':'run';
+  s.phase=s.enraged?'run':'walk';
   if(this.inAttackRange(p,target)){
    if(s.cooldownMs===0){
     const random=seededRandom(this.navigation.layout.seed^0x42454152^s.attackIndex++);
@@ -57,9 +57,9 @@ export class BearBehavior {
   return velocity;
  }
  reactToHit(){
-  this.alert();this.impactReady=false;this.actorState.attackConnected=true;this.navigator.invalidate();
+  this.alert();this.actorState.enraged=true;this.impactReady=false;this.actorState.attackConnected=true;this.navigator.invalidate();
   if(this.actorState.phase==='attack'){
-   this.actorState.phase=this.actorState.pursuitElapsed<BEAR.walkMs?'walk':'run';this.actorState.elapsed=0;
+   this.actorState.phase='run';this.actorState.elapsed=0;
   }
  }
 }

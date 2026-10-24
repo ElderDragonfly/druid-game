@@ -117,7 +117,7 @@ export function isRunSave(value: unknown): value is RunSave {
       if(!point(b)||!t||!Number.isInteger(t.health)||!Number.isInteger(t.maxHealth)||t.maxHealth<1||t.maxHealth>10000||t.health<0||t.health>t.maxHealth||
         !['sleep','wake','walk','run','attack','dead'].includes(t.phase)||(t.phase==='dead')!==(t.health===0)||
         ![t.walkSpeed,t.runSpeed,t.elapsed,t.pursuitElapsed,t.cooldownMs,b.clock].every(nonnegative)||
-        !flag(t.facingLeft)||!flag(t.attackConnected)||!['swipe','bite','slam'].includes(t.attack)||
+        (t.enraged!==undefined&&!flag(t.enraged))||!flag(t.facingLeft)||!flag(t.attackConnected)||!['swipe','bite','slam'].includes(t.attack)||
         !Number.isInteger(t.attackIndex)||!nonnegative(t.attackIndex)||!Object.keys(bearArt.animations).includes(b.animation)||
         !(b.hitElapsed===null||nonnegative(b.hitElapsed)))return false;
     }

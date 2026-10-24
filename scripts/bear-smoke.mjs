@@ -26,19 +26,29 @@ export async function testBear(page,ok,click,waitScene) {
     const far={x:900,y:500};ai.step(800,p,far,body(far));
     if(ai.actorState.phase!=='walk'||ai.actorState.pursuitElapsed!==0)return false;
     let v=ai.step(1999,p,far,body(far));if(ai.actorState.phase!=='walk'||Math.abs(Math.hypot(v.x,v.y)-88)>.001)return false;
-    v=ai.step(1,p,far,body(far));if(ai.actorState.phase!=='run'||Math.abs(Math.hypot(v.x,v.y)-117.3333333333)>.001)return false;
+    v=ai.step(30000,p,far,body(far));if(ai.actorState.phase!=='walk'||ai.actorState.enraged)return false;
+    ai.reactToHit();v=ai.step(16,p,far,body(far));
+    if(ai.actorState.phase!=='run'||!ai.actorState.enraged||Math.abs(Math.hypot(v.x,v.y)-146.6666666667)>.001)return false;
+    ai.reactToHit();ai.step(30000,p,far,body(far));if(ai.actorState.phase!=='run')return false;
     const types=new Set(),near={x:565,y:500};
     for(let n=0;n<60;n++){
-      Object.assign(ai.actorState,{phase:'run',elapsed:0,cooldownMs:0,attackConnected:false});
+      Object.assign(ai.actorState,{phase:'run',enraged:true,elapsed:0,cooldownMs:0,attackConnected:false});
       ai.step(0,p,near,body(near));if(ai.actorState.phase!=='attack')return false;
       const attack=ai.actorState.attack;types.add(attack);
       ai.step(bearImpact(attack)-1,p,near,body(near));if(ai.impactReady)return false;
       ai.step(1,p,near,body(near));if(!ai.impactReady)return false;
       ai.step(1,p,near,body(near));if(ai.impactReady)return false;
-      ai.step(bearDuration(attack),p,near,body(near));if(ai.actorState.phase==='attack')return false;
+      ai.step(bearDuration(attack),p,near,body(near));if(ai.actorState.phase!=='walk'||ai.actorState.enraged)return false;
+      const v=ai.step(16,p,far,body(far));if(Math.abs(Math.hypot(v.x,v.y)-88)>.001)return false;
     }
-    return types.size===3;
-  }),'Овал пробуждения 96×54, затем 800 мс подъёма, 2 с ходьбы 0,6 и бег 0,8; все три случайные атаки имеют один момент контакта');
+    // A hit cancels an unfinished attack and starts another run; only a completed
+    // attack, even a miss, ends that run. Hitting a sleeping bear also enrages it.
+    Object.assign(ai.actorState,{phase:'attack',elapsed:100,enraged:false});ai.reactToHit();
+    if(ai.actorState.phase!=='run'||!ai.actorState.enraged)return false;
+    const sleeping=new BearBehavior(new WolfNavigation(l,BEAR.body));sleeping.reactToHit();
+    sleeping.step(800,p,far,body(far));
+    return types.size===3&&sleeping.actorState.phase==='run'&&sleeping.actorState.enraged;
+  }),'Овал 96×54, подъём 800 мс, ходьба 0,6 без таймера; попадание включает бег 1 до завершения одной из трёх атак, затем снова шаг');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear;
     return b.actorState.health===5&&b.actorState.phase==='sleep'&&b.body.width===96&&b.body.height===28&&
@@ -84,7 +94,7 @@ export async function testBear(page,ok,click,waitScene) {
     const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear,offset=s.player.body.bottom-s.player.y;s.physics.pause();
     s.player.body.reset(arena.x+420,arena.y-offset);s.player.body.updateFromGameObject();
     const saved=b.snapshot();Object.assign(saved,{x:arena.x,y:arena.y,clock:0,animation:'walk',hitElapsed:null});
-    Object.assign(saved.state,{phase:'walk',elapsed:0,pursuitElapsed:0,cooldownMs:0});b.restore(saved);s.physics.resume();
+    Object.assign(saved.state,{phase:'walk',enraged:false,elapsed:0,pursuitElapsed:0,cooldownMs:0});b.restore(saved);s.physics.resume();
   },arena);
   await page.waitForTimeout(550);
   ok(await page.evaluate(arena=>{
@@ -92,14 +102,21 @@ export async function testBear(page,ok,click,waitScene) {
     return b.actorState.phase==='walk'&&b.x>arena.x+30&&b.x<arena.x+65&&b.texture.key==='bear-walk-right'&&b.clock>200;
   },arena),'Реальная ходьба использует правые кадры и темп по расстоянию, скорость около 88 ед./с');
   await page.waitForTimeout(1550);
-  ok(await page.evaluate(()=>{const b=window.__smokeGame.scene.getScene('Room').world.bear;return b.actorState.phase==='run'&&Math.abs(b.body.velocity.length()-117.3333333333)<.01&&b.texture.key==='bear-run-right';}),
-    'Через две секунды медведь действительно переходит на отдельные кадры бега со скоростью 117⅓ ед./с');
+  ok(await page.evaluate(()=>{const b=window.__smokeGame.scene.getScene('Room').world.bear;return b.actorState.phase==='walk'&&!b.actorState.enraged;}),
+    'Без попаданий медведь продолжает идти и не переходит на бег через две секунды');
+  await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').world.bear.takeDamage(1));
+  await page.waitForTimeout(400);
+  ok(await page.evaluate(()=>{
+    const b=window.__smokeGame.scene.getScene('Room').world.bear;
+    const passed=b.actorState.phase==='run'&&b.actorState.enraged&&b.actorState.health===4&&Math.abs(b.body.velocity.length()-146.6666666667)<.01&&b.texture.key==='bear-run-right';
+    b.actorState.health=5;return passed;
+  }),'Попадание прерывает ходьбу; после короткой реакции медведь бежит со скоростью 1 и отдельной анимацией');
   await page.evaluate(arena=>{
     const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear,w=s.world.wolves[0],offset=s.player.body.bottom-s.player.y;
     s.physics.pause();w.setActive(true).setVelocity(0,0);w.updateBehavior=()=>{};w.body.enable=true;w.body.reset(arena.x+160,arena.y);w.body.updateFromGameObject();
     s.player.body.reset(arena.x+350,arena.y-offset);s.player.body.updateFromGameObject();
     const saved=b.snapshot();Object.assign(saved,{x:arena.x,y:arena.y,animation:'run',clock:0,hitElapsed:null});
-    Object.assign(saved.state,{phase:'run',pursuitElapsed:3000,elapsed:0,cooldownMs:0});b.restore(saved);s.physics.resume();
+    Object.assign(saved.state,{phase:'run',enraged:true,pursuitElapsed:3000,elapsed:0,cooldownMs:0});b.restore(saved);s.physics.resume();
   },arena);
   await page.waitForFunction(()=>window.__smokeGame.scene.getScene('Room').world.bear.actorState.phase==='attack',{},{timeout:15000});
   ok(await page.evaluate(arena=>{
@@ -113,7 +130,7 @@ export async function testBear(page,ok,click,waitScene) {
       s.player.cancelHit();s.player.actorState.health=3;
       b.body.reset(arena.x,arena.y);b.body.updateFromGameObject();const offset=s.player.body.bottom-s.player.y;
       s.player.body.reset(arena.x+(left?-72:72),arena.y-offset);s.player.body.updateFromGameObject();
-      Object.assign(b.actorState,{phase:'attack',elapsed:0,pursuitElapsed:3000,attack,attackConnected:false,facingLeft:left});
+      Object.assign(b.actorState,{phase:'attack',enraged:true,elapsed:0,pursuitElapsed:3000,attack,attackConnected:false,facingLeft:left});
       b.updateBehavior(bearImpact(attack)-1);if(s.player.actorState.health!==3)return false;
       b.updateBehavior(1);if(s.player.actorState.health!==2||b.texture.key!==`bear-${attack}-${left?'left':'right'}`)return false;
       b.updateBehavior(1);if(s.player.actorState.health!==2)return false;
@@ -125,7 +142,7 @@ export async function testBear(page,ok,click,waitScene) {
     for(const o of s.layout.obstacles){const r=obstacleRect(o),start={x:r.x-48,y:r.y+r.height/2+14},goal={x:r.x+r.width+150,y:start.y};
       if(!nav.canStand(start,-.01)||!nav.canStand(goal)||!nav.routeFromContact(start,goal).length)continue;
       const offset=s.player.body.bottom-s.player.y;s.player.body.reset(goal.x,goal.y-offset);s.player.body.updateFromGameObject();
-      const saved=b.snapshot();Object.assign(saved,{x:start.x,y:start.y,animation:'run',clock:0,hitElapsed:null});Object.assign(saved.state,{phase:'run',pursuitElapsed:3000,elapsed:0});
+      const saved=b.snapshot();Object.assign(saved,{x:start.x,y:start.y,animation:'run',clock:0,hitElapsed:null});Object.assign(saved.state,{phase:'run',enraged:true,pursuitElapsed:3000,elapsed:0});
       b.restore(saved);s.physics.resume();return r;
     }throw new Error('Нет дерева для широкого медведя');
   });
@@ -134,21 +151,33 @@ export async function testBear(page,ok,click,waitScene) {
     'Медведь с широкой коллизией выбирается из касания ствола, обходит его и доходит до атаки');
   await page.evaluate(arena=>{
     const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear;s.physics.pause();s.player.cancelHit();s.player.actorState.health=3;
-    b.actorState.phase='attack';b.actorState.attack='slam';b.actorState.elapsed=350;b.actorState.attackConnected=false;b.updateBehavior(0);
+    b.actorState.phase='attack';b.actorState.enraged=true;b.actorState.attack='slam';b.actorState.elapsed=350;b.actorState.attackConnected=false;b.updateBehavior(0);
     const offset=s.player.body.bottom-s.player.y;s.player.body.reset(arena.x-200,arena.y-offset);s.player.body.updateFromGameObject();
   },arena);
   await page.keyboard.press('Escape');await waitScene('MainMenu');
   ok(await page.evaluate(async()=>{
     const {loadRun,isRunSave}=await import('/src/persistence/runSave.ts');const saved=loadRun();
-    if(saved?.world.bear?.state.attack!=='slam'||saved.world.bear.state.phase!=='attack'||!isRunSave(saved))return false;
+    if(saved?.world.bear?.state.attack!=='slam'||saved.world.bear.state.phase!=='attack'||!saved.world.bear.state.enraged||!isRunSave(saved))return false;
     const bad=structuredClone(saved);bad.world.bear.state.health=-1;
     const missing=structuredClone(saved);delete missing.world.bear;
     const old=structuredClone(saved);old.layout.rooms[6].scenario='empty';delete old.world.bear;
-    return !isRunSave(bad)&&!isRunSave(missing)&&isRunSave(old);
+    const invalidRage=structuredClone(saved);invalidRage.world.bear.state.enraged='yes';
+    const legacy=structuredClone(saved);delete legacy.world.bear.state.enraged;legacy.world.bear.state.runSpeed=117.33333333333334;
+    return !isRunSave(bad)&&!isRunSave(missing)&&!isRunSave(invalidRage)&&isRunSave(old)&&isRunSave(legacy);
   }),'Сейв хранит атаку медведя и её время; повреждённые данные отвергаются, прежняя пустая комната остаётся совместимой');
   await click('MainMenu','continue-run');await waitScene('Room');
-  ok(await page.evaluate(()=>{const b=window.__smokeGame.scene.getScene('Room').world.bear;return b.actorState.phase==='attack'&&b.actorState.attack==='slam'&&b.actorState.elapsed>=350&&b.actorState.elapsed<450&&b.actorState.health===5;}),
+  ok(await page.evaluate(()=>{const b=window.__smokeGame.scene.getScene('Room').world.bear;return b.actorState.phase==='attack'&&b.actorState.attack==='slam'&&b.actorState.enraged&&b.actorState.elapsed>=350&&b.actorState.elapsed<450&&b.actorState.health===5;}),
     '«Продолжить» восстанавливает тот же замах медведя, не создавая нового спящего врага');
+  ok(await page.evaluate(async()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear;
+    s.physics.pause();b.setActive(true);b.body.enable=true;
+    const {bearDuration}=await import('/src/rendering/bearArt.ts');
+    b.updateBehavior(bearDuration('slam')-b.actorState.elapsed+1);
+    if(b.actorState.phase!=='walk'||b.actorState.enraged)return false;
+    const legacy=b.snapshot();delete legacy.state.enraged;legacy.state.runSpeed=117.33333333333334;legacy.state.phase='run';
+    b.restore(legacy);b.updateBehavior(0);
+    return !b.actorState.enraged&&b.actorState.phase==='walk'&&Math.abs(b.actorState.runSpeed-146.6666666667)<.001;
+  }),'После сохранённого замаха снова шаг; старые сейвы переходят на спокойную погоню с новой базовой скоростью бега');
   ok(await page.evaluate(async arena=>{
     const s=window.__smokeGame.scene.getScene('Room'),b=s.world.bear;s.physics.pause();b.setActive(true).setVisible(true);b.body.enable=true;
     b.body.reset(arena.x,arena.y);b.body.updateFromGameObject();const {AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
