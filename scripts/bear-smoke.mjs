@@ -5,15 +5,15 @@ export async function testBear(page,ok,click,waitScene) {
     const {generateMeadow}=await import('/src/world/meadowLayout.ts'),{roomAt}=await import('/src/world/rooms.ts');
     const {generateBearSpawn}=await import('/src/world/bearPopulation.ts'),{WolfNavigation}=await import('/src/world/WolfNavigation.ts');
     const {BEAR}=await import('/src/data/bear.ts');const positions=new Set();
-    for(let seed=0;seed<60;seed++){
+    for(const seed of [...Array.from({length:60},(_,i)=>i),752]){
       const l=generateMeadow(seed),p=generateBearSpawn(l),again=generateBearSpawn(l);
       if(!p||roomAt(l,p)!==6||l.rooms[6].scenario!=='bear'||l.rooms[4].scenario!=='empty'||JSON.stringify(p)!==JSON.stringify(again))return false;
       const nav=new WolfNavigation(l,BEAR.body);if(!nav.canStand(p,24)||!nav.route(p,l.spawn).length)return false;
       positions.add(`${p.x},${p.y}`);
     }
     const old=generateMeadow(0);old.rooms[6].scenario='empty';
-    return positions.size===60&&generateBearSpawn(old)===undefined;
-  }),'60 seed: ровно один медведь размещается случайно в нижней левой комнате, свободно и с доступным маршрутом; старые комнаты без медведя сохранены');
+    return positions.size===61&&generateBearSpawn(old)===undefined;
+  }),'61 seed, включая плотные кроны 752: медведь размещается в нижней левой комнате, без пересечений и с доступным маршрутом; старые комнаты сохранены');
   ok(await page.evaluate(async()=>{
     const {generateMeadow}=await import('/src/world/meadowLayout.ts'),{WolfNavigation}=await import('/src/world/WolfNavigation.ts');
     const {BearBehavior}=await import('/src/behavior/BearBehavior.ts'),{BEAR}=await import('/src/data/bear.ts');

@@ -25,10 +25,10 @@ export async function testBushes(page, ok, waitScene) {
   }), '200 seed: 24–36 проходимых кустов из всех 8 видов, меньше деревьев; свободны старт, пень, брёвна, кроны и площадка очищения');
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
-    return b.foliage.length === s.layout.bushes.length && b.ground.length === b.foliage.length &&
-      [...b.foliage, ...b.ground].every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1) &&
-      b.ground.every(o => o.depth === -1);
-  }), 'Все кусты — отдельные слои без коллайдеров и сглаживания; земля под друидом, HUD не дублирует листву');
+    return b.foliage.length === s.layout.bushes.length &&
+      b.foliage.every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1) &&
+      !s.textures.exists('forest-bush-ground') && !s.children.list.some(o => o.name.startsWith('bush-ground-'));
+  }), 'Все кусты — только листва без коллайдеров и сглаживания; подложки удалены и не загружаются, HUD не дублирует кусты');
   const arena = await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'); s.physics.pause();
     const { bushVisualRect } = await import('/src/world/bushes.ts');
