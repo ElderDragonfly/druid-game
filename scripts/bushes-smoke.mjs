@@ -1,0 +1,98 @@
+/** Walk-through foliage, native occlusion, seeded placement and save validation. */
+export async function testBushes(page, ok, waitScene) {
+  ok(await page.evaluate(async () => {
+    const { generateMeadow, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const { bushVisualRect, generateBushes } = await import('/src/world/bushes.ts');
+    const { stumpClearing } = await import('/src/world/stump.ts');
+    const { ritualTreeClearing } = await import('/src/world/rooms.ts');
+    const { logVisualRect } = await import('/src/world/fallenLogs.ts');
+    const variants = new Set(), counts = new Set();
+    for (let seed = 0; seed < 200; seed++) {
+      const l = generateMeadow(seed), bushes = l.bushes;
+      if (bushes.length < 24 || bushes.length > 36 || bushes.length >= l.counts.trees ||
+        l.counts.bushes !== bushes.length || JSON.stringify(bushes) !== JSON.stringify(generateBushes(l))) return false;
+      counts.add(bushes.length);
+      const reserved = [stumpClearing(l.stump), ...l.obstacles.map(obstacleVisualRect),
+        ...l.logs.map(logVisualRect), ...l.rooms.flatMap(r => r.tree ? [ritualTreeClearing(r.tree)] : []),
+        { x: l.spawn.x - 80, y: l.spawn.y - 100, width: 160, height: 180 }];
+      for (const [i, b] of bushes.entries()) {
+        variants.add(b.variant); const r = bushVisualRect(b);
+        if (r.x < 0 || r.y < 0 || r.x + r.width > l.width || r.y + r.height > l.height ||
+          reserved.some(a => overlaps(r, a, 18)) || bushes.slice(0, i).some(a => overlaps(r, bushVisualRect(a), 18))) return false;
+      }
+    }
+    return variants.size === 8 && counts.size === 13;
+  }), '200 seed: 24–36 проходимых кустов из всех 8 видов, меньше деревьев; свободны старт, пень, брёвна, кроны и площадка очищения');
+  ok(await page.evaluate(() => {
+    const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
+    return b.foliage.length === s.layout.bushes.length && b.ground.length === b.foliage.length &&
+      [...b.foliage, ...b.ground].every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1) &&
+      b.ground.every(o => o.depth === -1);
+  }), 'Все кусты — отдельные слои без коллайдеров и сглаживания; земля под друидом, HUD не дублирует листву');
+  const arena = await page.evaluate(async () => {
+    const s = window.__smokeGame.scene.getScene('Room'); s.physics.pause();
+    const { bushVisualRect } = await import('/src/world/bushes.ts');
+    const { WolfNavigation } = await import('/src/world/WolfNavigation.ts');
+    const nav = new WolfNavigation(s.layout, { width: 20, height: 25 });
+    const offset = s.player.body.bottom - s.player.y;
+    for (const [index, b] of s.layout.bushes.entries()) {
+      const r = bushVisualRect(b), y = b.y - 8, from = { x: r.x - 30, y }, to = { x: r.x + r.width + 30, y };
+      if (r.x < 200 || r.y < 180 || r.x + r.width > s.layout.width - 200 ||
+        r.y + r.height > s.layout.height - 180 || !nav.clear(from, to)) continue;
+      s.player.cancelCast(); s.player.cancelHit(); s.player.body.reset(from.x, y - offset); s.player.body.updateFromGameObject();
+      s.physics.resume(); return { index, from, to, width: r.width, offset };
+    }
+    throw new Error('Нет свободного куста для проверки прохода');
+  });
+  await page.keyboard.down('d'); await page.waitForTimeout((arena.to.x - arena.from.x) / (220 * 2 / 3) * 1000 + 120); await page.keyboard.up('d');
+  ok(await page.evaluate(a => {
+    const s = window.__smokeGame.scene.getScene('Room');
+    return s.player.x >= a.to.x - 4 && !s.physics.overlap(s.player, s.world.obstacles);
+  }, arena), 'Настоящее движение D проходит куст насквозь: не упирается в листву и не получает коллизию');
+  await page.evaluate(a => {
+    const s = window.__smokeGame.scene.getScene('Room'), b = s.layout.bushes[a.index]; s.physics.pause();
+    s.player.body.reset(b.x, b.y + 12 - a.offset); s.player.body.updateFromGameObject();
+    s.player.actorState.facing = 'down'; s.player.updateAppearance(true);
+    s.cameraFollow.center.x = b.x; s.cameraFollow.center.y = b.y; s.cameras.main.centerOn(b.x, b.y);
+  }, arena);
+  await page.waitForTimeout(100);
+  ok(await page.evaluate(a => {
+    const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes.foliage[a.index];
+    window.__bushRenderA = new Uint8ClampedArray(window.__smokeGame.canvas.getContext('2d').getImageData(0, 0, window.__smokeGame.canvas.width, window.__smokeGame.canvas.height).data);
+    s.player.setAlpha(0);
+    return b.depth > s.player.depth && b.depth > s.player.castVisual.depth && b.depth > s.player.hitVisual.depth;
+  }, arena), 'При пересечении листва рисуется перед друидом, включая слои каста и попадания');
+  await page.waitForTimeout(80);
+  await page.evaluate(a => {
+    const s = window.__smokeGame.scene.getScene('Room');
+    window.__bushRenderB = new Uint8ClampedArray(window.__smokeGame.canvas.getContext('2d').getImageData(0, 0, window.__smokeGame.canvas.width, window.__smokeGame.canvas.height).data);
+    s.player.setAlpha(1); s.world.bushes.foliage[a.index].setVisible(false);
+  }, arena);
+  await page.waitForTimeout(80);
+  ok(await page.evaluate(a => {
+    const s = window.__smokeGame.scene.getScene('Room'), canvas = window.__smokeGame.canvas;
+    const c = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    const x = window.__bushRenderA, y = window.__bushRenderB;
+    let covered = 0;
+    for (let i = 0; i < c.length; i += 4) {
+      if (x[i] === y[i] && x[i+1] === y[i+1] && x[i+2] === y[i+2] &&
+        (x[i] !== c[i] || x[i+1] !== c[i+1] || x[i+2] !== c[i+2])) covered++;
+    }
+    s.world.bushes.foliage[a.index].setVisible(true);
+    delete window.__bushRenderA; delete window.__bushRenderB;
+    return covered > 100;
+  }, arena), 'Проверка реального Canvas: непрозрачные листья скрывают более 100 пикселей друида, а не становятся прозрачными');
+  ok(await page.evaluate(async () => {
+    const s = window.__smokeGame.scene.getScene('Room'), { isRunSave } = await import('/src/persistence/runSave.ts');
+    const save = { version: 1, savedAt: Date.now(), characterId: 'druid', layout: structuredClone(s.layout),
+      player: s.player.snapshot(), camera: { ...s.cameraFollow.center }, world: s.world.snapshot(), shots: s.acorns.snapshot() };
+    const old = structuredClone(save); delete old.layout.bushes; delete old.layout.counts.bushes;
+    const bad = structuredClone(save); bad.layout.bushes[0].variant = 8;
+    const badCount = structuredClone(save); badCount.layout.counts.bushes++;
+    return isRunSave(save) && isRunSave(old) && !isRunSave(bad) && !isRunSave(badCount);
+  }), 'Сейв сохраняет виды и позиции кустов, принимает прежний мир без них и отвергает повреждённые данные');
+  const old = await page.evaluateHandle(() => {
+    const s = window.__smokeGame.scene.getScene('Room'), world = s.world; s.scene.restart({ seed: s.layout.seed }); return world;
+  });
+  await page.waitForFunction(w => window.__smokeGame.scene.getScene('Room').world !== w, old); await old.dispose(); await waitScene('Room');
+}

@@ -27,10 +27,17 @@ export async function testMushroomInteraction(page,ok,click,waitScene) {
     }
   });
   ok(!!target&&target.withoutContact&&target.away,'Подход к свободному концу бревна позволяет собрать гриб, даже если все грибы дальше 44 единиц; контакта нет');
+  await page.waitForTimeout(80);
+  ok(await page.evaluate(()=>!window.__smokeGame.scene.getScene('Room').holdIndicator.visible),
+    'При полном здоровье E у бревна не показывается: гриб сейчас нельзя собрать');
   await page.keyboard.press('e');
   ok(await count()===start.total,'При полном здоровье гриб остаётся на бревне');
   await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').player.takeDamage(2));
   await page.waitForTimeout(450);
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room');
+    return s.holdIndicator.visible&&s.holdInteraction.progress===0&&s.world.canCollectMushroom(s.player.body.center);
+  }),'После потери HP в радиусе бревна появляется та же подсказка E, что у пня и дерева, без автоматического сбора');
   await page.keyboard.down('e');await page.waitForTimeout(80);
   ok(await count()===start.total-1&&await page.evaluate(t=>{
     const s=window.__smokeGame.scene.getScene('Room');

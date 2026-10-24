@@ -11,6 +11,8 @@ import { ROOM_ASSIGNMENTS, ROOM_SCENARIOS } from '../data/roomScenarios';
 import { roomAt, roomBounds } from '../world/rooms';
 import bearArt from '../../docs/art/bear-game-v1/animations.json';
 import insectArt from '../../docs/art/forest-fly-v2/animations.json';
+import { BUSHES } from '../data/bushes';
+import { bushVisualRect } from '../world/bushes';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -51,6 +53,14 @@ export function isRunSave(value: unknown): value is RunSave {
       s.layout.obstacles.length > 4096 || s.layout.counts?.trees !== s.layout.obstacles.length) return false;
     if (!s.layout.obstacles.every(o => o.kind === 'tree' && point(o) && Number.isInteger(o.variant) &&
       !!ENVIRONMENT_VARIANTS.tree[o.variant])) return false;
+    if(s.layout.bushes!==undefined) {
+      if(!Array.isArray(s.layout.bushes)||s.layout.bushes.length>256||s.layout.counts.bushes!==s.layout.bushes.length||
+        !s.layout.bushes.every(b=>{
+          if(!point(b)||!Number.isInteger(b.variant)||!BUSHES[b.variant])return false;
+          const r=bushVisualRect(b);
+          return r.x>=0&&r.y>=0&&r.x+r.width<=s.layout.width&&r.y+r.height<=s.layout.height;
+        }))return false;
+    }
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
         if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!(index===6&&room.scenario==='empty')))return false;

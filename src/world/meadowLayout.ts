@@ -1,6 +1,7 @@
 import { generateStump, stumpClearing, type StumpPlacement } from './stump';
 import { generateFallenLogs, logVisualRect, type FallenLogPlacement } from './fallenLogs';
 import { seededRandom } from './random';
+import { generateBushes, type BushPlacement } from './bushes';
 import { overlaps, type Rect } from './geometry';
 import { generateRooms, ritualTreeClearing, type RoomPlan } from './rooms';
 export { seededRandom } from './random';
@@ -11,7 +12,7 @@ export type ObstacleKind = EnvironmentKind;
 export interface ObstaclePlacement { kind: ObstacleKind; x: number; y: number; variant: number }
 export interface MeadowLayout {
   width: number; height: number; seed: number;
-  counts: { trees: number; logs?: number };
+  counts: { trees: number; logs?: number; bushes?: number };
   spawn: { x: number; y: number };
   obstacles: ObstaclePlacement[];
   /** Missing only in older saved runs. */
@@ -19,6 +20,8 @@ export interface MeadowLayout {
   stump?: StumpPlacement;
   /** Absent in saves created before room scenarios were introduced. */
   rooms?: RoomPlan[];
+  /** Walk-through decoration, absent only in older saves. */
+  bushes?: BushPlacement[];
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -94,6 +97,8 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       const layout:MeadowLayout={ width, height, seed, counts: { trees }, spawn, obstacles,stump,rooms };
       layout.logs=logs;
       layout.counts.logs=layout.logs.length;
+      layout.bushes=generateBushes(layout);
+      layout.counts.bushes=layout.bushes.length;
       return layout;
     }
   }

@@ -1,0 +1,165 @@
+{
+  "source": "docs/art/df05d851182e3aef99da299fb3ce8cb5.jpg",
+  "backgroundRGB": [
+    110,
+    109,
+    81
+  ],
+  "backgroundTolerance": 36,
+  "scale": 1,
+  "preservesOpaqueRGB": true,
+  "sprites": [
+    {
+      "id": "bush-0",
+      "width": 181,
+      "height": 87,
+      "anchorX": 90,
+      "anchorY": 84,
+      "sourceCrop": [
+        62,
+        32,
+        243,
+        119
+      ],
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 181,
+        "height": 87
+      }
+    },
+    {
+      "id": "bush-1",
+      "width": 130,
+      "height": 75,
+      "anchorX": 65,
+      "anchorY": 72,
+      "sourceCrop": [
+        268,
+        44,
+        398,
+        119
+      ],
+      "frame": {
+        "x": 200,
+        "y": 0,
+        "width": 130,
+        "height": 75
+      }
+    },
+    {
+      "id": "bush-2",
+      "width": 118,
+      "height": 86,
+      "anchorX": 59,
+      "anchorY": 83,
+      "sourceCrop": [
+        36,
+        188,
+        154,
+        274
+      ],
+      "frame": {
+        "x": 400,
+        "y": 0,
+        "width": 118,
+        "height": 86
+      }
+    },
+    {
+      "id": "bush-3",
+      "width": 144,
+      "height": 120,
+      "anchorX": 72,
+      "anchorY": 117,
+      "sourceCrop": [
+        176,
+        154,
+        320,
+        274
+      ],
+      "frame": {
+        "x": 600,
+        "y": 0,
+        "width": 144,
+        "height": 120
+      }
+    },
+    {
+      "id": "bush-4",
+      "width": 131,
+      "height": 91,
+      "anchorX": 65,
+      "anchorY": 88,
+      "sourceCrop": [
+        358,
+        162,
+        489,
+        253
+      ],
+      "frame": {
+        "x": 800,
+        "y": 0,
+        "width": 131,
+        "height": 91
+      }
+    },
+    {
+      "id": "bush-5",
+      "width": 137,
+      "height": 67,
+      "anchorX": 68,
+      "anchorY": 64,
+      "sourceCrop": [
+        32,
+        332,
+        169,
+        399
+      ],
+      "frame": {
+        "x": 1000,
+        "y": 0,
+        "width": 137,
+        "height": 67
+      }
+    },
+    {
+      "id": "bush-6",
+      "width": 146,
+      "height": 67,
+      "anchorX": 73,
+      "anchorY": 64,
+      "sourceCrop": [
+        176,
+        328,
+        322,
+        395
+      ],
+      "frame": {
+        "x": 1200,
+        "y": 0,
+        "width": 146,
+        "height": 67
+      }
+    },
+    {
+      "id": "bush-7",
+      "width": 181,
+      "height": 87,
+      "anchorX": 90,
+      "anchorY": 84,
+      "sourceCrop": [
+        355,
+        302,
+        536,
+        389
+      ],
+      "frame": {
+        "x": 1400,
+        "y": 0,
+        "width": 181,
+        "height": 87
+      }
+    }
+  ]
+}

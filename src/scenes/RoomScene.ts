@@ -17,6 +17,7 @@ import type { RunSave } from '../persistence/snapshots';
 import { menuMusic } from '../audio/MenuMusic';
 import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
+import { generateBushes } from '../world/bushes';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -162,7 +163,7 @@ export class RoomScene extends Phaser.Scene {
       const target=available?(ritual?.canInteract(point)?ritual:tree?.canInteract(point)?tree:undefined):undefined;
       this.holdInteraction.update(delta,target,this.interactionKey.isDown);
       this.holdIndicator.updatePosition(this.player.x,this.player.getTopLeft().y,
-        this.holdInteraction.visible,this.holdInteraction.progress);
+        this.holdInteraction.visible || (available && this.world.canCollectMushroom(point)),this.holdInteraction.progress);
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
     };
@@ -212,6 +213,8 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
+    this.layout.bushes ??= generateBushes(this.layout);
+    this.layout.counts.bushes = this.layout.bushes.length;
     // Keep generated/saved angles; mirrored log artwork is still disabled.
     this.layout.logs?.forEach(log => { log.flipX = false; });
     const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;

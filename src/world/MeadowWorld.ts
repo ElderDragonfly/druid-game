@@ -1,4 +1,5 @@
 import { Bear } from '../entities/Bear';
+import { ForestBushes } from '../rendering/ForestBushes';
 import { generateBearSpawn } from './bearPopulation';
 import { StumpRitual } from './StumpRitual';
 import { ROOM_SCENARIOS, ROOM_GRID } from '../data/roomScenarios';
@@ -36,6 +37,7 @@ export class MeadowWorld {
   readonly wolves: Wolf[] = [];
   readonly corpses: Wolf[] = [];
   readonly enemyCollisions:EnemyCollisions;
+  readonly bushes:ForestBushes;
   private logArt: Phaser.GameObjects.Image[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
@@ -47,6 +49,7 @@ export class MeadowWorld {
     const surface = this.drawFloor();
     this.floor = surface.floor;
     this.grass = new GrassForeground(scene, surface.raster);
+    this.bushes = new ForestBushes(scene, layout.bushes ?? []);
     this.enemyCollisions=new EnemyCollisions(scene);
     if(layout.rooms) {
       this.roomGrid=scene.add.graphics().setName('room-grid').setDepth(-.5);
@@ -126,18 +129,28 @@ export class MeadowWorld {
   /** The log is the interaction target; mushroom sprite positions never limit reach. */
   collectMushroom(point: Point) {
     if (!this.player || this.player.dead || this.player.actorState.health>=this.player.actorState.maxHealth) return false;
-    let logIndex = -1, distance: number = FALLEN_LOG_GENERATION.interactionRadius;
-    (this.layout.logs ?? []).forEach((log, index) => {
-      if (!log.mushrooms.length) return;
-      const current = distanceToLog(log,point);
-      if (current <= distance) { distance=current; logIndex=index; }
-    });
+    const logIndex = this.nearbyMushroomLog(point);
     if (logIndex < 0) return false;
     if(!this.player.heal(ROOM_SCENARIOS.mushroomHealing))return false;
     const mushroom = this.layout.logs![logIndex].mushrooms.shift()!;
     const imageIndex = this.logArt.findIndex(image=>image.getData('logIndex')===logIndex&&image.getData('mushroomSlot')===mushroom.slot);
     if (imageIndex >= 0) this.logArt.splice(imageIndex,1)[0].destroy();
     return true;
+  }
+
+  canCollectMushroom(point: Point) {
+    return !!this.player && !this.player.dead && this.player.actorState.health < this.player.actorState.maxHealth &&
+      this.nearbyMushroomLog(point) >= 0;
+  }
+
+  private nearbyMushroomLog(point: Point) {
+    let logIndex = -1, distance: number = FALLEN_LOG_GENERATION.interactionRadius;
+    (this.layout.logs ?? []).forEach((log, index) => {
+      if (!log.mushrooms.length) return;
+      const current = distanceToLog(log,point);
+      if (current <= distance) { distance=current; logIndex=index; }
+    });
+    return logIndex;
   }
 
   noticeProjectile(from: Point,to: Point) {
@@ -155,6 +168,7 @@ export class MeadowWorld {
 
   updateGrass(footX: number, footY: number, depth: number) {
     this.grass.update(footX, footY, depth);
+    if (this.player) this.bushes.update(this.player.getBounds(), depth);
   }
 
   update(delta: number) {
@@ -185,6 +199,7 @@ export class MeadowWorld {
     this.logArt.forEach(image=>image.destroy());this.logArt=[];
     this.floor.destroy();
     this.grass.destroy();
+    this.bushes.destroy();
     this.ritual?.destroy();
     this.cleansing?.destroy();
     this.bear?.destroy();

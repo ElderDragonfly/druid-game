@@ -1,4 +1,5 @@
 import { BEAR_ART,prepareBearTextures } from '../rendering/bearArt';
+import { BUSH_ART,prepareBushTextures } from '../rendering/bushArt';
 import stump from '../../docs/art/ritual-stump-v1/stump.png';
 import { STUMP } from '../data/stump';
 import Phaser from 'phaser';
@@ -38,7 +39,7 @@ export class BootScene extends Phaser.Scene {
     });
     this.load.once('loaderror', () => { this.failed = true; });
     this.load.image(STUMP.texture,stump);
-    [...CLEANSING_TREE_ART,...INSECT_ART,...BEAR_ART].forEach(art=>this.load.image(art.key,art.url));
+    [...CLEANSING_TREE_ART,...INSECT_ART,...BEAR_ART,...BUSH_ART].forEach(art=>this.load.image(art.key,art.url));
     this.load.audio(MENU_MUSIC.key, MENU_MUSIC.urls);
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));
     ACORN_ART.forEach(art => this.load.image(art.key, art.url));
@@ -68,6 +69,7 @@ export class BootScene extends Phaser.Scene {
     prepareWolfTextures(this);
     prepareInsectTextures(this);
     prepareBearTextures(this);
+    prepareBushTextures(this);
     CLEANSING_TREE_ART.forEach(art=>this.textures.get(art.key).setFilter(Phaser.Textures.FilterMode.NEAREST));
     prepareAcornTextures(this);
     this.scene.start(SCENES.mainMenu);

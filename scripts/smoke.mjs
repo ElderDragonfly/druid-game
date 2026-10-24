@@ -1,4 +1,5 @@
 import { testStump } from './stump-smoke.mjs';
+import { testBushes } from './bushes-smoke.mjs';
 import { testInsectFlight, testAirborneAcorn } from './insect-flight-smoke.mjs';
 import { testInsectNavigationAndHit } from './insect-navigation-hit-smoke.mjs';
 import { testEnemyCollisions } from './enemy-collision-smoke.mjs';
@@ -362,6 +363,7 @@ try {
   await waitScene('Room');
 
   await testFallenLogs(page,ok);
+  await testBushes(page,ok,waitScene);
   await testMushroomInteraction(page,ok,clickNamed,waitScene);
   await testStump(page,ok,clickNamed,waitScene);
   await testRoomScenarios(page,ok,clickNamed,waitScene);
