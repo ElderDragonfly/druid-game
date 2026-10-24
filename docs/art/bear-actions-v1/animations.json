@@ -1,0 +1,390 @@
+{
+  "run": {
+    "animation": "run",
+    "direction": "left-three-quarter",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "groundY": 80,
+    "frames": 8,
+    "sourcePoseSequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "durationsMs": [
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100
+    ],
+    "cycleMs": 800,
+    "contactFrame": null,
+    "source": "run-source.png",
+    "registrations": [
+      {
+        "sourcePose": 0,
+        "translation": [
+          29,
+          19
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 1,
+        "translation": [
+          -50,
+          19
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 2,
+        "translation": [
+          -131,
+          19
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 3,
+        "translation": [
+          -211,
+          19
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 4,
+        "translation": [
+          28,
+          -43
+        ],
+        "groundClearance": 6
+      },
+      {
+        "sourcePose": 5,
+        "translation": [
+          -53,
+          -43
+        ],
+        "groundClearance": 1
+      },
+      {
+        "sourcePose": 6,
+        "translation": [
+          -133,
+          -43
+        ],
+        "groundClearance": 1
+      },
+      {
+        "sourcePose": 7,
+        "translation": [
+          -212,
+          -43
+        ],
+        "groundClearance": 0
+      }
+    ]
+  },
+  "swipe": {
+    "animation": "swipe",
+    "direction": "left-three-quarter",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "groundY": 80,
+    "frames": 8,
+    "sourcePoseSequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      0
+    ],
+    "durationsMs": [
+      350,
+      130,
+      180,
+      70,
+      70,
+      100,
+      140,
+      260
+    ],
+    "cycleMs": 1300,
+    "contactFrame": 4,
+    "source": "swipe-source.png",
+    "registrations": [
+      {
+        "sourcePose": 0,
+        "translation": [
+          20,
+          12
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 1,
+        "translation": [
+          -72,
+          13
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 2,
+        "translation": [
+          -161,
+          13
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 3,
+        "translation": [
+          -251,
+          11
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 4,
+        "translation": [
+          15,
+          -58
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 5,
+        "translation": [
+          -72,
+          -58
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 6,
+        "translation": [
+          -162,
+          -59
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 0,
+        "translation": [
+          20,
+          12
+        ],
+        "groundClearance": 0
+      }
+    ]
+  },
+  "bite": {
+    "animation": "bite",
+    "direction": "left-three-quarter",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "groundY": 80,
+    "frames": 8,
+    "sourcePoseSequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      0
+    ],
+    "durationsMs": [
+      350,
+      140,
+      160,
+      70,
+      80,
+      110,
+      140,
+      250
+    ],
+    "cycleMs": 1300,
+    "contactFrame": 4,
+    "source": "bite-source.png",
+    "registrations": [
+      {
+        "sourcePose": 0,
+        "translation": [
+          25,
+          16
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 1,
+        "translation": [
+          -64,
+          16
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 2,
+        "translation": [
+          -153,
+          16
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 3,
+        "translation": [
+          -240,
+          16
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 4,
+        "translation": [
+          12,
+          -53
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 5,
+        "translation": [
+          -68,
+          -53
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 6,
+        "translation": [
+          -150,
+          -53
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 0,
+        "translation": [
+          25,
+          16
+        ],
+        "groundClearance": 0
+      }
+    ]
+  },
+  "slam": {
+    "animation": "slam",
+    "direction": "left-three-quarter",
+    "frameWidth": 128,
+    "frameHeight": 96,
+    "groundY": 80,
+    "frames": 8,
+    "sourcePoseSequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      0
+    ],
+    "durationsMs": [
+      400,
+      160,
+      200,
+      180,
+      80,
+      120,
+      180,
+      300
+    ],
+    "cycleMs": 1620,
+    "contactFrame": 5,
+    "source": "slam-source.png",
+    "registrations": [
+      {
+        "sourcePose": 0,
+        "translation": [
+          21,
+          10
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 1,
+        "translation": [
+          -68,
+          11
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 2,
+        "translation": [
+          -156,
+          12
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 3,
+        "translation": [
+          -242,
+          12
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 4,
+        "translation": [
+          18,
+          -57
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 5,
+        "translation": [
+          -67,
+          -57
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 6,
+        "translation": [
+          -154,
+          -56
+        ],
+        "groundClearance": 0
+      },
+      {
+        "sourcePose": 0,
+        "translation": [
+          21,
+          10
+        ],
+        "groundClearance": 0
+      }
+    ]
+  }
+}

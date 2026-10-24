@@ -1,0 +1,97 @@
+{
+  "animation": "swipe",
+  "direction": "left-three-quarter",
+  "frameWidth": 128,
+  "frameHeight": 96,
+  "groundY": 80,
+  "frames": 8,
+  "sourcePoseSequence": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    0
+  ],
+  "durationsMs": [
+    350,
+    130,
+    180,
+    70,
+    70,
+    100,
+    140,
+    260
+  ],
+  "cycleMs": 1300,
+  "contactFrame": 4,
+  "source": "swipe-source.png",
+  "registrations": [
+    {
+      "sourcePose": 0,
+      "translation": [
+        20,
+        12
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 1,
+      "translation": [
+        -72,
+        13
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 2,
+      "translation": [
+        -161,
+        13
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 3,
+      "translation": [
+        -251,
+        11
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 4,
+      "translation": [
+        15,
+        -58
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 5,
+      "translation": [
+        -72,
+        -58
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 6,
+      "translation": [
+        -162,
+        -59
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 0,
+      "translation": [
+        20,
+        12
+      ],
+      "groundClearance": 0
+    }
+  ]
+}

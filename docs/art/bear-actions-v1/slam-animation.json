@@ -1,0 +1,97 @@
+{
+  "animation": "slam",
+  "direction": "left-three-quarter",
+  "frameWidth": 128,
+  "frameHeight": 96,
+  "groundY": 80,
+  "frames": 8,
+  "sourcePoseSequence": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    0
+  ],
+  "durationsMs": [
+    400,
+    160,
+    200,
+    180,
+    80,
+    120,
+    180,
+    300
+  ],
+  "cycleMs": 1620,
+  "contactFrame": 5,
+  "source": "slam-source.png",
+  "registrations": [
+    {
+      "sourcePose": 0,
+      "translation": [
+        21,
+        10
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 1,
+      "translation": [
+        -68,
+        11
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 2,
+      "translation": [
+        -156,
+        12
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 3,
+      "translation": [
+        -242,
+        12
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 4,
+      "translation": [
+        18,
+        -57
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 5,
+      "translation": [
+        -67,
+        -57
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 6,
+      "translation": [
+        -154,
+        -56
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 0,
+      "translation": [
+        21,
+        10
+      ],
+      "groundClearance": 0
+    }
+  ]
+}

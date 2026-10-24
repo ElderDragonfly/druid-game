@@ -1,0 +1,97 @@
+{
+  "animation": "run",
+  "direction": "left-three-quarter",
+  "frameWidth": 128,
+  "frameHeight": 96,
+  "groundY": 80,
+  "frames": 8,
+  "sourcePoseSequence": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "durationsMs": [
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100
+  ],
+  "cycleMs": 800,
+  "contactFrame": null,
+  "source": "run-source.png",
+  "registrations": [
+    {
+      "sourcePose": 0,
+      "translation": [
+        29,
+        19
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 1,
+      "translation": [
+        -50,
+        19
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 2,
+      "translation": [
+        -131,
+        19
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 3,
+      "translation": [
+        -211,
+        19
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 4,
+      "translation": [
+        28,
+        -43
+      ],
+      "groundClearance": 6
+    },
+    {
+      "sourcePose": 5,
+      "translation": [
+        -53,
+        -43
+      ],
+      "groundClearance": 1
+    },
+    {
+      "sourcePose": 6,
+      "translation": [
+        -133,
+        -43
+      ],
+      "groundClearance": 1
+    },
+    {
+      "sourcePose": 7,
+      "translation": [
+        -212,
+        -43
+      ],
+      "groundClearance": 0
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "animation": "bite",
+  "direction": "left-three-quarter",
+  "frameWidth": 128,
+  "frameHeight": 96,
+  "groundY": 80,
+  "frames": 8,
+  "sourcePoseSequence": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    0
+  ],
+  "durationsMs": [
+    350,
+    140,
+    160,
+    70,
+    80,
+    110,
+    140,
+    250
+  ],
+  "cycleMs": 1300,
+  "contactFrame": 4,
+  "source": "bite-source.png",
+  "registrations": [
+    {
+      "sourcePose": 0,
+      "translation": [
+        25,
+        16
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 1,
+      "translation": [
+        -64,
+        16
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 2,
+      "translation": [
+        -153,
+        16
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 3,
+      "translation": [
+        -240,
+        16
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 4,
+      "translation": [
+        12,
+        -53
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 5,
+      "translation": [
+        -68,
+        -53
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 6,
+      "translation": [
+        -150,
+        -53
+      ],
+      "groundClearance": 0
+    },
+    {
+      "sourcePose": 0,
+      "translation": [
+        25,
+        16
+      ],
+      "groundClearance": 0
+    }
+  ]
+}
