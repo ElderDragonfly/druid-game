@@ -1,10 +1,10 @@
 /** Walk-through scenery, actor visibility, seeded placement and save validation. */
 export async function testBushes(page, ok, waitScene) {
   ok(await page.evaluate(async () => {
-    const { generateMeadow, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
+    const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
     const { bushVisualRect, generateBushes } = await import('/src/world/bushes.ts');
     const { stumpClearing } = await import('/src/world/stump.ts');
-    const { ritualTreeClearing } = await import('/src/world/rooms.ts');
+    const { ritualTreeClearing, roomBounds } = await import('/src/world/rooms.ts');
     const { logVisualRect } = await import('/src/world/fallenLogs.ts');
     const variants = new Set(), counts = new Set();
     for (let seed = 0; seed < 200; seed++) {
@@ -12,17 +12,18 @@ export async function testBushes(page, ok, waitScene) {
       if (bushes.length < 24 || bushes.length > 36 || bushes.length >= l.counts.trees ||
         l.counts.bushes !== bushes.length || JSON.stringify(bushes) !== JSON.stringify(generateBushes(l))) return false;
       counts.add(bushes.length);
-      const reserved = [stumpClearing(l.stump), ...l.obstacles.map(obstacleVisualRect),
+      const room = roomBounds(l, 3);
+      const reserved = [stumpClearing(l.stump), ...l.obstacles.map(obstacleRect),
         ...l.logs.map(logVisualRect), ...l.rooms.flatMap(r => r.tree ? [ritualTreeClearing(r.tree)] : []),
         { x: l.spawn.x - 80, y: l.spawn.y - 100, width: 160, height: 180 }];
       for (const [i, b] of bushes.entries()) {
         variants.add(b.variant); const r = bushVisualRect(b);
-        if (r.x < 0 || r.y < 0 || r.x + r.width > l.width || r.y + r.height > l.height ||
+        if (r.x < room.x + 12 || r.y < room.y + 12 || r.x + r.width > room.x + room.width - 12 || r.y + r.height > room.y + room.height - 12 ||
           reserved.some(a => overlaps(r, a, 18)) || bushes.slice(0, i).some(a => overlaps(r, bushVisualRect(a), 18))) return false;
       }
     }
     return variants.size === 8 && counts.size === 13;
-  }), '200 seed: 24–36 проходимых кустов из всех 8 видов, меньше деревьев; свободны старт, пень, брёвна, кроны и площадка очищения');
+  }), '200 seed: все 24–36 кустов из 8 видов целиком в левой средней комнате; отступ от границ 12, от стволов и соседних кустов 18');
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
     return b.foliage.length === s.layout.bushes.length &&
@@ -101,8 +102,25 @@ export async function testBushes(page, ok, waitScene) {
     const old = structuredClone(save); delete old.layout.bushes; delete old.layout.counts.bushes;
     const bad = structuredClone(save); bad.layout.bushes[0].variant = 8;
     const badCount = structuredClone(save); badCount.layout.counts.bushes++;
-    return isRunSave(save) && isRunSave(old) && !isRunSave(bad) && !isRunSave(badCount);
+    const scattered = structuredClone(save); scattered.layout.bushes[0].x = save.layout.spawn.x; scattered.layout.bushes[0].y = save.layout.spawn.y;
+    window.__scatteredBushSave = scattered;
+    window.__bushMigrationBefore = { trees: JSON.stringify(save.layout.obstacles), logs: JSON.stringify(save.layout.logs), health: save.player.state.health };
+    return isRunSave(save) && isRunSave(old) && isRunSave(scattered) && !isRunSave(bad) && !isRunSave(badCount);
   }), 'Сейв сохраняет виды и позиции кустов, принимает прежний мир без них и отвергает повреждённые данные');
+  const previous = await page.evaluateHandle(() => {
+    const s = window.__smokeGame.scene.getScene('Room'), player = s.player;
+    s.scene.restart({ savedRun: window.__scatteredBushSave }); return player;
+  });
+  await page.waitForFunction(p => window.__smokeGame.scene.getScene('Room').player !== p, previous); await previous.dispose(); await waitScene('Room');
+  ok(await page.evaluate(async () => {
+    const s = window.__smokeGame.scene.getScene('Room'), before = window.__bushMigrationBefore;
+    const { generateBushes, bushInSpawnRoom } = await import('/src/world/bushes.ts');
+    const result = s.layout.bushes.every(b => bushInSpawnRoom(s.layout, b)) &&
+      JSON.stringify(s.layout.bushes) === JSON.stringify(generateBushes(s.layout)) &&
+      JSON.stringify(s.layout.obstacles) === before.trees &&
+      JSON.stringify(s.layout.logs) === before.logs && s.playerHealth === before.health;
+    delete window.__scatteredBushSave; delete window.__bushMigrationBefore; return result;
+  }), 'Продолжение старого забега переносит разбросанные кусты в левую среднюю комнату, сохраняя деревья, грибы и HP');
   const old = await page.evaluateHandle(() => {
     const s = window.__smokeGame.scene.getScene('Room'), world = s.world; s.scene.restart({ seed: s.layout.seed }); return world;
   });

@@ -17,7 +17,7 @@ import type { RunSave } from '../persistence/snapshots';
 import { menuMusic } from '../audio/MenuMusic';
 import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
-import { generateBushes } from '../world/bushes';
+import { bushInSpawnRoom, generateBushes } from '../world/bushes';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -213,7 +213,8 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
-    this.layout.bushes ??= generateBushes(this.layout);
+    if (!this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush)))
+      this.layout.bushes = generateBushes(this.layout);
     this.layout.counts.bushes = this.layout.bushes.length;
     // Keep generated/saved angles; mirrored log artwork is still disabled.
     this.layout.logs?.forEach(log => { log.flipX = false; });
