@@ -168,7 +168,6 @@ export class MeadowWorld {
 
   updateGrass(footX: number, footY: number, depth: number) {
     this.grass.update(footX, footY, depth);
-    if (this.player) this.bushes.update(this.player.getBounds(), depth);
   }
 
   update(delta: number) {

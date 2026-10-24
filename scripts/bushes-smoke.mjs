@@ -1,4 +1,4 @@
-/** Walk-through foliage, native occlusion, seeded placement and save validation. */
+/** Walk-through scenery, actor visibility, seeded placement and save validation. */
 export async function testBushes(page, ok, waitScene) {
   ok(await page.evaluate(async () => {
     const { generateMeadow, obstacleVisualRect, overlaps } = await import('/src/world/meadowLayout.ts');
@@ -60,8 +60,9 @@ export async function testBushes(page, ok, waitScene) {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes.foliage[a.index];
     window.__bushRenderA = new Uint8ClampedArray(window.__smokeGame.canvas.getContext('2d').getImageData(0, 0, window.__smokeGame.canvas.width, window.__smokeGame.canvas.height).data);
     s.player.setAlpha(0);
-    return b.depth > s.player.depth && b.depth > s.player.castVisual.depth && b.depth > s.player.hitVisual.depth;
-  }, arena), 'При пересечении листва рисуется перед друидом, включая слои каста и попадания');
+    return b.depth > s.children.getByName('forest-floor').depth &&
+      b.depth < s.player.depth && b.depth < s.player.castVisual.depth && b.depth < s.player.hitVisual.depth;
+  }, arena), 'Кусты находятся над землёй, но под друидом, включая слои каста и попадания');
   await page.waitForTimeout(80);
   await page.evaluate(a => {
     const s = window.__smokeGame.scene.getScene('Room');
@@ -73,15 +74,25 @@ export async function testBushes(page, ok, waitScene) {
     const s = window.__smokeGame.scene.getScene('Room'), canvas = window.__smokeGame.canvas;
     const c = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
     const x = window.__bushRenderA, y = window.__bushRenderB;
+    const bush = s.world.bushes.foliage[a.index], frame = bush.frame, camera = s.cameras.main;
+    const mask = document.createElement('canvas'); mask.width = frame.width; mask.height = frame.height;
+    const ctx = mask.getContext('2d');
+    ctx.drawImage(bush.texture.getSourceImage(), frame.cutX, frame.cutY, frame.width, frame.height, 0, 0, frame.width, frame.height);
+    const alpha = ctx.getImageData(0, 0, frame.width, frame.height).data;
+    const bounds = bush.getBounds();
     let covered = 0;
     for (let i = 0; i < c.length; i += 4) {
-      if (x[i] === y[i] && x[i+1] === y[i+1] && x[i+2] === y[i+2] &&
-        (x[i] !== c[i] || x[i+1] !== c[i+1] || x[i+2] !== c[i+2])) covered++;
+      const screenX = i / 4 % canvas.width, screenY = Math.floor(i / 4 / canvas.width);
+      const px = Math.floor((camera.worldView.x + (screenX - camera.x) / camera.zoom - bounds.x) / bush.scaleX);
+      const py = Math.floor((camera.worldView.y + (screenY - camera.y) / camera.zoom - bounds.y) / bush.scaleY);
+      if (px < 0 || py < 0 || px >= frame.width || py >= frame.height || !alpha[(py * frame.width + px) * 4 + 3]) continue;
+      if (x[i] === c[i] && x[i+1] === c[i+1] && x[i+2] === c[i+2] &&
+        (x[i] !== y[i] || x[i+1] !== y[i+1] || x[i+2] !== y[i+2])) covered++;
     }
     s.world.bushes.foliage[a.index].setVisible(true);
     delete window.__bushRenderA; delete window.__bushRenderB;
     return covered > 100;
-  }, arena), 'Проверка реального Canvas: непрозрачные листья скрывают более 100 пикселей друида, а не становятся прозрачными');
+  }, arena), 'Проверка реального Canvas: более 100 пикселей друида видны поверх непрозрачной части куста');
   ok(await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'), { isRunSave } = await import('/src/persistence/runSave.ts');
     const save = { version: 1, savedAt: Date.now(), characterId: 'druid', layout: structuredClone(s.layout),
