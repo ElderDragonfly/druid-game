@@ -1,0 +1,92 @@
+{
+  "animation": "walk",
+  "direction": "left-three-quarter",
+  "frameWidth": 96,
+  "frameHeight": 80,
+  "frames": 8,
+  "durationsMs": [
+    160,
+    160,
+    160,
+    160,
+    160,
+    160,
+    160,
+    160
+  ],
+  "cycleMs": 1280,
+  "groundY": 72,
+  "torsoAnchorX": 52,
+  "sourceSheet": "walk-source.png",
+  "designReference": "../7f3bc9083f8614b16f7bdff957d5eb17.jpg",
+  "motionReferences": [
+    "../08f30658094e60df6fabc4dd417168c3.jpg",
+    "../abd1f9552d1a3b5fd43d3a521295b800.jpg"
+  ],
+  "registrations": [
+    {
+      "sourceCell": 0,
+      "translation": [
+        13,
+        2
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 1,
+      "translation": [
+        13,
+        2
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 2,
+      "translation": [
+        15,
+        2
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 3,
+      "translation": [
+        14,
+        2
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 4,
+      "translation": [
+        12,
+        14
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 5,
+      "translation": [
+        14,
+        13
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 6,
+      "translation": [
+        15,
+        13
+      ],
+      "groundY": 72
+    },
+    {
+      "sourceCell": 7,
+      "translation": [
+        14,
+        13
+      ],
+      "groundY": 72
+    }
+  ]
+}
