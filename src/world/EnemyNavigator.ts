@@ -1,9 +1,8 @@
 import type { WolfNavigation, WolfPoint } from './WolfNavigation';
 import { overlaps, type Rect } from './geometry';
-import { FOREST_INSECT } from '../data/forestInsect';
 
 /** Retains obstacle waypoints; the decorative wave never replaces a detour. */
-export class InsectNavigator {
+export class EnemyNavigator {
   private path:WolfPoint[]=[];
   private goal?:WolfPoint;
   private age=Infinity;
@@ -13,7 +12,7 @@ export class InsectNavigator {
   private peers:()=>readonly Rect[]=()=>[];
   detouring=false;
 
-  constructor(private readonly navigation:WolfNavigation){}
+  constructor(private readonly navigation:WolfNavigation,private readonly footprint:{width:number;height:number}){}
   setPeers(read:()=>readonly Rect[]){this.peers=read;}
   invalidate(){this.path=[];this.goal=undefined;this.age=Infinity;this.previous=undefined;this.blockedMs=0;}
   nearPeer(p:WolfPoint){return this.peers().some(r=>Math.hypot(r.x+r.width/2-p.x,r.y+r.height-p.y)<80);}
@@ -51,7 +50,7 @@ export class InsectNavigator {
     const safe=(dx:number,dy:number)=>{
       for(let n=0,steps=Math.max(1,Math.ceil(distance/4));n<=steps;n++) {
         const x=position.x+dx*distance*n/steps,y=position.y+dy*distance*n/steps;
-        const {width,height}=FOREST_INSECT.body,foot={x:x-width/2,y:y-height,width,height};
+        const {width,height}=this.footprint,foot={x:x-width/2,y:y-height,width,height};
         if(peers.some(r=>overlaps(foot,r,-.05)))return false;
       }
       return this.navigation.clear(position,{x:position.x+dx*distance,y:position.y+dy*distance},-.05);

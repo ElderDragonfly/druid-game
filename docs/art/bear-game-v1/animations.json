@@ -1,0 +1,94 @@
+{
+  "frameWidth": 160,
+  "frameHeight": 128,
+  "feetX": 80,
+  "feetY": 100,
+  "animations": {
+    "sleep": {
+      "frames": 4,
+      "durations": [
+        1000,
+        800,
+        1000,
+        800
+      ]
+    },
+    "walk": {
+      "frames": 8,
+      "durations": [
+        160,
+        160,
+        160,
+        160,
+        160,
+        160,
+        160,
+        160
+      ]
+    },
+    "run": {
+      "frames": 8,
+      "durations": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ]
+    },
+    "swipe": {
+      "frames": 8,
+      "durations": [
+        350,
+        130,
+        180,
+        70,
+        70,
+        100,
+        140,
+        260
+      ],
+      "impactMs": 730
+    },
+    "bite": {
+      "frames": 8,
+      "durations": [
+        350,
+        140,
+        160,
+        70,
+        80,
+        110,
+        140,
+        250
+      ],
+      "impactMs": 720
+    },
+    "slam": {
+      "frames": 8,
+      "durations": [
+        400,
+        160,
+        200,
+        180,
+        80,
+        120,
+        180,
+        300
+      ],
+      "impactMs": 1020
+    },
+    "wake": {
+      "frames": 4,
+      "durations": [
+        180,
+        200,
+        220,
+        200
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import type defaults from './entities.json';
 
 export type EntityData = typeof defaults;
-export type EntityId = 'druid' | 'wolf' | 'mouse' | 'forestInsect';
+export type EntityId = 'druid' | 'wolf' | 'mouse' | 'forestInsect' | 'bear';
 export interface EntityField {
   entity: EntityId; path: string; label: string; group: string;
   min: number; max: number; step: number; unit: string; help: string; integer?: boolean;
@@ -25,6 +25,11 @@ field('forestInsect','health','Максимум здоровья','Характ�
 field('forestInsect','walkSpeed','Скорость прогулки','Характеристики',0,4,.1,'×','1 = 146⅔ единиц/с.');
 field('forestInsect','runSpeed','Скорость погони','Характеристики',0,4,.1,'×','1 = базовая скорость друида; взмахи при движении следуют пройденной дистанции.');
 field('forestInsect','damage','Урон атаки','Атака',0,10,1,'HP','Урон один раз на активной фазе удара хвостом.',true);
+field('bear','health','Максимум здоровья','Характеристики',1,100,1,'HP','Спящий медведь в нижней левой комнате. Погибший медведь не оживает.',true);
+field('bear','walkSpeed','Скорость ходьбы','Характеристики',0,4,.1,'×','1 = 146⅔ единиц/с; темп шагов следует пройденному расстоянию.');
+field('bear','runSpeed','Скорость бега','Характеристики',0,4,.1,'×','Бег после начального периода ходьбы.');
+field('bear','damage','Урон атаки','Атака',0,10,1,'HP','Каждая из трёх атак наносит урон один раз в момент контакта.',true);
+field('bear','walkMs','Ходьба после пробуждения','Поведение',0,20000,.1,'мс','Начальный период до перехода к бегу; 0 сразу включает бег.');
 for (const entity of ['wolf', 'mouse'] as const) {
   const help=entity==='wolf'?'Свободная популяция для старых забегов. В новых комнатах количество задаёт сценарий: 3–4 волка в нижней правой.':'Случайное число на всю локацию, без квот по экранам. Только при новой генерации.';
   field(entity, 'population.min', 'Минимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', help, true);

@@ -1,3 +1,4 @@
+import { BEAR_ART,BEAR_METRICS,bearDurations,type BearAnimation } from '../rendering/bearArt';
 import { DRUID_ART } from '../rendering/druidArt';
 import { DRUID_CAST_ART, CAST_METRICS } from '../rendering/druidCastArt';
 import { DRUID_HIT_ART, HIT_METRICS } from '../rendering/druidHitArt';
@@ -16,6 +17,7 @@ export const ANIMATIONS: Record<EntityId, [string, string][]> = {
   druid: [['idle', 'Стоит'], ['walk', 'Ходьба'], ['cast', 'Каст'], ['hit', 'Попадание']],
   wolf: [['idle', 'Стоит'], ['walk', 'Прогулка'], ['run', 'Погоня'], ['attack-down', 'Укус вниз'], ['attack-up', 'Укус вверх'], ['death', 'Смерть']],
   mouse: [['run', 'Пробежка'], ['rise', 'Поднимается'], ['look', 'Осматривается'], ['lower', 'Опускается']],
+  bear:[['sleep','Спит'],['wake','Просыпается'],['walk','Ходьба'],['run','Бег'],['swipe','Удар лапой'],['bite','Укус'],['slam','Две лапы']],
   forestInsect:[['idle','Парит'],['run','Преследование'],['attack','Атака'],['death','Смерть']],
 };
 const idleKeys: Record<Facing, string> = { down: 'druid-game-source', up: 'druid-back-source', left: 'druid-left-source', right: 'druid-right-source',
@@ -60,6 +62,14 @@ export class SpritePreview {
       return { url: WOLF_ART.find(a => a.key === `wolf-${state}`)!.url,
         shadow: WOLF_ART.find(a => a.key === `wolf-${state}-shadow`)!.url,
         width: 128, height: 112, footY: 100, scale: 2.4, durations };
+    }
+    if(this.entity==='bear'){
+      const animation=this.animation as BearAnimation;
+      let durations=bearDurations(animation);
+      if(animation==='walk')durations=durations.map(ms=>ms*.6/data.bear.walkSpeed);
+      if(animation==='run')durations=durations.map(ms=>ms*.8/data.bear.runSpeed);
+      return {url:BEAR_ART.find(a=>a.key===`bear-${animation}-${direction}`)!.url,
+        width:BEAR_METRICS.width,height:BEAR_METRICS.height,footY:BEAR_METRICS.feetY,scale:2.7,durations};
     }
     if(this.entity==='forestInsect') {
       const animation:InsectAnimation=this.animation==='attack'?'attack':this.animation==='death'?'death':'fly';

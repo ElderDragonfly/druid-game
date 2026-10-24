@@ -7,6 +7,6 @@ export async function isolateSingleWolf(page) {
   });
   await page.waitForFunction(()=>{
     const s=window.__smokeGame.scene.getScene('Room');
-    return s.physics.world.colliders.getActive().length===s.world.mice.length+4;
+    return s.physics.world.colliders.getActive().length===s.world.mice.length+4+(s.world.bear&&!s.world.bear.dying?2:0);
   });
 }

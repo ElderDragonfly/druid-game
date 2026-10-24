@@ -1,10 +1,10 @@
 /** Scenario content is separate from the creatures' base combat statistics. */
 export const ROOM_GRID = { columns: 3, rows: 3 } as const;
-export type RoomScenarioId = 'empty' | 'wolves' | 'cleansing-tree';
+export type RoomScenarioId = 'empty' | 'wolves' | 'cleansing-tree' | 'bear';
 export const ROOM_ASSIGNMENTS: readonly RoomScenarioId[] = [
   'empty', 'empty', 'empty',
   'empty', 'empty', 'empty',
-  'empty', 'cleansing-tree', 'wolves',
+  'bear', 'cleansing-tree', 'wolves',
 ];
 export const ROOM_SCENARIOS = {
   wolves: { wolves: { min: 3, max: 4 }, logs: { min: 1, max: 2 }, mushrooms: { min: 0, max: 2 } },

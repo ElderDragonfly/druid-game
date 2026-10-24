@@ -13,7 +13,7 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
     for(let seed=0;seed<100;seed++) {
       const l=generateMeadow(seed),room=l.rooms[7],area=ritualTreeClearing(room.tree),nav=new WolfNavigation(l);
       if(l.rooms.length!==9||l.rooms[4].scenario!=='empty'||l.rooms[8].scenario!=='wolves'||room.scenario!=='cleansing-tree')return false;
-      if(l.rooms.filter(r=>r.scenario==='empty').length!==7||roomAt(l,l.stump)!==4)return false;
+      if(l.rooms.filter(r=>r.scenario==='empty').length!==6||l.rooms[6].scenario!=='bear'||roomAt(l,l.stump)!==4)return false;
       if(l.logs.length<1||l.logs.length>2||l.logs.some(g=>roomAt(l,g)!==8))return false;
       const amount=l.logs.reduce((n,g)=>n+g.mushrooms.length,0);mushrooms.add(amount);if(amount>2)return false;
       const wolves=generateWolfPopulation(nav);counts.add(wolves.length);

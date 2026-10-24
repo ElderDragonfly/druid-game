@@ -104,9 +104,19 @@ try {
   const freshGame=await context.newPage();await freshGame.goto(base);
   await freshGame.waitForFunction(async()=>{const {entityData}=await import('/src/data/entityBalance.ts');return entityData.druid.health===5&&entityData.druid.speed===.8;});
   ok(true,'Новая вкладка игры загружает сохранённый баланс, не старый кеш');await freshGame.close();
+  await choose('bear');
+  await game.evaluate(()=>{window.__game.scene.getScene('Room').world.bear.actorState.health=4;});
+  await fill('health',7);await fill('walkSpeed',.4);await fill('runSpeed',.7);await fill('damage',0);await fill('walkMs',3000);
+  await editor.locator('#save').click();
+  await game.waitForFunction(()=>{
+    const b=window.__game.scene.getScene('Room').world.bear,s=b.actorState;
+    return s.maxHealth===7&&s.health===6&&Math.abs(s.walkSpeed-220*2/3*.4)<.001&&Math.abs(s.runSpeed-220*2/3*.7)<.001&&b.definition.damage===0&&b.definition.walkMs===3000;
+  });
+  ok(true,'Карточка медведя сохраняет 0,4/0,7, HP с потерями, нулевой урон и время ходьбы; текущий медведь обновляется без рестарта');
+  baseline=await read();await choose('druid');
   const other=await context.newPage();await other.goto(`${base}/editor.html`);await other.waitForFunction(()=>document.querySelector('#status').textContent.includes('загружены'));
   ok(Number(await other.locator('[name="speed"]').inputValue())===.8,'Новая вкладка редактора читает сохранённые значения');
-  for(const id of ['druid','wolf','mouse','forestInsect']) {
+  for(const id of ['druid','wolf','mouse','forestInsect','bear']) {
     await choose(id);
     const options=await editor.locator('#animation option').evaluateAll(list=>list.map(o=>o.value));
     const directions=await editor.locator('#direction option').evaluateAll(list=>list.map(o=>o.value));
@@ -148,7 +158,7 @@ try {
   for(const [mutate,label] of [
     [d=>d.druid.health=1.5,'Дробное HP'],[d=>d.mouse.population.min=25,'Неверный диапазон'],
     [d=>d.wolf.behavior.impactMs=d.wolf.behavior.attackMs,'Попадание после конца укуса'],
-    [d=>d.unknown={},'Неизвестный раздел'],[d=>delete d.druid.damage,'Пропущенное поле'],
+    [d=>d.unknown={},'Неизвестный раздел'],[d=>delete d.druid.damage,'Пропущенное поле'],[d=>d.bear.walkSpeed=-.1,'Отрицательная скорость медведя'],
   ]) {
     const data=structuredClone(baseline.data);mutate(data);ok((await put({revision:baseline.revision,data})).status===422,`${label}: сервер отклоняет некорректные данные`);
   }

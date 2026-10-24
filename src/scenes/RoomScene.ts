@@ -114,6 +114,12 @@ export class RoomScene extends Phaser.Scene {
         rescale(state,'runSpeed',previous.forestInsect.runSpeed,next.forestInsect.runSpeed,BASE_MOVEMENT_SPEED);
         if(next.forestInsect.health!==previous.forestInsect.health)adjustHealth(state,next.forestInsect.health);
       }
+      const bear=this.world.bear;
+      if(bear&&!bear.dying){
+        rescale(bear.actorState,'walkSpeed',previous.bear.walkSpeed,next.bear.walkSpeed,BASE_MOVEMENT_SPEED);
+        rescale(bear.actorState,'runSpeed',previous.bear.runSpeed,next.bear.runSpeed,BASE_MOVEMENT_SPEED);
+        if(next.bear.health!==previous.bear.health)adjustHealth(bear.actorState,next.bear.health);
+      }
       this.updateHealth();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribeBalance);
@@ -266,6 +272,7 @@ export class RoomScene extends Phaser.Scene {
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
+    this.world.bear?.setVelocity(0,0);
     for(const enemy of this.world.cleansing?.enemies??[])enemy.setVelocity(0,0);
     this.physics.pause();this.deathOverlay.show();
   }

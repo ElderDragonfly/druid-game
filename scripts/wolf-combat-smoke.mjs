@@ -62,7 +62,7 @@ export async function testWolfCombat(page, ok) {
   'Второй жёлудь запускает смерть: HP 0, нет движения/коллизии и повторного урона');
   await page.waitForFunction(old=>window.__smokeGame.scene.getScene('Room').world.corpses.includes(old),oldWolf);
   await page.waitForFunction(()=>{
-    const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+2;
+    const s=window.__smokeGame.scene.getScene('Room');return s.physics.world.colliders.getActive().length===s.world.mice.length+2+(s.world.bear&&!s.world.bear.dying?2:0);
   });
   ok(await page.evaluate(old=>{
     const s=window.__smokeGame.scene.getScene('Room');

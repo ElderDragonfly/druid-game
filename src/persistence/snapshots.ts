@@ -1,3 +1,5 @@
+import type { BearState } from '../behavior/BearBehavior';
+import type { BearAnimation } from '../rendering/bearArt';
 import type { DruidState } from '../behavior/DruidMovement';
 import type { WolfState } from '../behavior/WolfBehavior';
 import type { MouseActorState } from '../behavior/MouseWander';
@@ -26,7 +28,8 @@ export interface InsectFlightSave {
 }
 export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection;flight?:InsectFlightSave;hitPush?:PointSave }
 export interface CleansingSave {roomId:number;status:CleansingStatus;enemies:ForestInsectSave[];cleansingElapsed?:number}
-export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean};cleansing?:CleansingSave }
+export interface BearSave extends PointSave {state:BearState;animation:BearAnimation;clock:number;hitElapsed:number|null}
+export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[];bear?:BearSave; stump?:{activated:boolean};cleansing?:CleansingSave }
 export interface ProjectileSave extends PointSave {
   direction: PointSave; range: number; distance: number; ageMs: number; nextLeafDistance: number;
 }

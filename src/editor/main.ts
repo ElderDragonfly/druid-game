@@ -2,18 +2,20 @@ import { ENTITY_FIELDS, readField, writeField, validateEntityData, type EntityDa
 import { SpritePreview, DIRECTIONS, ANIMATIONS } from './preview';
 import './style.css';
 
-const names: Record<EntityId, string> = { druid: 'Друид', wolf: 'Волк', mouse: 'Мышь',forestInsect:'Лесное насекомое' };
-const roles = { druid: 'Игровой персонаж', wolf: 'Противник', mouse: 'Мирный обитатель',forestInsect:'Враг очищения' };
+const names: Record<EntityId, string> = { druid: 'Друид', wolf: 'Волк', mouse: 'Мышь',forestInsect:'Лесное насекомое',bear:'Медведь' };
+const roles = { druid: 'Игровой персонаж', wolf: 'Противник', mouse: 'Мирный обитатель',forestInsect:'Враг очищения',bear:'Спящий противник' };
 const descriptions = {
   druid: 'WASD — ходьба, стрелки — каст в 8 направлениях. При касте стоит; попадание прерывает жест. Жёлудь появляется на 75% каста. Анимации следуют за скоростью.',
   wolf: 'Бродит и отдыхает до обнаружения друида или желудя. Затем преследует по всей локации, обходит деревья, кусает в пределах досягаемости. Попадание останавливает на 260 мс. Труп остаётся; респавна нет.',
   mouse: 'Пробегает до случайной точки, поднимается, осматривается и опускается. Не агрится, не получает урон; друид проходит сквозь неё. Деревья блокируют путь.',
+  bear:'Спит в нижней левой комнате. Просыпается в овале 96×54, сначала идёт (по умолчанию 2 секунды), затем бежит. Случайно выбирает одну из трёх атак; каждое попадание снимает 1 HP при базовом уроне.',
   forestInsect:'Три мухи вылетают из кроны по дуге и не получают урон до приземления. Затем преследуют по волне с паузами на вершинах по 0,5 с. После гибели всех трёх дерево постепенно зеленеет.',
 };
 const facts = {
   druid: 'Коллизия тела: 20 × 25. Зазор для контакта с волком: +10 слева, +6 справа. Реакция на попадание: 400 мс. Базовая дальность: 384 × 216. Экипировка и способности пока задаются кодом.',
   wolf: 'Коллизия: 54 × 18. Масштаб рисунка: 0,75. Зазор между точками генерации: 100 ед. Тени отдельным слоем. Левый и правый ракурс используют зеркальное отражение.',
   mouse: 'Коллизия: 9⅓ × 5⅓. Масштаб рисунка: 1,25. Подъём и опускание: по 360 мс. Боевое здоровье и атака отсутствуют.',
+  bear:'Коллизия: 96 × 28. Один на комнату. Рисунок, сон, ходьба, бег и три атаки влево/вправо — отдельные слои. Маршрут обходит стволы, брёвна и соседних врагов; труп проходим. Пока вместо отдельной смерти используется затемнённая лежачая поза.',
   forestInsect:'Коллизия: 32 × 18. Полёт, атака и смерть взяты из новой GIF. Только левый и правый ракурсы через отражение. Здоровье, скорости и урон независимы; столкновения с окружением и другими врагами активны. Атака 800 мс, смерть 1100 мс по исходнику.',
 };
 const directionLabels: Record<string,string> = { down:'Вниз', up:'Вверх', left:'Влево', right:'Вправо', 'down-left':'Вниз-влево', 'down-right':'Вниз-вправо', 'up-left':'Вверх-влево', 'up-right':'Вверх-вправо' };
@@ -79,7 +81,7 @@ function choose(id: EntityId) {
     const current = b.dataset.entity===id; b.classList.toggle('selected',current); b.setAttribute('aria-pressed',String(current));
   });
   el<HTMLSelectElement>('animation').innerHTML = ANIMATIONS[id].map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
-  const directions = id==='druid' ? DIRECTIONS : id==='forestInsect'?['left','right']:['left','right'];
+  const directions = id==='druid' ? DIRECTIONS : id==='forestInsect'||id==='bear'?['left','right']:['left','right'];
   if (!directions.includes(preview.direction)) preview.direction = id==='druid' ? 'down' : 'left';
   el<HTMLSelectElement>('direction').innerHTML = directions.map(key=>`<option value="${key}" ${key===preview.direction?'selected':''}>${directionLabels[key]}</option>`).join('');
   renderFields(); refreshState();

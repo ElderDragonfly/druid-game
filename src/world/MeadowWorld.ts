@@ -1,3 +1,5 @@
+import { Bear } from '../entities/Bear';
+import { generateBearSpawn } from './bearPopulation';
 import { StumpRitual } from './StumpRitual';
 import { ROOM_SCENARIOS, ROOM_GRID } from '../data/roomScenarios';
 import { CleansingEncounter } from './CleansingEncounter';
@@ -28,6 +30,7 @@ import { EnemyCollisions } from '../physics/EnemyCollisions';
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
   cleansing?:CleansingEncounter;
+  bear?:Bear;
   readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
   readonly mice: readonly Mouse[];
   readonly wolves: Wolf[] = [];
@@ -109,6 +112,12 @@ export class MeadowWorld {
       this.enemyCollisions.add(wolf);
       (saved?.corpse ? this.corpses : this.wolves).push(wolf);
     });
+    const bearStart=this.saved?.bear??generateBearSpawn(this.layout);
+    if(bearStart){
+      this.bear=new Bear(this.scene,this.layout,this.obstacles,player,bearStart);
+      if(this.saved?.bear)this.bear.restore(this.saved.bear);
+      this.enemyCollisions.add(this.bear);
+    }
     const room=this.layout.rooms?.find(room=>room.scenario==='cleansing-tree');
     if(room)this.cleansing=new CleansingEncounter(this.scene,this.layout,room,this.obstacles,player,this.saved?.cleansing,
       enemy=>this.enemyCollisions.add(enemy));
@@ -161,6 +170,7 @@ export class MeadowWorld {
         this.wolves.splice(index,1);
       }
     }
+    if(!this.player?.dead)this.bear?.updateBehavior(delta);
     if(!this.player?.dead)this.cleansing?.update(delta);
   }
 
@@ -177,11 +187,12 @@ export class MeadowWorld {
     this.grass.destroy();
     this.ritual?.destroy();
     this.cleansing?.destroy();
+    this.bear?.destroy();
     this.roomGrid?.destroy();
   }
 
   snapshot(): WorldSave {
-    return { stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
+    return { bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 

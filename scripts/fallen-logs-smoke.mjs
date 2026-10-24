@@ -142,7 +142,7 @@ export async function testFallenLogs(page,ok) {
       player:s.player.snapshot(),camera:{x:s.cameras.main.midPoint.x,y:s.cameras.main.midPoint.y},world:s.world.snapshot(),shots:[]};
     const valid=isRunSave(snapshot),legacySlots=structuredClone(snapshot),legacy=structuredClone(snapshot);
     legacySlots.layout.logs.forEach(l=>l.mushrooms.forEach(m=>delete m.surface));
-    delete legacy.layout.logs;delete legacy.layout.counts.logs;delete legacy.layout.rooms;delete legacy.world.cleansing;
+    delete legacy.layout.logs;delete legacy.layout.counts.logs;delete legacy.layout.rooms;delete legacy.world.cleansing;delete legacy.world.bear;
     const corrupt=mutate=>{const saved=structuredClone(snapshot);mutate(saved.layout.logs[0]);return !isRunSave(saved);};
     const oldSet=structuredClone(snapshot);
     // A real legacy run: four brown variants, some already collected slots.

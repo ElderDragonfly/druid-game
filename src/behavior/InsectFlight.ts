@@ -2,7 +2,7 @@ import { WolfBehavior } from './WolfBehavior';
 import { FOREST_INSECT as CONFIG } from '../data/forestInsect';
 import type { InsectFlightSave } from '../persistence/snapshots';
 import type { Rect } from '../world/meadowLayout';
-import { InsectNavigator } from '../world/InsectNavigator';
+import { EnemyNavigator } from '../world/EnemyNavigator';
 import type { WolfNavigation, WolfPoint } from '../world/WolfNavigation';
 
 const TAU=Math.PI*2;
@@ -10,11 +10,11 @@ const TAU=Math.PI*2;
 export class InsectFlight extends WolfBehavior {
   private flight:InsectFlightSave={wavePhase:0,pauseMs:0};
   private previous?:WolfPoint;
-  readonly navigator:InsectNavigator;
+  readonly navigator:EnemyNavigator;
 
   constructor(navigation:WolfNavigation,start:WolfPoint,identity:number) {
     super(navigation,start,identity,CONFIG);
-    this.navigator=new InsectNavigator(navigation);
+    this.navigator=new EnemyNavigator(navigation,CONFIG.body);
     this.flight.wavePhase=(identity-1)*TAU/3;
   }
   get launching(){return this.flight.launch!==undefined;}

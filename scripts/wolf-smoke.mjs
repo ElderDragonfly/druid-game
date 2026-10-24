@@ -69,7 +69,7 @@ export async function testWolf(page, ok) {
     const s = window.__smokeGame.scene.getScene('Room'), w = s.world.wolves[0];
     const { WOLF_ART } = await import('/src/rendering/wolfArt.ts');
     return { count: s.children.list.filter(o => o.name === 'wolf').length,
-      colliders: s.physics.world.colliders.getActive().length === s.world.mice.length + 4,
+      colliders: s.physics.world.colliders.getActive().length === s.world.mice.length + 4 + (s.world.bear&&!s.world.bear.dying?2:0),
       outside: !w.behavior.detects(w, { x: s.player.body.center.x, y: s.player.body.bottom }),
       width: w.body.width, height: w.body.height, scale: w.scaleX,
       hud: [w, w.shadow].every(o => o.cameraFilter & s.cameras.getCamera('hud').id),
@@ -145,13 +145,13 @@ export async function testWolf(page, ok) {
     const s = window.__smokeGame.scene.getScene('Room');
     // Arcade inserts newly created colliders on its next physics update.
     return s.world.wolves[0] !== old && s.world.wolves[0]?.body?.enable &&
-      s.physics.world.colliders.getActive().length === s.world.mice.length + 2 + s.world.wolves.length * 2;
+      s.physics.world.colliders.getActive().length === s.world.mice.length + 2 + s.world.wolves.length * 2 + (s.world.bear&&!s.world.bear.dying?2:0);
   }, oldWolf);
   await isolateSingleWolf(page);
   const clean = await page.evaluate(old => {
     const s = window.__smokeGame.scene.getScene('Room');
     return !old.scene && !old.shadow.scene && s.children.list.filter(o => o.name === 'wolf').length === 1 &&
-      s.physics.world.colliders.getActive().length === s.world.mice.length + 4 && !s.world.wolves[0].actorState.alerted;
+      s.physics.world.colliders.getActive().length === s.world.mice.length + 4 + (s.world.bear&&!s.world.bear.dying?2:0) && !s.world.wolves[0].actorState.alerted;
   }, oldWolf);
   await oldWolf.dispose();
   ok(clean, 'Перезапуск удаляет старого волка, его тень и коллайдеры; новый волк спокоен');

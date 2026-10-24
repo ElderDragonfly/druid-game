@@ -9,6 +9,7 @@ import { seededRandom } from '../world/random';
 import type { PointSave, RunSave } from './snapshots';
 import { ROOM_ASSIGNMENTS, ROOM_SCENARIOS } from '../data/roomScenarios';
 import { roomAt, roomBounds } from '../world/rooms';
+import bearArt from '../../docs/art/bear-game-v1/animations.json';
 import insectArt from '../../docs/art/forest-fly-v2/animations.json';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
@@ -52,7 +53,7 @@ export function isRunSave(value: unknown): value is RunSave {
       !!ENVIRONMENT_VARIANTS.tree[o.variant])) return false;
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
-        if(room.id!==index||room.scenario!==ROOM_ASSIGNMENTS[index])return false;
+        if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!(index===6&&room.scenario==='empty')))return false;
         if(room.scenario!=='cleansing-tree')return room.tree===undefined;
         if(!room.tree||!point(room.tree)||roomAt(s.layout,room.tree)!==index)return false;
         const r=roomBounds(s.layout,index);
@@ -109,6 +110,17 @@ export function isRunSave(value: unknown): value is RunSave {
         (!w.corpse || w.state.health === 0);
     if (!Array.isArray(s.world?.wolves) || s.world.wolves.length > 128 ||
       !s.world.wolves.every(w=>validCreature(w,['idle','walk','run','attack-up','attack-down','death'])))return false;
+    const hasBear=s.layout.rooms?.[6].scenario==='bear';
+    if(hasBear!==!!s.world.bear)return false;
+    if(s.world.bear){
+      const b=s.world.bear,t=b.state;
+      if(!point(b)||!t||!Number.isInteger(t.health)||!Number.isInteger(t.maxHealth)||t.maxHealth<1||t.maxHealth>10000||t.health<0||t.health>t.maxHealth||
+        !['sleep','wake','walk','run','attack','dead'].includes(t.phase)||(t.phase==='dead')!==(t.health===0)||
+        ![t.walkSpeed,t.runSpeed,t.elapsed,t.pursuitElapsed,t.cooldownMs,b.clock].every(nonnegative)||
+        !flag(t.facingLeft)||!flag(t.attackConnected)||!['swipe','bite','slam'].includes(t.attack)||
+        !Number.isInteger(t.attackIndex)||!nonnegative(t.attackIndex)||!Object.keys(bearArt.animations).includes(b.animation)||
+        !(b.hitElapsed===null||nonnegative(b.hitElapsed)))return false;
+    }
     if(s.world.cleansing!==undefined) {
       const c=s.world.cleansing;
       if(!s.layout.rooms?.some(room=>room.id===c.roomId&&room.scenario==='cleansing-tree')||
