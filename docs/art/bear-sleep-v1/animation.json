@@ -1,0 +1,23 @@
+{
+  "animation": "sleep",
+  "direction": "left-three-quarter",
+  "frameWidth": 96,
+  "frameHeight": 80,
+  "poses": 3,
+  "sequence": [
+    0,
+    1,
+    2,
+    1
+  ],
+  "durationsMs": [
+    1000,
+    800,
+    1000,
+    800
+  ],
+  "cycleMs": 3600,
+  "groundY": 72,
+  "source": "sleep-source.png",
+  "designReference": "../7f3bc9083f8614b16f7bdff957d5eb17.jpg"
+}

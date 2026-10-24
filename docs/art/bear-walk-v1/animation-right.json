@@ -1,0 +1,21 @@
+{
+  "animation": "walk",
+  "direction": "right-three-quarter",
+  "frameWidth": 96,
+  "frameHeight": 80,
+  "frames": 8,
+  "durationsMs": [
+    160,
+    160,
+    160,
+    160,
+    160,
+    160,
+    160,
+    160
+  ],
+  "cycleMs": 1280,
+  "groundY": 72,
+  "torsoAnchorX": 43,
+  "mirroredFrom": "walk-sheet.png"
+}
