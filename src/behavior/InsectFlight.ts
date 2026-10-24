@@ -2,6 +2,7 @@ import { WolfBehavior } from './WolfBehavior';
 import { FOREST_INSECT as CONFIG } from '../data/forestInsect';
 import type { InsectFlightSave } from '../persistence/snapshots';
 import type { Rect } from '../world/meadowLayout';
+import { InsectNavigator } from '../world/InsectNavigator';
 import type { WolfNavigation, WolfPoint } from '../world/WolfNavigation';
 
 const TAU=Math.PI*2;
@@ -9,11 +10,11 @@ const TAU=Math.PI*2;
 export class InsectFlight extends WolfBehavior {
   private flight:InsectFlightSave={wavePhase:0,pauseMs:0};
   private previous?:WolfPoint;
-  private launchPath:WolfPoint[]=[];
-  private launchPathAge=Infinity;
+  readonly navigator:InsectNavigator;
 
   constructor(navigation:WolfNavigation,start:WolfPoint,identity:number) {
     super(navigation,start,identity,CONFIG);
+    this.navigator=new InsectNavigator(navigation);
     this.flight.wavePhase=(identity-1)*TAU/3;
   }
   get launching(){return this.flight.launch!==undefined;}
@@ -29,13 +30,13 @@ export class InsectFlight extends WolfBehavior {
     let length=0,previous=start;
     for(const next of path){length+=Math.hypot(next.x-previous.x,next.y-previous.y);previous=next;}
     Object.assign(this.flight,{launch:{...destination},launchStart:start,launchDepth:depth,launchTravelled:0,launchLength:Math.max(1,length)});
-    this.previous=start;this.launchPathAge=Infinity;
+    this.previous=start;this.navigator.invalidate();
   }
   snapshotFlight():InsectFlightSave{return structuredClone(this.flight);}
   restoreFlight(saved?:InsectFlightSave) {
     // Earlier runs used random detours. Keep their launch, start the new wave.
     this.flight={...saved,wavePhase:saved?.wavePhase??0,pauseMs:Math.min(CONFIG.flight.peakPauseMs,saved?.pauseMs??0)};
-    this.previous=undefined;this.launchPath=[];this.launchPathAge=Infinity;
+    this.previous=undefined;this.navigator.invalidate();
   }
   override step(delta:number,position:WolfPoint,player:WolfPoint,playerBody:Rect):WolfPoint {
     const dt=Math.max(0,delta),s=this.actorState,f=this.flight;
@@ -48,20 +49,15 @@ export class InsectFlight extends WolfBehavior {
       if(Math.hypot(f.launch.x-position.x,f.launch.y-position.y)<=6) {
         delete f.launch;delete f.launchDepth;delete f.launchStart;delete f.launchLength;delete f.launchTravelled;
       } else {
-        s.phase='chase';s.elapsed+=dt;s.target={...f.launch};this.launchPathAge+=dt;
-        if(this.launchPathAge>=450||!this.launchPath.length) {
-          this.launchPath=this.navigation.route(position,f.launch);this.launchPathAge=0;
-        }
-        while(this.launchPath.length&&Math.hypot(this.launchPath[0].x-position.x,this.launchPath[0].y-position.y)<4)this.launchPath.shift();
-        const next=this.launchPath[0];if(!next)return {x:0,y:0};
-        const dx=next.x-position.x,dy=next.y-position.y,d=Math.hypot(dx,dy);
-        const speed=Math.min(s.runSpeed,d/Math.max(dt/1000,.001));
-        return {x:dx/d*speed,y:dy/d*speed};
+        s.phase='chase';s.elapsed+=dt;s.target={...f.launch};
+        return this.navigator.velocity(position,f.launch,s.runSpeed,dt);
       }
     }
     if(!s.alerted||s.phase==='attack'||this.inAttackRange(position,playerBody)) {
       f.pauseMs=0;return super.step(dt,position,player,playerBody);
     }
+    const open=this.navigation.clear(position,player)&&this.navigation.canStand(position,22)&&!this.navigator.nearPeer(position);
+    if(!open){f.pauseMs=0;return super.step(dt,position,player,playerBody);}
     if(f.pauseMs>0) {
       f.pauseMs=Math.max(0,f.pauseMs-dt);s.elapsed+=dt;return {x:0,y:0};
     }
@@ -75,11 +71,18 @@ export class InsectFlight extends WolfBehavior {
     }
     f.wavePhase=(f.wavePhase+advance)%TAU;
     const base=super.step(dt,position,player,playerBody),speed=Math.hypot(base.x,base.y);
-    if(!speed)return base;
+    if(!speed||this.navigator.detouring)return base;
     const side=amplitude*k*Math.cos(f.wavePhase),factor=1/Math.sqrt(1+side*side);
     const velocity={x:(base.x-base.y*side)*factor,y:(base.y+base.x*side)*factor};
-    const next={x:position.x+velocity.x*Math.max(dt,20)/1000,y:position.y+velocity.y*Math.max(dt,20)/1000};
-    // Routing still goes around trunks/logs. Never force the wave through them.
-    return this.navigation.clear(position,next)?velocity:base;
+    return this.navigator.waveVelocity(position,velocity,base);
   }
+  /** A hit interrupts the sting; the next route starts at the pushed position. */
+  reactToHit() {
+    this.actorState.phase='chase';this.actorState.elapsed=0;this.flight.pauseMs=0;
+    this.previous=undefined;this.navigator.invalidate();
+  }
+  override follow(position:WolfPoint,goal:WolfPoint,speed:number,delta:number):WolfPoint {
+    return this.navigator.velocity(position,goal,speed,delta);
+  }
+
 }

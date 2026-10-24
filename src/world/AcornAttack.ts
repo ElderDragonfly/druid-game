@@ -72,7 +72,7 @@ export class AcornAttack {
         y:shot.previous.y+(next.y-shot.previous.y)*t});
       if(impact!==undefined) {
         const target=hitBody?.gameObject;
-        if(isDamageable(target))target.takeDamage(ACORN.damage);
+        if(isDamageable(target))target.takeDamage(ACORN.damage,shot.direction);
         shot.destroy();this.shots.splice(i,1);continue;
       }
       this.emitTrail(shot,shot.previous,next);

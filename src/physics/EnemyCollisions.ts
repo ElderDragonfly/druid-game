@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import type { Rect } from '../world/geometry';
 
-type EnemyBody = Phaser.Physics.Arcade.Sprite & {readonly dying:boolean};
+type EnemyBody = Phaser.Physics.Arcade.Sprite & {readonly dying:boolean;setCollisionPeers?:(read:()=>readonly Rect[])=>void};
 
 /** One shared collision group for every enemy species, including later spawns. */
 export class EnemyCollisions {
@@ -18,7 +19,14 @@ export class EnemyCollisions {
     }).setName('enemy-enemy');
   }
 
-  add(enemy:EnemyBody){this.group.add(enemy);}
+  add(enemy:EnemyBody){
+    this.group.add(enemy);
+    enemy.setCollisionPeers?.(()=>this.group.getChildren().flatMap(child=>{
+      const other=child as EnemyBody,body=other.body;
+      return other!==enemy&&other.active&&!other.dying&&body?.enable?
+        [{x:body.x,y:body.y,width:body.width,height:body.height}]:[];
+    }));
+  }
   destroy() {
     if(this.collider.world)this.collider.destroy();
     this.group.destroy(false);

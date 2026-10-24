@@ -24,7 +24,7 @@ export interface InsectFlightSave {
   launchTravelled?:number;launchLength?:number;
   wavePhase:number;pauseMs:number;
 }
-export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection;flight?:InsectFlightSave }
+export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection;flight?:InsectFlightSave;hitPush?:PointSave }
 export interface CleansingSave {roomId:number;status:CleansingStatus;enemies:ForestInsectSave[];cleansingElapsed?:number}
 export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[]; stump?:{activated:boolean};cleansing?:CleansingSave }
 export interface ProjectileSave extends PointSave {

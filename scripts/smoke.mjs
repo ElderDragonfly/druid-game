@@ -1,5 +1,6 @@
 import { testStump } from './stump-smoke.mjs';
 import { testInsectFlight, testAirborneAcorn } from './insect-flight-smoke.mjs';
+import { testInsectNavigationAndHit } from './insect-navigation-hit-smoke.mjs';
 import { testEnemyCollisions } from './enemy-collision-smoke.mjs';
 import { testRoomScenarios } from './room-scenarios-smoke.mjs';
 import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
@@ -367,6 +368,7 @@ try {
   await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');s.scene.restart({seed:s.layout.seed});});
   await page.waitForTimeout(100);await waitScene('Room');
   await testEnemyCollisions(page,ok,waitScene);
+  await testInsectNavigationAndHit(page,ok,waitScene);
   const mouseArt = await page.evaluate(async () => {
     const { MOUSE } = await import('/src/data/mouse.ts');
     const { MouseWander, mouseCanStand } = await import('/src/behavior/MouseWander.ts');

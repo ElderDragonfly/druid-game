@@ -121,6 +121,7 @@ export function isRunSave(value: unknown): value is RunSave {
           (enemy.flight.launchLength===undefined||nonnegative(enemy.flight.launchLength))&&
           (enemy.flight.launchTravelled===undefined||nonnegative(enemy.flight.launchTravelled))&&
           (enemy.flight.launchDepth===undefined||nonnegative(enemy.flight.launchDepth))))&&
+          (enemy.hitPush===undefined||(!!enemy.hitPush&&Number.isFinite(enemy.hitPush.x)&&Number.isFinite(enemy.hitPush.y)&&Math.hypot(enemy.hitPush.x,enemy.hitPush.y)<=1.001))&&
           ['up','down','left','right'].includes(enemy.facing)&&
           validCreature(enemy as unknown as RunSave['world']['wolves'][number],
             [...Object.keys(insectArt.animations),'idle','walk','run','attack-left','attack-right','attack-up','attack-down','idle-up','idle-down']))||

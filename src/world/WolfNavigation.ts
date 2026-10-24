@@ -25,10 +25,10 @@ export class WolfNavigation {
       rect.y + height <= this.layout.height - gap && !this.trunks.some(tree => overlaps(rect, tree, gap));
   }
 
-  clear(a: WolfPoint, b: WolfPoint) {
+  clear(a: WolfPoint, b: WolfPoint, gap = 2) {
     const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 6));
     for (let i = 0; i <= steps; i++) {
-      if (!this.canStand({ x: a.x + (b.x - a.x) * i / steps, y: a.y + (b.y - a.y) * i / steps })) return false;
+      if (!this.canStand({ x: a.x + (b.x - a.x) * i / steps, y: a.y + (b.y - a.y) * i / steps }, gap)) return false;
     }
     return true;
   }
@@ -88,6 +88,23 @@ export class WolfNavigation {
         costs[next] = cost; parents[next] = id;
         push(next, cost + Math.hypot(b.x - this.point(to).x, b.y - this.point(to).y) / this.cell);
       }
+    }
+    return [];
+  }
+
+  /** Escape a physical contact before requiring the usual two-unit margin. */
+  routeFromContact(start:WolfPoint,goal:WolfPoint):WolfPoint[] {
+    if(this.canStand(start))return this.route(start,goal);
+    // Arcade may leave a tiny rounding error at a touching edge, not a real overlap.
+    if(!this.canStand(start,-.05))return [];
+    for(const radius of [4,8,16,24,36,48]) {
+      const candidates:WolfPoint[]=[];
+      for(let n=0;n<16;n++) {
+        const angle=n*Math.PI/8,q={x:start.x+Math.cos(angle)*radius,y:start.y+Math.sin(angle)*radius};
+        if(this.canStand(q)&&this.clear(start,q,-.05))candidates.push(q);
+      }
+      candidates.sort((a,b)=>Math.hypot(a.x-goal.x,a.y-goal.y)-Math.hypot(b.x-goal.x,b.y-goal.y));
+      for(const q of candidates){const path=this.route(q,goal);if(path.length)return [q,...path];}
     }
     return [];
   }

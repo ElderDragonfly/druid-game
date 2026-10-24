@@ -94,7 +94,7 @@ export class WolfBehavior {
     return Math.hypot(dx, dy) <= this.definition.behavior.attackGap;
   }
 
-  private follow(position: WolfPoint, goal: WolfPoint, speed: number, delta: number): WolfPoint {
+  protected follow(position: WolfPoint, goal: WolfPoint, speed: number, delta: number): WolfPoint {
     if (this.pathAge >= this.definition.behavior.pathRefreshMs || !this.pathGoal ||
       Math.hypot(goal.x - this.pathGoal.x, goal.y - this.pathGoal.y) > 48) {
       this.path = this.navigation.route(position, goal); this.pathGoal = { ...goal }; this.pathAge = 0;
