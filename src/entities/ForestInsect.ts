@@ -103,7 +103,7 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
     const total=insectDurations('fly').reduce((a,b)=>a+b,0);
     this.show('fly',this.frameAt('fly',this.clock%total));
     this.setAngle((this.hitPush.x-this.hitPush.y*.4)*CONFIG.hitRecoil.tiltDegrees*Math.sin(Math.PI*t));
-    if(elapsed<CONFIG.hitRecoil.flashMs)this.setTintFill(0xf2efce);else this.clearTint();
+    this.clearTint();
   }
   private frameAt(animation:InsectAnimation,elapsed:number) {
     const durations=insectDurations(animation);let index=0;

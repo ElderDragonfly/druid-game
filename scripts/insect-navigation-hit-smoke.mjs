@@ -77,14 +77,14 @@ export async function testInsectNavigationAndHit(page,ok,waitScene) {
     const {AcornProjectile}=await import('/src/entities/AcornProjectile.ts'),body=e.body;
     const shot=new AcornProjectile(s,s.player,body.x-40,body.center.y,{x:1,y:0});
     s.acorns.shots.push(shot);shot.body.reset(body.right+40,body.center.y);shot.body.updateFromGameObject();s.acorns.update(0);
-    s.physics.resume();return {x:e.x,y:e.y,hp:e.actorState.health,shotGone:!shot.scene};
+    s.physics.resume();return {x:e.x,y:e.y,hp:e.actorState.health,shotGone:!shot.scene,unchangedColor:!e.isTinted&&e.alpha===1&&e.visible};
   },arena);
   await page.waitForTimeout(110);
-  ok(initial.hp===1&&initial.shotGone&&await page.evaluate(initial=>{
+  ok(initial.hp===1&&initial.shotGone&&initial.unchangedColor&&await page.evaluate(initial=>{
     const e=window.__smokeGame.scene.getScene('Room').world.cleansing.enemies[0];
-    return e.hitElapsed!==null&&e.x>initial.x+5&&e.x<initial.x+22&&Math.abs(e.y-initial.y)<1&&
+    return e.hitElapsed!==null&&!e.isTinted&&e.alpha===1&&e.visible&&e.x>initial.x+5&&e.x<initial.x+22&&Math.abs(e.y-initial.y)<1&&
       Math.abs(e.angle)>2&&e.texture.key==='insect-fly'&&e.body.enable&&e.actorState.phase!=='attack';
-  },initial),'Настоящий жёлудь отбрасывает муху по направлению попадания, наклоняет её и прерывает жало; физика остаётся активной');
+  },initial),'Настоящий жёлудь отбрасывает муху по направлению попадания, наклоняет её и прерывает жало без мигания и смены цвета; физика остаётся активной');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),e=s.world.cleansing.enemies[0];s.physics.pause();
     const saved=e.snapshot(),angle=e.angle,velocity=e.body.velocity.x;
