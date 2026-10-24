@@ -17,7 +17,13 @@ import type { RunSave } from '../persistence/snapshots';
 import { menuMusic } from '../audio/MenuMusic';
 import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
-import { bushInSpawnRoom, generateBushes } from '../world/bushes';
+import { bushCollisionRect, bushInSpawnRoom, generateBushes } from '../world/bushes';
+import { overlaps, type Rect } from '../world/geometry';
+import { invalidateLayoutCollisionRects } from '../world/collision';
+import { WOLF } from '../data/wolf';
+import { MOUSE } from '../data/mouse';
+import { BEAR } from '../data/bear';
+import { FOREST_INSECT } from '../data/forestInsect';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -213,8 +219,23 @@ export class RoomScene extends Phaser.Scene {
 
   private buildWorld() {
     this.layout = this.savedRun?.layout ?? generateMeadow(this.seed);
-    if (!this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush)))
-      this.layout.bushes = generateBushes(this.layout);
+    const protectedActors: Rect[] = [];
+    if (this.savedRun) {
+      const { player, world } = this.savedRun, art = this.player.appearance.metrics;
+      const footprint = (p: {x:number;y:number}, b: {width:number;height:number}) =>
+        ({ x: p.x-b.width/2, y: p.y-b.height, width:b.width, height:b.height });
+      protectedActors.push(footprint({x:player.x,y:player.y+art.bodyCenterY+art.bodyHeight/2},
+        {width:art.bodyWidth,height:art.bodyHeight}));
+      protectedActors.push(...world.wolves.filter(w=>w.state.health>0).map(w=>footprint(w,WOLF.body)),
+        ...world.mice.map(m=>footprint(m,{width:MOUSE.bodyWidth,height:MOUSE.bodyHeight})),
+        ...(world.cleansing?.enemies??[]).filter(e=>e.state.health>0).map(e=>footprint(e,FOREST_INSECT.body)));
+      if(world.bear&&world.bear.state.health>0)protectedActors.push(footprint(world.bear,BEAR.body));
+    }
+    if (!this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush) ||
+      protectedActors.some(actor=>overlaps(actor,bushCollisionRect(bush))))) {
+      this.layout.bushes = generateBushes(this.layout, protectedActors);
+      invalidateLayoutCollisionRects(this.layout);
+    }
     this.layout.counts.bushes = this.layout.bushes.length;
     // Keep generated/saved angles; mirrored log artwork is still disabled.
     this.layout.logs?.forEach(log => { log.flipX = false; });

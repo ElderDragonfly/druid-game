@@ -1,4 +1,4 @@
-/** Walk-through scenery, actor visibility, seeded placement and save validation. */
+/** Solid bush bases, shared navigation, actor visibility and saved runs. */
 export async function testBushes(page, ok, waitScene) {
   ok(await page.evaluate(async () => {
     const { generateMeadow, obstacleRect, overlaps } = await import('/src/world/meadowLayout.ts');
@@ -28,29 +28,70 @@ export async function testBushes(page, ok, waitScene) {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
     return b.foliage.length === s.layout.bushes.length &&
       b.foliage.every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1 &&
-        Math.abs(o.displayWidth - o.width / 3) < 1e-6 && Math.abs(o.displayHeight - o.height / 3) < 1e-6) &&
+        Math.abs(o.displayWidth - o.width * 7 / 12) < 1e-6 && Math.abs(o.displayHeight - o.height * 7 / 12) < 1e-6) &&
       !s.textures.exists('forest-bush-ground') && !s.children.list.some(o => o.name.startsWith('bush-ground-'));
-  }), 'Все кусты втрое меньше по ширине и высоте, без коллайдеров и сглаживания; подложек и дубликатов HUD нет');
+  }), 'Все кусты увеличены на 75% до масштаба 7/12, остаются без подложек, сглаживания и дубликатов HUD');
+  ok(await page.evaluate(async()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),{bushCollisionRect,bushVisualRect}=await import('/src/world/bushes.ts');
+    const {layoutCollisionRects}=await import('/src/world/collision.ts'),{mouseCanStand}=await import('/src/behavior/MouseWander.ts');
+    const {WolfNavigation}=await import('/src/world/WolfNavigation.ts');
+    const nav=new WolfNavigation(s.layout);
+    return s.layout.bushes.every((b,i)=>{
+      const r=bushCollisionRect(b),v=bushVisualRect(b),proxy=s.children.getByName(`bush-collider-${i}`),body=proxy.body;
+      const inside=layoutCollisionRects(s.layout).some(c=>JSON.stringify(c)===JSON.stringify(r));
+      return inside&&!proxy.visible&&proxy.getData('kind')==='bush'&&body.enable&&
+        Math.abs(body.x-r.x)<.01&&Math.abs(body.y-r.y)<.01&&Math.abs(body.width-r.width)<.01&&Math.abs(body.height-r.height)<.01&&
+        r.x>=v.x&&r.y>=v.y&&r.x+r.width<=v.x+v.width&&r.y+r.height<=v.y+v.height&&
+        !nav.canStand({x:r.x+r.width/2,y:r.y+r.height})&&!mouseCanStand(s.layout,{x:r.x+r.width/2,y:r.y+r.height});
+    });
+  }),'Каждый куст имеет одну коллизию у основания; физика, навигация волка и свободные места мышей используют тот же прямоугольник');
   const arena = await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'); s.physics.pause();
-    const { bushVisualRect } = await import('/src/world/bushes.ts');
+    const { bushCollisionRect } = await import('/src/world/bushes.ts');
     const { WolfNavigation } = await import('/src/world/WolfNavigation.ts');
     const nav = new WolfNavigation(s.layout, { width: 20, height: 25 });
     const offset = s.player.body.bottom - s.player.y;
     for (const [index, b] of s.layout.bushes.entries()) {
-      const r = bushVisualRect(b), y = b.y - 8, from = { x: r.x - 30, y }, to = { x: r.x + r.width + 30, y };
-      if (r.x < 200 || r.y < 180 || r.x + r.width > s.layout.width - 200 ||
-        r.y + r.height > s.layout.height - 180 || !nav.clear(from, to)) continue;
-      s.player.cancelCast(); s.player.cancelHit(); s.player.body.reset(from.x, y - offset); s.player.body.updateFromGameObject();
-      s.physics.resume(); return { index, from, to, width: r.width, offset };
+      const r = bushCollisionRect(b), y = r.y+r.height/2+12.5;
+      const starts=[{x:r.x-40,y},{x:r.x+r.width+40,y},{x:r.x+r.width/2,y:r.y-40},{x:r.x+r.width/2,y:r.y+r.height+65}];
+      const {WOLF}=await import('/src/data/wolf.ts'),wolfNav=new WolfNavigation(s.layout,WOLF.body);
+      const wolfStart={x:r.x-100,y:r.y+r.height/2+WOLF.body.height/2},goal={x:r.x+r.width+150,y:wolfStart.y};
+      if (r.x<200||!starts.every(p=>nav.canStand(p))||!wolfNav.canStand(wolfStart)||!wolfNav.canStand(goal)||!wolfNav.route(wolfStart,goal).length) continue;
+      s.player.cancelCast(); s.player.cancelHit(); return { index, r, starts, offset, wolfStart, goal };
     }
     throw new Error('Нет свободного куста для проверки прохода');
   });
-  await page.keyboard.down('d'); await page.waitForTimeout((arena.to.x - arena.from.x) / (220 * 2 / 3) * 1000 + 120); await page.keyboard.up('d');
-  ok(await page.evaluate(a => {
-    const s = window.__smokeGame.scene.getScene('Room');
-    return s.player.x >= a.to.x - 4 && !s.physics.overlap(s.player, s.world.obstacles);
-  }, arena), 'Настоящее движение D проходит куст насквозь: не упирается в листву и не получает коллизию');
+  for(const [i,key] of ['d','a','s','w'].entries()){
+    await page.evaluate(({a,i})=>{
+      const s=window.__smokeGame.scene.getScene('Room');s.physics.pause();
+      s.player.body.reset(a.starts[i].x,a.starts[i].y-a.offset);s.player.body.updateFromGameObject();s.physics.resume();
+    },{a:arena,i});
+    await page.keyboard.down(key);await page.waitForTimeout(550);await page.keyboard.up(key);
+    ok(await page.evaluate(({a,i})=>{
+      const s=window.__smokeGame.scene.getScene('Room'),b=s.player.body,r=a.r;s.physics.pause();
+      return Math.abs([b.right-r.x,b.x-r.x-r.width,b.bottom-r.y,b.y-r.y-r.height][i])<1;
+    },{a:arena,i}),`Куст останавливает реальную WASD ${key.toUpperCase()} у основания без невидимого выступа`);
+  }
+  await page.evaluate(a=>{
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0];
+    window.__bushWolfOriginal=w.snapshot();w.setActive(true).setVisible(true);w.body.enable=true;
+    const saved=w.snapshot();Object.assign(saved,{x:a.wolfStart.x,y:a.wolfStart.y,hitElapsed:null});
+    Object.assign(saved.state,{phase:'chase',alerted:true,elapsed:0});w.restore(saved);
+    s.player.body.reset(a.goal.x,a.goal.y-a.offset);s.player.body.updateFromGameObject();s.physics.resume();
+  },arena);
+  await page.waitForFunction(a=>window.__smokeGame.scene.getScene('Room').world.wolves[0].x>a.r.x+a.r.width+60,arena,{timeout:15000});
+  ok(await page.evaluate(a=>{
+    const s=window.__smokeGame.scene.getScene('Room'),w=s.world.wolves[0];s.physics.pause();
+    const passed=w.x>a.r.x+a.r.width+60;
+    w.restore(window.__bushWolfOriginal);w.setActive(false).setVisible(false).setVelocity(0,0);w.body.enable=false;w.shadow.setVisible(false);
+    delete window.__bushWolfOriginal;return passed;
+  },arena),'Волк обходит настоящий куст и продолжает погоню, не застревая у его коллизии');
+  ok(await page.evaluate(async a=>{
+    const s=window.__smokeGame.scene.getScene('Room'),{AcornProjectile}=await import('/src/entities/AcornProjectile.ts'),r=a.r;
+    const shot=new AcornProjectile(s,s.player,r.x-30,r.y+r.height/2,{x:1,y:0});s.acorns.shots.push(shot);
+    shot.body.reset(r.x+r.width+30,r.y+r.height/2);shot.body.updateFromGameObject();s.acorns.update(0);
+    return !shot.scene;
+  },arena),'Жёлудь исчезает при пересечении коллизии куста, включая пролёт между кадрами');
   await page.evaluate(a => {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.layout.bushes[a.index]; s.physics.pause();
     s.player.body.reset(b.x, b.y + 12 - a.offset); s.player.body.updateFromGameObject();
@@ -103,9 +144,11 @@ export async function testBushes(page, ok, waitScene) {
     const bad = structuredClone(save); bad.layout.bushes[0].variant = 8;
     const badCount = structuredClone(save); badCount.layout.counts.bushes++;
     const scattered = structuredClone(save); scattered.layout.bushes[0].x = save.layout.spawn.x; scattered.layout.bushes[0].y = save.layout.spawn.y;
+    const edge = structuredClone(save), {BUSHES,BUSH_SIZE_MULTIPLIER}=await import('/src/data/bushes.ts');
+    const art=BUSHES[edge.layout.bushes[0].variant];edge.layout.bushes[0].x=art.anchorX*art.scale/BUSH_SIZE_MULTIPLIER+1;
     window.__scatteredBushSave = scattered;
     window.__bushMigrationBefore = { trees: JSON.stringify(save.layout.obstacles), logs: JSON.stringify(save.layout.logs), health: save.player.state.health };
-    return isRunSave(save) && isRunSave(old) && isRunSave(scattered) && !isRunSave(bad) && !isRunSave(badCount);
+    return isRunSave(save) && isRunSave(old) && isRunSave(scattered) && isRunSave(edge) && !isRunSave(bad) && !isRunSave(badCount);
   }), 'Сейв сохраняет виды и позиции кустов, принимает прежний мир без них и отвергает повреждённые данные');
   const previous = await page.evaluateHandle(() => {
     const s = window.__smokeGame.scene.getScene('Room'), player = s.player;
@@ -114,9 +157,9 @@ export async function testBushes(page, ok, waitScene) {
   await page.waitForFunction(p => window.__smokeGame.scene.getScene('Room').player !== p, previous); await previous.dispose(); await waitScene('Room');
   ok(await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'), before = window.__bushMigrationBefore;
-    const { generateBushes, bushInSpawnRoom } = await import('/src/world/bushes.ts');
+    const { bushInSpawnRoom } = await import('/src/world/bushes.ts');
     const result = s.layout.bushes.every(b => bushInSpawnRoom(s.layout, b)) &&
-      JSON.stringify(s.layout.bushes) === JSON.stringify(generateBushes(s.layout)) &&
+      !s.physics.overlap(s.player,s.world.obstacles) &&
       JSON.stringify(s.layout.obstacles) === before.trees &&
       JSON.stringify(s.layout.logs) === before.logs && s.playerHealth === before.health;
     delete window.__scatteredBushSave; delete window.__bushMigrationBefore; return result;

@@ -1,5 +1,6 @@
 import { Bear } from '../entities/Bear';
 import { ForestBushes } from '../rendering/ForestBushes';
+import { bushCollisionRect } from './bushes';
 import { generateBearSpawn } from './bearPopulation';
 import { StumpRitual } from './StumpRitual';
 import { ROOM_SCENARIOS, ROOM_GRID } from '../data/roomScenarios';
@@ -75,6 +76,12 @@ export class MeadowWorld {
       // Physics and generation/pathfinding share the same trimmed trunk.
       body.setSize(bounds.width, bounds.height, false)
         .setOffset(bounds.x - topLeft.x, bounds.y - topLeft.y);
+    });
+    (layout.bushes??[]).forEach((bush,index)=>{
+      const bounds=bushCollisionRect(bush);
+      const proxy=this.obstacles.create(bounds.x,bounds.y,'__WHITE') as Phaser.Physics.Arcade.Image;
+      proxy.setName(`bush-collider-${index}`).setData('kind','bush').setOrigin(0)
+        .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
     });
     (layout.logs??[]).forEach((log,index)=>{
       this.logArt.push(...drawFallenLog(scene,log,index));

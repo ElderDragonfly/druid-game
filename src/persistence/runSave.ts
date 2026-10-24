@@ -11,7 +11,7 @@ import { ROOM_ASSIGNMENTS, ROOM_SCENARIOS } from '../data/roomScenarios';
 import { roomAt, roomBounds } from '../world/rooms';
 import bearArt from '../../docs/art/bear-game-v1/animations.json';
 import insectArt from '../../docs/art/forest-fly-v2/animations.json';
-import { BUSHES } from '../data/bushes';
+import { BUSHES, BUSH_SIZE_MULTIPLIER } from '../data/bushes';
 import { bushVisualRect } from '../world/bushes';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
@@ -57,8 +57,9 @@ export function isRunSave(value: unknown): value is RunSave {
       if(!Array.isArray(s.layout.bushes)||s.layout.bushes.length>256||s.layout.counts.bushes!==s.layout.bushes.length||
         !s.layout.bushes.every(b=>{
           if(!point(b)||!Number.isInteger(b.variant)||!BUSHES[b.variant])return false;
-          const r=bushVisualRect(b);
-          return r.x>=0&&r.y>=0&&r.x+r.width<=s.layout.width&&r.y+r.height<=s.layout.height;
+          // A formerly smaller bush at the map edge must reach scene migration.
+          return [bushVisualRect(b),bushVisualRect(b,1/BUSH_SIZE_MULTIPLIER)].some(r=>
+            r.x>=0&&r.y>=0&&r.x+r.width<=s.layout.width&&r.y+r.height<=s.layout.height);
         }))return false;
     }
     if(s.layout.rooms!==undefined) {

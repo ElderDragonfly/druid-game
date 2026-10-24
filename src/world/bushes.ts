@@ -7,10 +7,16 @@ import { stumpClearing } from './stump';
 import { ritualTreeClearing, roomBounds } from './rooms';
 
 export interface BushPlacement { x: number; y: number; variant: number }
-export function bushVisualRect(bush: BushPlacement): Rect {
-  const a = BUSHES[bush.variant];
-  return { x: bush.x - a.anchorX * a.scale, y: bush.y - a.anchorY * a.scale,
-    width: a.width * a.scale, height: a.height * a.scale };
+export function bushVisualRect(bush: BushPlacement, scaleFactor = 1): Rect {
+  const a = BUSHES[bush.variant], scale = a.scale * scaleFactor;
+  return { x: bush.x - a.anchorX * scale, y: bush.y - a.anchorY * scale,
+    width: a.width * scale, height: a.height * scale };
+}
+
+export function bushCollisionRect(bush: BushPlacement): Rect {
+  const a = BUSHES[bush.variant], b = a.body;
+  return { x: bush.x + (b.x - a.anchorX) * a.scale, y: bush.y + (b.y - a.anchorY) * a.scale,
+    width: b.width * a.scale, height: b.height * a.scale };
 }
 
 export function bushInSpawnRoom(layout: Pick<MeadowLayout, 'width' | 'height'>, bush: BushPlacement) {
@@ -20,13 +26,14 @@ export function bushInSpawnRoom(layout: Pick<MeadowLayout, 'width' | 'height'>, 
 }
 
 /** A separate random stream never changes approved trees, logs or creature spawns. */
-export function generateBushes(layout: MeadowLayout): BushPlacement[] {
+export function generateBushes(layout: MeadowLayout, protectedActors: readonly Rect[] = []): BushPlacement[] {
   const random = seededRandom(layout.seed ^ 0x42555348);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
   const count = integer(CONFIG.min, CONFIG.max);
   const room = roomBounds(layout, CONFIG.roomId);
   const canopies = layout.obstacles.map(obstacleVisualRect);
   const reserved: Rect[] = [
+    ...protectedActors,
     { x: layout.spawn.x - 80, y: layout.spawn.y - 100, width: 160, height: 180 },
     ...layout.obstacles.map(obstacleRect),
     ...(layout.logs ?? []).map(logVisualRect),
