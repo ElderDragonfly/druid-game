@@ -1,0 +1,95 @@
+{
+  "sourceRing": "docs/art/76c2b537db5e76dd2a71bbae16fe2efc.jpg",
+  "sourceCentral": "docs/art/3aaf750541e7c159c68cc3a6dcb5b811.jpg",
+  "preservesOpaqueRGB": true,
+  "sprites": [
+    {
+      "id": "ring-0",
+      "width": 56,
+      "height": 67,
+      "anchorX": 28,
+      "anchorY": 66,
+      "sourceCrop": [
+        55,
+        72,
+        111,
+        139
+      ],
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 56,
+        "height": 67
+      }
+    },
+    {
+      "id": "ring-1",
+      "width": 50,
+      "height": 71,
+      "anchorX": 25,
+      "anchorY": 70,
+      "sourceCrop": [
+        120,
+        68,
+        170,
+        139
+      ],
+      "frame": {
+        "x": 80,
+        "y": 0,
+        "width": 50,
+        "height": 71
+      }
+    },
+    {
+      "id": "ring-2",
+      "width": 62,
+      "height": 50,
+      "anchorX": 31,
+      "anchorY": 49,
+      "sourceCrop": [
+        177,
+        90,
+        239,
+        140
+      ],
+      "frame": {
+        "x": 160,
+        "y": 0,
+        "width": 62,
+        "height": 50
+      }
+    },
+    {
+      "id": "ring-3",
+      "width": 57,
+      "height": 63,
+      "anchorX": 28,
+      "anchorY": 62,
+      "sourceCrop": [
+        245,
+        76,
+        302,
+        139
+      ],
+      "frame": {
+        "x": 240,
+        "y": 0,
+        "width": 57,
+        "height": 63
+      }
+    }
+  ],
+  "central": {
+    "width": 625,
+    "height": 835,
+    "anchorX": 312,
+    "anchorY": 834,
+    "sourceCrop": [
+      228,
+      58,
+      853,
+      893
+    ]
+  }
+}

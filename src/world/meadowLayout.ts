@@ -2,6 +2,7 @@ import { generateStump, stumpClearing, type StumpPlacement } from './stump';
 import { generateFallenLogs, logVisualRect, type FallenLogPlacement } from './fallenLogs';
 import { seededRandom } from './random';
 import { generateBushes, type BushPlacement } from './bushes';
+import { prepareWitchGrove, type WitchCirclePlacement } from './witchGrove';
 import { overlaps, type Rect } from './geometry';
 import { generateRooms, ritualTreeClearing, type RoomPlan } from './rooms';
 export { seededRandom } from './random';
@@ -22,6 +23,7 @@ export interface MeadowLayout {
   rooms?: RoomPlan[];
   /** Walk-through decoration, absent only in older saves. */
   bushes?: BushPlacement[];
+  witchCircle?: WitchCirclePlacement;
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -97,6 +99,7 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       const layout:MeadowLayout={ width, height, seed, counts: { trees }, spawn, obstacles,stump,rooms };
       layout.logs=logs;
       layout.counts.logs=layout.logs.length;
+      prepareWitchGrove(layout);
       layout.bushes=generateBushes(layout);
       layout.counts.bushes=layout.bushes.length;
       return layout;

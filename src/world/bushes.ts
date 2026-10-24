@@ -4,7 +4,9 @@ import { overlaps, type Rect } from './geometry';
 import { obstacleRect, obstacleVisualRect, type MeadowLayout } from './meadowLayout';
 import { logVisualRect } from './fallenLogs';
 import { stumpClearing } from './stump';
-import { ritualTreeClearing, roomBounds } from './rooms';
+import { ritualTreeClearing } from './rooms';
+import { groveInterior, rectTouchesCircle } from './witchGrove';
+import { WITCH_CIRCLE } from '../data/witchCircle';
 
 export interface BushPlacement { x: number; y: number; variant: number }
 export function bushVisualRect(bush: BushPlacement, scaleFactor = 1): Rect {
@@ -13,14 +15,8 @@ export function bushVisualRect(bush: BushPlacement, scaleFactor = 1): Rect {
     width: a.width * scale, height: a.height * scale };
 }
 
-export function bushCollisionRect(bush: BushPlacement): Rect {
-  const a = BUSHES[bush.variant], b = a.body;
-  return { x: bush.x + (b.x - a.anchorX) * a.scale, y: bush.y + (b.y - a.anchorY) * a.scale,
-    width: b.width * a.scale, height: b.height * a.scale };
-}
-
 export function bushInSpawnRoom(layout: Pick<MeadowLayout, 'width' | 'height'>, bush: BushPlacement) {
-  const room = roomBounds(layout, CONFIG.roomId), r = bushVisualRect(bush);
+  const room = groveInterior(layout), r = bushVisualRect(bush);
   return r.x >= room.x && r.y >= room.y &&
     r.x + r.width <= room.x + room.width && r.y + r.height <= room.y + room.height;
 }
@@ -30,7 +26,7 @@ export function generateBushes(layout: MeadowLayout, protectedActors: readonly R
   const random = seededRandom(layout.seed ^ 0x42555348);
   const integer = (min: number, max: number) => min + Math.floor(random() * (max - min + 1));
   const count = integer(CONFIG.min, CONFIG.max);
-  const room = roomBounds(layout, CONFIG.roomId);
+  const room = groveInterior(layout);
   const canopies = layout.obstacles.map(obstacleVisualRect);
   const reserved: Rect[] = [
     ...protectedActors,
@@ -54,6 +50,7 @@ export function generateBushes(layout: MeadowLayout, protectedActors: readonly R
         room.y + room.height - CONFIG.edge - (a.height - a.anchorY) * a.scale), variant,
     };
     const rect = bushVisualRect(bush);
+    if(layout.witchCircle&&rectTouchesCircle(rect,layout.witchCircle,WITCH_CIRCLE.clearingRadius))continue;
     if (reserved.some(other => overlaps(rect, other, CONFIG.gap)) ||
       bushes.some(other => overlaps(rect, bushVisualRect(other), CONFIG.gap))) continue;
     // Prefer visible open ground, but dense crowns must not prevent the room

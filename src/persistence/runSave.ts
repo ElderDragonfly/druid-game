@@ -13,6 +13,8 @@ import bearArt from '../../docs/art/bear-game-v1/animations.json';
 import insectArt from '../../docs/art/forest-fly-v2/animations.json';
 import { BUSHES, BUSH_SIZE_MULTIPLIER } from '../data/bushes';
 import { bushVisualRect } from '../world/bushes';
+import { WITCH_CIRCLE } from '../data/witchCircle';
+import { groveInterior } from '../world/witchGrove';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -62,6 +64,15 @@ export function isRunSave(value: unknown): value is RunSave {
             r.x>=0&&r.y>=0&&r.x+r.width<=s.layout.width&&r.y+r.height<=s.layout.height);
         }))return false;
     }
+    if(s.layout.witchCircle!==undefined){
+      const c=s.layout.witchCircle,r=groveInterior(s.layout),radius=WITCH_CIRCLE.clearingRadius;
+      if(!point(c)||c.x-radius<r.x||c.y-radius<r.y||c.x+radius>r.x+r.width||c.y+radius>r.y+r.height||
+        !Array.isArray(c.mushrooms)||c.mushrooms.length<WITCH_CIRCLE.ringCount.min||c.mushrooms.length>WITCH_CIRCLE.ringCount.max||
+        !c.mushrooms.every(m=>point(m)&&Number.isInteger(m.variant)&&m.variant>=0&&m.variant<4&&
+          Number.isFinite(m.height)&&m.height>=WITCH_CIRCLE.ringHeight.min&&m.height<=WITCH_CIRCLE.ringHeight.max&&
+          Math.abs(Math.hypot(m.x-c.x,m.y-c.y)-WITCH_CIRCLE.radius)<=WITCH_CIRCLE.radialJitter+1))return false;
+    }
+    if(s.world?.witchCircle!==undefined&&(!s.layout.witchCircle||!flag(s.world.witchCircle.collected)))return false;
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
         if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!(index===6&&room.scenario==='empty')))return false;

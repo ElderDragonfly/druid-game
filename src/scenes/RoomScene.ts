@@ -17,8 +17,10 @@ import type { RunSave } from '../persistence/snapshots';
 import { menuMusic } from '../audio/MenuMusic';
 import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
-import { bushCollisionRect, bushInSpawnRoom, generateBushes } from '../world/bushes';
-import { overlaps, type Rect } from '../world/geometry';
+import { bushInSpawnRoom, bushVisualRect, generateBushes } from '../world/bushes';
+import type { Rect } from '../world/geometry';
+import { prepareWitchGrove, rectTouchesCircle } from '../world/witchGrove';
+import { WITCH_CIRCLE } from '../data/witchCircle';
 import { invalidateLayoutCollisionRects } from '../world/collision';
 import { WOLF } from '../data/wolf';
 import { MOUSE } from '../data/mouse';
@@ -147,7 +149,7 @@ export class RoomScene extends Phaser.Scene {
         this.queuedAttack=undefined;
         this.player.setInteractionLocked(true);
         const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
-        if (!event.repeat&&canInteract&&!this.world.ritual?.canInteract(point)&&!this.world.cleansing?.tree.canInteract(point)) this.world.collectMushroom(point);
+        if (!event.repeat&&canInteract&&!this.world.ritual?.canInteract(point)&&!this.world.cleansing?.tree.canInteract(point)&&!this.world.witchCircle?.canInteract(point)) this.world.collectMushroom(point);
         return;
       }
       if (!event.code.startsWith('Arrow') || event.repeat || !this.player.canStartAction) return;
@@ -164,9 +166,10 @@ export class RoomScene extends Phaser.Scene {
       if(this.gameOver)return;
       const ritual=this.world.ritual;
       const tree=this.world.cleansing?.tree;
+      const witchCircle=this.world.witchCircle;
       const available=!this.player.dead&&!this.player.hitReaction.active&&!this.player.casting.active;
       const point=(this.player.body as Phaser.Physics.Arcade.Body).center;
-      const target=available?(ritual?.canInteract(point)?ritual:tree?.canInteract(point)?tree:undefined):undefined;
+      const target=available?(ritual?.canInteract(point)?ritual:tree?.canInteract(point)?tree:witchCircle?.canInteract(point)?witchCircle:undefined):undefined;
       this.holdInteraction.update(delta,target,this.interactionKey.isDown);
       this.holdIndicator.updatePosition(this.player.x,this.player.getTopLeft().y,
         this.holdInteraction.visible || (available && this.world.canCollectMushroom(point)),this.holdInteraction.progress);
@@ -231,8 +234,9 @@ export class RoomScene extends Phaser.Scene {
         ...(world.cleansing?.enemies??[]).filter(e=>e.state.health>0).map(e=>footprint(e,FOREST_INSECT.body)));
       if(world.bear&&world.bear.state.health>0)protectedActors.push(footprint(world.bear,BEAR.body));
     }
-    if (!this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush) ||
-      protectedActors.some(actor=>overlaps(actor,bushCollisionRect(bush))))) {
+    const groveChanged=prepareWitchGrove(this.layout,protectedActors);
+    if (groveChanged || !this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush) ||
+      rectTouchesCircle(bushVisualRect(bush),this.layout.witchCircle!,WITCH_CIRCLE.clearingRadius))) {
       this.layout.bushes = generateBushes(this.layout, protectedActors);
       invalidateLayoutCollisionRects(this.layout);
     }

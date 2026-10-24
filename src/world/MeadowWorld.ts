@@ -1,6 +1,6 @@
 import { Bear } from '../entities/Bear';
 import { ForestBushes } from '../rendering/ForestBushes';
-import { bushCollisionRect } from './bushes';
+import { WitchCircle } from './WitchCircle';
 import { generateBearSpawn } from './bearPopulation';
 import { StumpRitual } from './StumpRitual';
 import { ROOM_SCENARIOS, ROOM_GRID } from '../data/roomScenarios';
@@ -39,6 +39,7 @@ export class MeadowWorld {
   readonly corpses: Wolf[] = [];
   readonly enemyCollisions:EnemyCollisions;
   readonly bushes:ForestBushes;
+  readonly witchCircle?:WitchCircle;
   private logArt: Phaser.GameObjects.Image[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
@@ -51,6 +52,7 @@ export class MeadowWorld {
     this.floor = surface.floor;
     this.grass = new GrassForeground(scene, surface.raster);
     this.bushes = new ForestBushes(scene, layout.bushes ?? []);
+    if(layout.witchCircle)this.witchCircle=new WitchCircle(scene,layout.witchCircle,saved?.witchCircle?.collected??false);
     this.enemyCollisions=new EnemyCollisions(scene);
     if(layout.rooms) {
       this.roomGrid=scene.add.graphics().setName('room-grid').setDepth(-.5);
@@ -76,12 +78,6 @@ export class MeadowWorld {
       // Physics and generation/pathfinding share the same trimmed trunk.
       body.setSize(bounds.width, bounds.height, false)
         .setOffset(bounds.x - topLeft.x, bounds.y - topLeft.y);
-    });
-    (layout.bushes??[]).forEach((bush,index)=>{
-      const bounds=bushCollisionRect(bush);
-      const proxy=this.obstacles.create(bounds.x,bounds.y,'__WHITE') as Phaser.Physics.Arcade.Image;
-      proxy.setName(`bush-collider-${index}`).setData('kind','bush').setOrigin(0)
-        .setDisplaySize(bounds.width,bounds.height).setVisible(false).refreshBody();
     });
     (layout.logs??[]).forEach((log,index)=>{
       this.logArt.push(...drawFallenLog(scene,log,index));
@@ -206,6 +202,7 @@ export class MeadowWorld {
     this.floor.destroy();
     this.grass.destroy();
     this.bushes.destroy();
+    this.witchCircle?.destroy();
     this.ritual?.destroy();
     this.cleansing?.destroy();
     this.bear?.destroy();
@@ -213,7 +210,7 @@ export class MeadowWorld {
   }
 
   snapshot(): WorldSave {
-    return { bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
+    return { witchCircle:this.witchCircle?{collected:this.witchCircle.collected}:undefined,bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 
