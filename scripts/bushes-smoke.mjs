@@ -26,9 +26,10 @@ export async function testBushes(page, ok, waitScene) {
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
     return b.foliage.length === s.layout.bushes.length &&
-      b.foliage.every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1) &&
+      b.foliage.every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1 &&
+        Math.abs(o.displayWidth - o.width / 3) < 1e-6 && Math.abs(o.displayHeight - o.height / 3) < 1e-6) &&
       !s.textures.exists('forest-bush-ground') && !s.children.list.some(o => o.name.startsWith('bush-ground-'));
-  }), 'Все кусты — только листва без коллайдеров и сглаживания; подложки удалены и не загружаются, HUD не дублирует кусты');
+  }), 'Все кусты втрое меньше по ширине и высоте, без коллайдеров и сглаживания; подложек и дубликатов HUD нет');
   const arena = await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'); s.physics.pause();
     const { bushVisualRect } = await import('/src/world/bushes.ts');
