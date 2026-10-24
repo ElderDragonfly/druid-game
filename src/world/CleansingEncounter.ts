@@ -36,7 +36,7 @@ export class CleansingEncounter {
     private obstacles:Phaser.Physics.Arcade.StaticGroup,private player:Druid,saved?:CleansingSave,
     private readonly onSpawn:(enemy:ForestInsect)=>void=()=>{}) {
     this.navigation=new WolfNavigation(layout,FOREST_INSECT.body);
-    this.tree=new CleansingTree(scene,room,saved?.status??'dormant',()=>this.start());
+    this.tree=new CleansingTree(scene,room,saved?.status??'dormant',()=>this.start(),saved?.cleansingElapsed);
     for(const [index,state] of (saved?.enemies??[]).entries()) {
       const enemy=this.create(state,index);enemy.restore(state);
     }
@@ -56,7 +56,8 @@ export class CleansingEncounter {
   update(delta:number) {
     for(const enemy of this.enemies){if(this.player.dead)break;enemy.updateBehavior(delta);}
     if(this.tree.status==='active'&&this.enemies.length&&this.enemies.every(enemy=>enemy.deathFinished))this.tree.cleanse();
+    this.tree.update(delta);
   }
-  snapshot():CleansingSave{return {roomId:this.room.id,status:this.tree.status,enemies:this.enemies.map(enemy=>enemy.snapshot())};}
+  snapshot():CleansingSave{return {roomId:this.room.id,status:this.tree.status,enemies:this.enemies.map(enemy=>enemy.snapshot()),cleansingElapsed:this.tree.cleansingElapsed};}
   destroy(){this.tree.destroy();this.enemies.forEach(enemy=>enemy.destroy());}
 }

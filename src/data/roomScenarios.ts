@@ -8,6 +8,6 @@ export const ROOM_ASSIGNMENTS: readonly RoomScenarioId[] = [
 ];
 export const ROOM_SCENARIOS = {
   wolves: { wolves: { min: 3, max: 4 }, logs: { min: 1, max: 2 }, mushrooms: { min: 0, max: 2 } },
-  cleansing: { enemyCount: 3, interactionRadius: 44 },
+  cleansing: { enemyCount: 3, interactionRadius: 8 },
   mushroomHealing: 1,
 } as const;

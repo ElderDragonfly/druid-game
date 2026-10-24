@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 root=Path(__file__).resolve().parents[1]/'docs/art/cleansing-tree-v1'
-for state in ('corrupted','cleansed'):
+for state in ('corrupted','cleansed',*(f'transition-{i}' for i in range(1,7))):
     original=np.array(Image.open(root/(state+'.png')).convert('RGBA'))
     y=np.indices(original.shape[:2])[0]
     rgb=original[:,:,:3].astype(int)

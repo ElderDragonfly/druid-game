@@ -9,7 +9,7 @@ import { seededRandom } from '../world/random';
 import type { PointSave, RunSave } from './snapshots';
 import { ROOM_ASSIGNMENTS, ROOM_SCENARIOS } from '../data/roomScenarios';
 import { roomAt, roomBounds } from '../world/rooms';
-import insectArt from '../../docs/art/forest-insect-v1/animations.json';
+import insectArt from '../../docs/art/forest-fly-v2/animations.json';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -115,13 +115,16 @@ export function isRunSave(value: unknown): value is RunSave {
         !['dormant','active','cleansed'].includes(c.status)||!Array.isArray(c.enemies)||
         c.enemies.length!==(c.status==='dormant'?0:ROOM_SCENARIOS.cleansing.enemyCount)||
         !c.enemies.every(enemy=>(enemy.flight===undefined||(!!enemy.flight&&
-          Number.isInteger(enemy.flight.randomIndex)&&nonnegative(enemy.flight.randomIndex)&&
-          nonnegative(enemy.flight.legMs)&&nonnegative(enemy.flight.pauseMs)&&
+          (enemy.flight.wavePhase===undefined||nonnegative(enemy.flight.wavePhase))&&nonnegative(enemy.flight.pauseMs)&&
           (enemy.flight.launch===undefined||point(enemy.flight.launch))&&
-          (enemy.flight.launchDepth===undefined||nonnegative(enemy.flight.launchDepth))&&
-          (enemy.flight.waypoint===undefined||point(enemy.flight.waypoint))))&&
+          (enemy.flight.launchStart===undefined||point(enemy.flight.launchStart))&&
+          (enemy.flight.launchLength===undefined||nonnegative(enemy.flight.launchLength))&&
+          (enemy.flight.launchTravelled===undefined||nonnegative(enemy.flight.launchTravelled))&&
+          (enemy.flight.launchDepth===undefined||nonnegative(enemy.flight.launchDepth))))&&
           ['up','down','left','right'].includes(enemy.facing)&&
-          validCreature(enemy as unknown as RunSave['world']['wolves'][number],Object.keys(insectArt.animations)))||
+          validCreature(enemy as unknown as RunSave['world']['wolves'][number],
+            [...Object.keys(insectArt.animations),'idle','walk','run','attack-left','attack-right','attack-up','attack-down','idle-up','idle-down']))||
+        (c.cleansingElapsed!==undefined&&(!nonnegative(c.cleansingElapsed)||c.cleansingElapsed>1400||c.status!=='active'||!c.enemies.every(enemy=>enemy.corpse)))||
         c.status==='cleansed'&&!c.enemies.every(enemy=>enemy.corpse))return false;
     }
     if (!Array.isArray(s.world.mice) || s.world.mice.length > 32 ||

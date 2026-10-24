@@ -1,5 +1,5 @@
 import { testStump } from './stump-smoke.mjs';
-import { testInsectFlight } from './insect-flight-smoke.mjs';
+import { testInsectFlight, testAirborneAcorn } from './insect-flight-smoke.mjs';
 import { testEnemyCollisions } from './enemy-collision-smoke.mjs';
 import { testRoomScenarios } from './room-scenarios-smoke.mjs';
 import { testMushroomInteraction } from './mushroom-interaction-smoke.mjs';
@@ -362,6 +362,7 @@ try {
   await testStump(page,ok,clickNamed,waitScene);
   await testRoomScenarios(page,ok,clickNamed,waitScene);
   await testInsectFlight(page,ok);
+  await testAirborneAcorn(page,ok);
   // Reset after the flight fixture activates its tree.
   await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');s.scene.restart({seed:s.layout.seed});});
   await page.waitForTimeout(100);await waitScene('Room');

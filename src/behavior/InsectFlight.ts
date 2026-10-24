@@ -1,73 +1,85 @@
 import { WolfBehavior } from './WolfBehavior';
-import { FOREST_INSECT } from '../data/forestInsect';
+import { FOREST_INSECT as CONFIG } from '../data/forestInsect';
 import type { InsectFlightSave } from '../persistence/snapshots';
 import type { Rect } from '../world/meadowLayout';
 import type { WolfNavigation, WolfPoint } from '../world/WolfNavigation';
-import { seededRandom } from '../world/random';
 
-/** Independent, uneven flight legs; ordinary combat still uses the true target. */
+const TAU=Math.PI*2;
+/** Physical routing on the ground, a separate launch arc, then sine-wave pursuit. */
 export class InsectFlight extends WolfBehavior {
-  private flight:InsectFlightSave={randomIndex:0,legMs:0,pauseMs:0};
-  private readonly seed:number;
+  private flight:InsectFlightSave={wavePhase:0,pauseMs:0};
+  private previous?:WolfPoint;
   private launchPath:WolfPoint[]=[];
   private launchPathAge=Infinity;
 
   constructor(navigation:WolfNavigation,start:WolfPoint,identity:number) {
-    super(navigation,start,identity,FOREST_INSECT);
-    this.seed=navigation.layout.seed^0x464c4947^identity;
+    super(navigation,start,identity,CONFIG);
+    this.flight.wavePhase=(identity-1)*TAU/3;
   }
   get launching(){return this.flight.launch!==undefined;}
   get launchDepth(){return this.flight.launchDepth??0;}
+  get altitude(){
+    if(!this.launching)return 0;
+    const t=Math.min(1,(this.flight.launchTravelled??0)/Math.max(1,this.flight.launchLength??1));
+    return CONFIG.flight.launchHeight*4*t*(1-t);
+  }
   launch(destination:WolfPoint,depth:number) {
-    this.alert();this.flight.launch={...destination};this.flight.launchDepth=depth;
-    this.flight.waypoint=undefined;this.launchPathAge=Infinity;
+    const start={...this.actorState.target};this.alert();
+    const path=this.navigation.route(start,destination);
+    let length=0,previous=start;
+    for(const next of path){length+=Math.hypot(next.x-previous.x,next.y-previous.y);previous=next;}
+    Object.assign(this.flight,{launch:{...destination},launchStart:start,launchDepth:depth,launchTravelled:0,launchLength:Math.max(1,length)});
+    this.previous=start;this.launchPathAge=Infinity;
   }
   snapshotFlight():InsectFlightSave{return structuredClone(this.flight);}
   restoreFlight(saved?:InsectFlightSave) {
-    this.flight=saved?structuredClone(saved):{randomIndex:0,legMs:0,pauseMs:0};
-    this.launchPath=[];this.launchPathAge=Infinity;
+    // Earlier runs used random detours. Keep their launch, start the new wave.
+    this.flight={...saved,wavePhase:saved?.wavePhase??0,pauseMs:Math.min(CONFIG.flight.peakPauseMs,saved?.pauseMs??0)};
+    this.previous=undefined;this.launchPath=[];this.launchPathAge=Infinity;
   }
   override step(delta:number,position:WolfPoint,player:WolfPoint,playerBody:Rect):WolfPoint {
     const dt=Math.max(0,delta),s=this.actorState,f=this.flight;
+    const travelled=this.previous?Math.hypot(position.x-this.previous.x,position.y-this.previous.y):0;
+    this.previous={...position};
     if(f.launch) {
-      if(Math.hypot(f.launch.x-position.x,f.launch.y-position.y)<=12) {
-        f.launch=undefined;f.launchDepth=undefined;f.legMs=0;
+      f.launchStart??={...position};
+      f.launchLength??=Math.max(1,Math.hypot(f.launch.x-position.x,f.launch.y-position.y));
+      f.launchTravelled=Math.min(f.launchLength,(f.launchTravelled??0)+travelled);
+      if(Math.hypot(f.launch.x-position.x,f.launch.y-position.y)<=6) {
+        delete f.launch;delete f.launchDepth;delete f.launchStart;delete f.launchLength;delete f.launchTravelled;
       } else {
         s.phase='chase';s.elapsed+=dt;s.target={...f.launch};this.launchPathAge+=dt;
         if(this.launchPathAge>=450||!this.launchPath.length) {
           this.launchPath=this.navigation.route(position,f.launch);this.launchPathAge=0;
         }
-        while(this.launchPath.length&&Math.hypot(this.launchPath[0].x-position.x,this.launchPath[0].y-position.y)<6)this.launchPath.shift();
+        while(this.launchPath.length&&Math.hypot(this.launchPath[0].x-position.x,this.launchPath[0].y-position.y)<4)this.launchPath.shift();
         const next=this.launchPath[0];if(!next)return {x:0,y:0};
         const dx=next.x-position.x,dy=next.y-position.y,d=Math.hypot(dx,dy);
         const speed=Math.min(s.runSpeed,d/Math.max(dt/1000,.001));
         return {x:dx/d*speed,y:dy/d*speed};
       }
     }
-    // Attack and its recovery never aim at a detour waypoint.
     if(!s.alerted||s.phase==='attack'||this.inAttackRange(position,playerBody)) {
-      f.pauseMs=0;f.legMs=0;return super.step(dt,position,player,playerBody);
+      f.pauseMs=0;return super.step(dt,position,player,playerBody);
     }
     if(f.pauseMs>0) {
       f.pauseMs=Math.max(0,f.pauseMs-dt);s.elapsed+=dt;return {x:0,y:0};
     }
-    f.legMs=Math.max(0,f.legMs-dt);
     const distance=Math.hypot(player.x-position.x,player.y-position.y);
-    if(!f.waypoint||f.legMs<=0||Math.hypot(f.waypoint.x-position.x,f.waypoint.y-position.y)<10) {
-      const random=seededRandom(this.seed^++f.randomIndex);
-      if(distance>140&&f.waypoint&&random()<.22) {
-        f.pauseMs=200+random()*150;f.waypoint=undefined;return {x:0,y:0};
-      }
-      f.waypoint={...player};
-      const forward=Math.min(distance,65+random()*90),dx=(player.x-position.x)/Math.max(1,distance),dy=(player.y-position.y)/Math.max(1,distance);
-      // Unequal random offsets and lengths, rather than a periodic wave.
-      for(let attempt=0;attempt<8&&distance>85;attempt++) {
-        const sideways=(random()*2-1)*Math.min(100,distance*.3);
-        const q={x:position.x+dx*forward-dy*sideways,y:position.y+dy*forward+dx*sideways};
-        if(this.navigation.clear(position,q)){f.waypoint=q;break;}
-      }
-      f.legMs=550+random()*750;
+    const amplitude=CONFIG.flight.waveAmplitude*Math.min(1,distance/120),k=TAU/CONFIG.flight.waveLength;
+    const slope=amplitude*k*Math.cos(f.wavePhase);
+    const advance=travelled*k/Math.sqrt(1+slope*slope);
+    const nextPeak=Math.PI/2+Math.ceil((f.wavePhase-Math.PI/2+1e-7)/Math.PI)*Math.PI;
+    if(f.wavePhase+advance>=nextPeak) {
+      f.wavePhase=nextPeak%TAU;f.pauseMs=CONFIG.flight.peakPauseMs;s.elapsed+=dt;return {x:0,y:0};
     }
-    return super.step(dt,position,f.waypoint,playerBody);
+    f.wavePhase=(f.wavePhase+advance)%TAU;
+    const base=super.step(dt,position,player,playerBody),speed=Math.hypot(base.x,base.y);
+    if(!speed)return base;
+    const side=amplitude*k*Math.cos(f.wavePhase),factor=1/Math.sqrt(1+side*side);
+    const velocity={x:(base.x-base.y*side)*factor,y:(base.y+base.x*side)*factor};
+    const next={x:position.x+velocity.x*Math.max(dt,20)/1000,y:position.y+velocity.y*Math.max(dt,20)/1000};
+    // Routing still goes around trunks/logs. Never force the wave through them.
+    return this.navigation.clear(position,next)?velocity:base;
   }
 }

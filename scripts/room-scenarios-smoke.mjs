@@ -1,3 +1,4 @@
+import {testRitualTreeCollision} from './ritual-tree-collision-smoke.mjs';
 /** Actual room content, held interaction, four attack directions and saved waves. */
 export async function testRoomScenarios(page,ok,click,waitScene) {
   ok(await page.evaluate(async()=>{
@@ -32,6 +33,7 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
       tree.image.texture.key==='ritual-tree-corrupted'&&tree.image.scaleX===2&&
       tree.image.texture.source[0].scaleMode===1&&(tree.image.cameraFilter&s.hudCamera.id);
   }),'Границы комнат — только линии без стен; дерево из отдельного 100×125 PNG, врагов до активации нет');
+  await testRitualTreeCollision(page,ok);
   const pos=await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),t=s.layout.rooms[7].tree;
     s.physics.pause();s.player.body.reset(t.x+65,t.y-20);s.player.body.updateFromGameObject();
@@ -46,7 +48,7 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
     return c.tree.status==='active'&&c.tree.image.texture.key==='ritual-tree-corrupted'&&c.enemies.every(e=>
       e.actorState.health===2&&e.actorState.alerted&&Math.abs(e.actorState.runSpeed-220*2/3*.8)<.001&&e.body.enable&&
       e.behavior.launching&&e.y===s.layout.rooms[7].tree.y-150&&
-      [e,e.shadow].every(o=>o.cameraFilter&s.hudCamera.id));
+      [e,e.shadow,e.airborne].every(o=>o.cameraFilter&s.hudCamera.id));
   }),'Секунда E выпускает из кроны 3 врагов: HP 2, скорость 0,8, полёт наружу, физика и тени не дублируются HUD');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,e=s.world.cleansing.enemies[0];
@@ -57,13 +59,13 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
       p.cancelHit();p.actorState.health=3;
       e.body.reset(x,y);e.body.updateFromGameObject();e.actorState.phase='chase';e.actorState.elapsed=0;e.attackConnected=false;
       e.updateBehavior(16);
-      if(e.texture.key!==`insect-attack-${direction}`||e.actorState.phase!=='attack')return false;
-      e.updateBehavior(250);if(p.actorState.health!==2||!p.hitReaction.active)return false;
+      if(e.texture.key!=='insect-attack'||e.actorState.phase!=='attack')return false;
+      e.updateBehavior(310);if(p.actorState.health!==2||!p.hitReaction.active)return false;
       e.updateBehavior(10);if(p.actorState.health!==2)return false;
     }
     p.cancelHit();p.heal(1);
     return true;
-  }),'Все четыре направления используют отдельный удар хвостом: попадание в активной фазе, ровно 1 HP, без повторного урона за удар');
+  }),'С любой стороны используются исходные кадры атаки, только с отражением: попадание в активной фазе, ровно 1 HP, без повторного урона за удар');
   const hit=async()=>page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),e=s.world.cleansing.enemies[0];
     const {AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
@@ -98,13 +100,18 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
   }),'«Продолжить» восстанавливает текущую волну, не создавая её заново');
   await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room');window.__cleanedEvents=0;s.events.once('tree-cleansed',()=>window.__cleanedEvents++);
-    s.world.cleansing.enemies.filter(e=>!e.dying).forEach(e=>e.takeDamage(2));s.world.update(650);
+    s.world.cleansing.enemies.filter(e=>!e.dying).forEach(e=>{e.behavior.restoreFlight();e.takeDamage(2);});s.world.update(1100);
   });
+  ok(await page.evaluate(()=>{
+    const c=window.__smokeGame.scene.getScene('Room').world.cleansing;
+    return c.tree.status==='active'&&c.tree.image.texture.key.startsWith('ritual-tree-transition-');
+  }),'После последней смерти дерево показывает промежуточный кадр роста, а не мгновенный готовый спрайт');
+  await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').world.update(400));
   ok(await page.evaluate(()=>{
     const c=window.__smokeGame.scene.getScene('Room').world.cleansing;
     return c.tree.status==='cleansed'&&c.tree.image.texture.key==='ritual-tree-cleansed'&&
       c.enemies.every(e=>e.deathFinished&&!e.body.enable)&&window.__cleanedEvents===1;
-  }),'После гибели всех врагов дерево меняет спрайт на живую листву, трупы остаются, событие будущей награды испускается один раз');
+  }),'После гибели всех врагов дерево меняет спрайт на живую листву, исходная смерть завершена, событие будущей награды испускается один раз');
   await page.keyboard.down('e');await page.waitForTimeout(1100);await page.keyboard.up('e');
   ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return s.world.cleansing.enemies.length===3&&s.world.cleansing.tree.status==='cleansed'&&!s.holdIndicator.visible;}),
     'Очищенное дерево повторно не запускается');

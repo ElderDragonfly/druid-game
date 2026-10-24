@@ -62,15 +62,10 @@ export class SpritePreview {
         width: 128, height: 112, footY: 100, scale: 2.4, durations };
     }
     if(this.entity==='forestInsect') {
-      const animation:InsectAnimation=this.animation==='attack'?`attack-${direction as 'up'|'down'|'left'|'right'}`:
-        this.animation==='idle'&&(direction==='up'||direction==='down')?`idle-${direction}`:this.animation as InsectAnimation;
-      let durations=insectDurations(animation);
-      if(this.animation==='run')durations=durations.map(ms=>ms*.9/data.forestInsect.runSpeed);
-      if(this.animation==='attack') {
-        const total=durations.reduce((a,b)=>a+b,0);durations=durations.map(ms=>ms/total*data.wolf.behavior.attackMs);
-      }
+      const animation:InsectAnimation=this.animation==='attack'?'attack':this.animation==='death'?'death':'fly';
+      const durations=insectDurations(animation);
       return {url:INSECT_ART.find(a=>a.key===`insect-${animation}`)!.url,shadow:INSECT_ART.find(a=>a.key==='insect-shadow')!.url,
-        width:INSECT_METRICS.width,height:INSECT_METRICS.height,footY:INSECT_METRICS.feetY,scale:2.4,durations};
+        width:INSECT_METRICS.width,height:INSECT_METRICS.height,footY:INSECT_METRICS.feetY,scale:4.8,durations};
     }
     const state = this.animation;
     return { url: MOUSE_ART.find(a => a.key === (state === 'lower' ? 'mouse-rise' : `mouse-${state}`))!.url,
@@ -94,7 +89,7 @@ export class SpritePreview {
       ctx.save(); ctx.imageSmoothingEnabled = false;
       ctx.translate(256, 352);
       if (this.entity === 'wolf'&&this.direction==='left'||this.entity==='mouse'&&this.direction==='right'||
-        this.entity==='forestInsect'&&this.direction==='left'&&this.animation!=='attack') ctx.scale(-1, 1);
+        this.entity==='forestInsect'&&this.direction==='right') ctx.scale(-1, 1);
       const draw = (img: HTMLImageElement) => {
         if (img.complete && img.naturalWidth) ctx.drawImage(img, sourceIndex * sheet.width, 0, sheet.width, sheet.height,
           -sheet.width * sheet.scale / 2, -sheet.footY * sheet.scale, sheet.width * sheet.scale, sheet.height * sheet.scale);

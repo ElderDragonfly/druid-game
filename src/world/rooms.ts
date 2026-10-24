@@ -32,5 +32,11 @@ export function ritualTreeClearing(point: { x: number; y: number }): Rect {
   return { x: point.x - 170, y: point.y - 280, width: 340, height: 360 };
 }
 export function ritualTreeRect(point: { x: number; y: number }): Rect {
-  return { x: point.x - 24, y: point.y - 22, width: 48, height: 22 };
+  // Projected trunk footprint: the ground patch below it stays walkable.
+  return { x: point.x - 16, y: point.y - 48, width: 28, height: 22 };
+}
+
+/** E is offered across the walkable lawn, independently of the trunk collider. */
+export function ritualTreeInteractionRect(point:{x:number;y:number}):Rect {
+  return {x:point.x-84,y:point.y-42,width:168,height:46};
 }

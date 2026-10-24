@@ -1,0 +1,87 @@
+{
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "feetX": 33,
+  "feetY": 44,
+  "source": "docs/art/21b6e2a5df123c784950d74653ae51a9.gif",
+  "sourceFrameCount": 55,
+  "sourceFacing": "left",
+  "attackImpactMs": 300,
+  "animations": {
+    "fly": {
+      "frames": 8,
+      "durations": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "sourceFrames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    "attack": {
+      "frames": 8,
+      "durations": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "sourceFrames": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43
+      ]
+    },
+    "death": {
+      "frames": 11,
+      "durations": [
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100,
+        100
+      ],
+      "sourceFrames": [
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+      ]
+    }
+  }
+}

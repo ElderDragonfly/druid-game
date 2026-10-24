@@ -23,21 +23,11 @@ export async function testEnemyCollisions(page,ok,waitScene) {
   }),'Оба дерева собираются из слоёв пиксель в пиксель; зелёная подстилка ниже друида и исключена из HUD');
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),{insectDurations}=await import('/src/rendering/forestInsectArt.ts');
-    for(const direction of ['up','down']) {
-      const frames=insectDurations(`attack-${direction}`);
-      if(frames.length!==32||Math.abs(frames.reduce((a,b)=>a+b,0)-660)>.001)return false;
-      const canvas=document.createElement('canvas');canvas.width=128;canvas.height=112;
-      const ctx=canvas.getContext('2d',{willReadFrequently:true}),sheet=s.textures.get(`insect-attack-${direction}`).getSourceImage();
-      const read=n=>{ctx.clearRect(0,0,128,112);ctx.drawImage(sheet,n*128,0,128,112,0,0,128,112);return ctx.getImageData(0,0,128,112).data;};
-      const a=read(0),b=read(2);let changed=0;
-      for(let y=0;y<112;y++)for(let x=0;x<128;x++)for(let j=0;j<4;j++){
-        const i=(y*128+x)*4+j;
-        if(a[i]!==b[i]){if(x>=62&&x<=66&&a[(y*128+x)*4+3])return false;changed++;}
-      }
-      if(changed<100)return false;
-    }
-    return true;
-  }),'Крылья машут в обеих вертикальных атаках; тело/хвост внутри фазы не меняются, общая длительность осталась 660 мс');
+    return insectDurations('fly').length===8&&insectDurations('attack').length===8&&
+      insectDurations('death').length===11&&insectDurations('death').reduce((a,b)=>a+b,0)===1100&&
+      !s.textures.exists('insect-attack-up')&&!s.textures.exists('insect-attack-down')&&
+      s.textures.get('insect-fly').getSourceImage().width===64*8;
+  }),'Новая GIF: полёт 8 кадров, атака 8, смерть 11; верхних/нижних ракурсов больше нет');
   const arena=await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room');s.physics.resume();s.world.cleansing.tree.completeInteraction();
     const all=[...s.world.wolves,...s.world.cleansing.enemies];
@@ -70,7 +60,7 @@ export async function testEnemyCollisions(page,ok,waitScene) {
   }
   await page.evaluate(({arena,counts})=>{
     const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies];all.forEach(e=>{e.body.enable=false;e.setVelocity(0,0);});
-    const dead=s.world.cleansing.enemies[0],live=s.world.wolves[0];dead.body.reset(arena.x,arena.y);dead.body.enable=true;dead.takeDamage(2);
+    const dead=s.world.cleansing.enemies[0],live=s.world.wolves[0];dead.body.reset(arena.x,arena.y);dead.body.enable=true;dead.behavior.restoreFlight();dead.takeDamage(2);
     live.body.enable=true;live.body.reset(arena.x-75,arena.y);live.setVelocity(100,0);
   },{arena,counts});
   await page.waitForTimeout(1500);
