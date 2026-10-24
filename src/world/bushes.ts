@@ -5,8 +5,7 @@ import { obstacleRect, obstacleVisualRect, type MeadowLayout } from './meadowLay
 import { logVisualRect } from './fallenLogs';
 import { stumpClearing } from './stump';
 import { ritualTreeClearing } from './rooms';
-import { groveInterior, rectTouchesCircle } from './witchGrove';
-import { WITCH_CIRCLE } from '../data/witchCircle';
+import { groveInterior, rectTouchesGroveClearing } from './witchGrove';
 
 export interface BushPlacement { x: number; y: number; variant: number }
 export function bushVisualRect(bush: BushPlacement, scaleFactor = 1): Rect {
@@ -50,7 +49,7 @@ export function generateBushes(layout: MeadowLayout, protectedActors: readonly R
         room.y + room.height - CONFIG.edge - (a.height - a.anchorY) * a.scale), variant,
     };
     const rect = bushVisualRect(bush);
-    if(layout.witchCircle&&rectTouchesCircle(rect,layout.witchCircle,WITCH_CIRCLE.clearingRadius))continue;
+    if(layout.witchCircle&&rectTouchesGroveClearing(rect,layout.witchCircle))continue;
     if (reserved.some(other => overlaps(rect, other, CONFIG.gap)) ||
       bushes.some(other => overlaps(rect, bushVisualRect(other), CONFIG.gap))) continue;
     // Prefer visible open ground, but dense crowns must not prevent the room

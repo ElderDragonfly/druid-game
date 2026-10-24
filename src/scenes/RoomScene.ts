@@ -19,8 +19,7 @@ import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
 import { bushInSpawnRoom, bushVisualRect, generateBushes } from '../world/bushes';
 import type { Rect } from '../world/geometry';
-import { prepareWitchGrove, rectTouchesCircle } from '../world/witchGrove';
-import { WITCH_CIRCLE } from '../data/witchCircle';
+import { prepareWitchGrove, rectTouchesGroveClearing } from '../world/witchGrove';
 import { invalidateLayoutCollisionRects } from '../world/collision';
 import { WOLF } from '../data/wolf';
 import { MOUSE } from '../data/mouse';
@@ -236,7 +235,7 @@ export class RoomScene extends Phaser.Scene {
     }
     const groveChanged=prepareWitchGrove(this.layout,protectedActors);
     if (groveChanged || !this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush) ||
-      rectTouchesCircle(bushVisualRect(bush),this.layout.witchCircle!,WITCH_CIRCLE.clearingRadius))) {
+      rectTouchesGroveClearing(bushVisualRect(bush),this.layout.witchCircle!))) {
       this.layout.bushes = generateBushes(this.layout, protectedActors);
       invalidateLayoutCollisionRects(this.layout);
     }

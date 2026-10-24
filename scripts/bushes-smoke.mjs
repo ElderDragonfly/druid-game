@@ -5,8 +5,7 @@ export async function testBushes(page, ok, waitScene) {
     const { bushVisualRect, generateBushes } = await import('/src/world/bushes.ts');
     const { stumpClearing } = await import('/src/world/stump.ts');
     const { ritualTreeClearing } = await import('/src/world/rooms.ts');
-    const { groveInterior, rectTouchesCircle } = await import('/src/world/witchGrove.ts');
-    const { WITCH_CIRCLE } = await import('/src/data/witchCircle.ts');
+    const { groveInterior, rectTouchesGroveClearing } = await import('/src/world/witchGrove.ts');
     const { logVisualRect } = await import('/src/world/fallenLogs.ts');
     const variants = new Set(), counts = new Set();
     for (let seed = 0; seed < 200; seed++) {
@@ -21,7 +20,7 @@ export async function testBushes(page, ok, waitScene) {
       for (const [i, b] of bushes.entries()) {
         variants.add(b.variant); const r = bushVisualRect(b);
         if (r.x < room.x + 12 || r.y < room.y + 12 || r.x + r.width > room.x + room.width - 12 || r.y + r.height > room.y + room.height - 12 ||
-          rectTouchesCircle(r,l.witchCircle,WITCH_CIRCLE.clearingRadius) || reserved.some(a => overlaps(r, a, 8)) || bushes.slice(0, i).some(a => overlaps(r, bushVisualRect(a), 8))) return false;
+          rectTouchesGroveClearing(r,l.witchCircle) || reserved.some(a => overlaps(r, a, 8)) || bushes.slice(0, i).some(a => overlaps(r, bushVisualRect(a), 8))) return false;
       }
     }
     return variants.size === 8 && counts.size === 13;

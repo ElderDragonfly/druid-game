@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FOREST_FLOOR, generateForestFloor, type FloorRaster } from '../world/forestFloor';
 import type { MeadowLayout } from '../world/meadowLayout';
 import { paintWitchCircleSoil } from './witchCircleSoil';
+import { witchSoilSample } from './witchCircleArt';
 
 const samples = new WeakMap<object, FloorRaster>();
 
@@ -34,7 +35,7 @@ export function drawForestFloor(scene: Phaser.Scene, layout: MeadowLayout) {
   const sample = forestFloorSamples(scene);
   const w = Math.ceil(layout.width / FOREST_FLOOR.pixelScale), h = Math.ceil(layout.height / FOREST_FLOOR.pixelScale);
   const raster = generateForestFloor(sample, w, h, layout.seed);
-  if(layout.witchCircle)paintWitchCircleSoil(raster,layout.witchCircle,FOREST_FLOOR.pixelScale,layout.seed);
+  if(layout.witchCircle)paintWitchCircleSoil(raster,layout.witchCircle,FOREST_FLOOR.pixelScale,layout.seed,witchSoilSample(scene));
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const context = canvas.getContext('2d')!;
   const image = context.createImageData(w, h); image.data.set(raster.pixels); context.putImageData(image, 0, 0);

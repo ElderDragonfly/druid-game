@@ -20,7 +20,7 @@ export class WitchCircle implements HoldInteractionTarget {
       .setDepth(position.y).setVisible(!collected).setName('witch-circle-central');
   }
   canInteract(point:{x:number;y:number}){
-    return !this.collected&&Math.hypot(point.x-this.position.x,point.y-this.position.y)<=CONFIG.radius;
+    return !this.collected&&Math.hypot((point.x-this.position.x)/CONFIG.radiusX,(point.y-this.position.y)/CONFIG.radiusY)<=1;
   }
   completeInteraction(){
     if(this.collected)return;
