@@ -29,30 +29,39 @@ export class BushTraps {
   startWave() {
     if(this.runners.length||!this.sanctuary)return;
     const random=seededRandom(this.layout.seed^Math.imul(++this.wave,0x42545250));
-    const count=C.minParallel+Math.floor(random()*(C.maxParallel-C.minParallel+1));
+    const count=C.minPerWave+Math.floor(random()*(C.maxPerWave-C.minPerWave+1));
     const angle=Math.floor(random()*4)*Math.PI/4,axis={x:Math.cos(angle),y:Math.sin(angle)};
     const positions=(this.layout.bushes??[]).map(bushCenter),point=this.player.body!.center;
-    const candidates:{source:number;target:number;lane:number;score:number}[]=[];
+    const candidates:{source:number;target:number;lane:number;score:number;aligned:boolean}[]=[];
     for(let source=0;source<positions.length;source++)for(let target=0;target<positions.length;target++){
       if(source===target)continue;
       const a=positions[source],b=positions[target],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
-      if(d<C.minDistance||d>C.maxDistance||Math.abs((dx*axis.x+dy*axis.y)/d)<.88||
+      if(d<C.minDistance||d>C.maxDistance||
         Math.hypot(a.x-point.x,a.y-point.y)>620)continue;
       const middle={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
-      candidates.push({source,target,lane:-middle.x*axis.y+middle.y*axis.x,
+      candidates.push({source,target,lane:-middle.x*axis.y+middle.y*axis.x,aligned:Math.abs((dx*axis.x+dy*axis.y)/d)>=.88,
         score:Math.hypot(middle.x-point.x,middle.y-point.y)+random()*150});
     }
     candidates.sort((a,b)=>a.score-b.score);
-    const used=new Set<number>(),lanes:number[]=[];
-    for(const candidate of candidates){
-      const {source,target,lane}=candidate;
-      if(used.has(source)||used.has(target)||lanes.some(other=>Math.abs(other-lane)<72))continue;
-      const path=bushTrapRoute(positions[source],positions[target],this.sanctuary);
-      if(path.length<2)continue;
-      this.runners.push({source,target,phase:'warning',elapsed:0,distance:0,path,length:routeLength(path)});
-      used.add(source);used.add(target);lanes.push(lane);
-      this.bushes.rustle(source,0);
-      if(this.runners.length===count)break;
+    const sources=new Set<number>(),targets=new Set<number>(),lanes:number[]=[];
+    let delayMs=0;
+    // Spread the first lanes out. Extra staggered starts may reuse a corridor
+    // rather than fill its walking gaps with another tightly packed lane.
+    for(const mode of ['spread','reuse','fill']){
+      const distanceToLane=(lane:number)=>Math.min(...lanes.map(other=>Math.abs(other-lane)));
+      const ordered=mode==='reuse'?[...candidates].sort((a,b)=>distanceToLane(a.lane)-distanceToLane(b.lane)||a.score-b.score):candidates;
+      for(const candidate of ordered){
+        if(this.runners.length===count)break;
+        const {source,target,lane}=candidate;
+        if((mode!=='fill'&&!candidate.aligned)||sources.has(source)||targets.has(target))continue;
+        if(mode==='spread'&&lanes.some(other=>Math.abs(other-lane)<72))continue;
+        const path=bushTrapRoute(positions[source],positions[target],this.sanctuary);
+        if(path.length<2)continue;
+        this.runners.push({source,target,phase:'warning',elapsed:0,distance:0,delayMs,path,length:routeLength(path)});
+        sources.add(source);targets.add(target);lanes.push(lane);
+        if(!delayMs)this.bushes.rustle(source,0);
+        delayMs+=C.staggerMinMs+random()*(C.staggerMaxMs-C.staggerMinMs);
+      }
     }
     this.waitMs=C.restMinMs+random()*(C.restMaxMs-C.restMinMs);
   }
@@ -65,6 +74,10 @@ export class BushTraps {
     }
     for(let i=this.runners.length-1;i>=0;i--){
       const runner=this.runners[i];let remaining=delta;
+      if((runner.delayMs??0)>0){
+        const spent=Math.min(remaining,runner.delayMs!);runner.delayMs=runner.delayMs!-spent;remaining-=spent;
+        if(runner.delayMs>0)continue;
+      }
       if(runner.phase==='warning'){
         const spent=Math.min(remaining,C.warningMs-runner.elapsed);runner.elapsed+=spent;remaining-=spent;
         this.bushes.rustle(runner.source,runner.elapsed/C.warningMs);
@@ -107,8 +120,8 @@ export class BushTraps {
   }
 
   snapshot():BushTrapsSave {
-    return {wave:this.wave,waitMs:this.waitMs,runners:this.runners.map(({source,target,phase,elapsed,distance})=>
-      ({source,target,phase,elapsed,distance}))};
+    return {wave:this.wave,waitMs:this.waitMs,runners:this.runners.map(({source,target,phase,elapsed,distance,delayMs})=>
+      ({source,target,phase,elapsed,distance,...(delayMs?{delayMs}:{})}))};
   }
   restore(saved:BushTrapsSave){
     this.clear();this.wave=saved.wave;this.waitMs=saved.waitMs;
@@ -119,7 +132,9 @@ export class BushTraps {
       if(path.length<2)continue;
       const runner:Runner={...entry,path,length:routeLength(path)};
       this.runners.push(runner);
-      if(entry.phase==='warning')this.bushes.rustle(entry.source,entry.elapsed/C.warningMs);
+      if(entry.phase==='warning'){
+        if(!(entry.delayMs??0))this.bushes.rustle(entry.source,entry.elapsed/C.warningMs);
+      }
       else this.show(runner);
     }
   }

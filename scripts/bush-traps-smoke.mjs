@@ -22,26 +22,54 @@ export async function testBushTraps(page,ok,waitScene){
     const sizes=new Set();
     for(let i=0;i<60;i++){
       t.restore({wave:i,waitMs:0,runners:[]});t.startWave();sizes.add(t.runners.length);
-      if(t.runners.length<2||t.runners.length>3)return false;
+      if(t.runners.length<4||t.runners.length>6)return false;
+      for(let j=1;j<t.runners.length;j++){
+        const gap=t.runners[j].delayMs-t.runners[j-1].delayMs;
+        if(gap<200||gap>500)return false;
+      }
     }
     t.restore({wave:0,waitMs:0,runners:[]});t.startWave();
+    window.__trapSchedule=t.snapshot();
     const r=t.snapshot().runners[0];window.__trapRunner=r;
     const source=bushCenter(s.layout.bushes[r.source]);window.__trapPlace(source);
     s.player.cancelHit();s.player.cancelCast();s.player.actorState.health=3;
     window.__trapStep(450);
-    return sizes.has(2)&&sizes.has(3)&&s.playerHealth===3&&t.runners.every(r=>r.phase==='warning'&&!r.visual)&&
-      t.runners.every(r=>s.world.bushes.foliage[r.source].frame.name.startsWith('rustle-'));
-  }),'60 волн: одновременно 2–3 разных куста; шуршание заметно меняет кадр, до появления кружков урона нет');
+    return sizes.has(4)&&sizes.has(5)&&sizes.has(6)&&s.playerHealth===3&&t.runners.every(r=>r.phase==='warning'&&!r.visual)&&
+      t.runners.every(r=>r.delayMs>0?s.world.bushes.foliage[r.source].frame.name==='bush-2':
+        s.world.bushes.foliage[r.source].frame.name.startsWith('rustle-'));
+  }),'60 волн: случайные 4, 5 или 6 кустов, интервалы начала 200–500 мс; ожидающие кусты не шуршат и не наносят урон');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps;
     window.__trapStep(449);if(s.playerHealth!==3||t.runners.some(r=>r.visual))return false;
     window.__trapStep(1);
     const r=t.runners.find(r=>r.source===window.__trapRunner.source),dot=r.visual;
     window.__trapStep(0);
-    return s.playerHealth===2&&s.player.hitReaction.active&&r.phase==='moving'&&!!dot&&!dot.body&&
+    return s.playerHealth===2&&s.player.hitReaction.active&&t.runners.filter(r=>r.visual).length===1&&r.phase==='moving'&&!!dot&&!dot.body&&
       dot.cameraFilter&s.hudCamera.id&&s.world.bushes.foliage[r.source].frame.name==='bush-2'&&
       Math.hypot(dot.x-r.path[0].x,dot.y-r.path[0].y)<.001;
   }),'900 мс предупреждения: кружок возникает в центре куста, сразу наносит 1 HP, без физического тела; повтор в том же кадре защищён реакцией попадания');
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps,plan=window.__trapSchedule;
+    window.__trapPlace(s.layout.witchCircle);s.player.cancelHit();s.player.actorState.health=3;
+    t.restore(plan);
+    const secondDelay=plan.runners[1].delayMs;
+    window.__trapStep(900+secondDelay-1);
+    let second=t.runners.find(r=>r.source===plan.runners[1].source);
+    if(!second||second.visual||Math.abs(second.elapsed-899)>1e-6)return false;
+    window.__trapStep(1);
+    second=t.runners.find(r=>r.source===plan.runners[1].source);
+    return !!second?.visual&&second.elapsed===900;
+  }),'Второй кружок появляется позже первого и получает собственные полные 900 мс предупреждения');
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps,plan=window.__trapSchedule;
+    t.restore(plan);window.__trapStep(10000);
+    const wave=t.snapshot().wave;
+    if(t.runners.length||t.snapshot().waitMs<900)return false;
+    window.__trapStep(t.snapshot().waitMs-1);
+    if(t.runners.length||t.snapshot().wave!==wave)return false;
+    window.__trapStep(1);
+    return t.runners.length>=4&&t.runners.length<=6&&t.snapshot().wave===wave+1;
+  }),'Волны не перекрываются: пауза начинается после прибытия последнего кружка, затем запускается новая очередь');
   ok(await page.evaluate(async()=>{
     const {routePosition}=await import('/src/world/bushTrapRoutes.ts');
     const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps;
@@ -78,14 +106,18 @@ export async function testBushTraps(page,ok,waitScene){
   ok(await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps;
     const {isRunSave,saveRun,loadRun}=await import('/src/persistence/runSave.ts');
-    t.restore({wave:3,waitMs:1000,runners:[{...window.__trapRunner,phase:'warning',elapsed:300,distance:0}]});
+    const pending=window.__trapSchedule.runners[1];
+    t.restore({wave:3,waitMs:1000,runners:[{...window.__trapRunner,phase:'warning',elapsed:300,distance:0},
+      {...pending,phase:'warning',elapsed:0,distance:0,delayMs:1200}]});
     const save={version:1,savedAt:Date.now(),characterId:'druid',layout:structuredClone(s.layout),player:s.player.snapshot(),
       camera:{...s.cameraFollow.center},world:s.world.snapshot(),shots:[]};
     const old=structuredClone(save);delete old.world.bushTraps;old.layout.bushes.forEach((b,i)=>b.variant=i%8);
     const bad=structuredClone(save);bad.world.bushTraps.runners[0].distance=NaN;
     const same=structuredClone(save);same.world.bushTraps.runners[0].target=same.world.bushTraps.runners[0].source;
+    const badDelay=structuredClone(save);badDelay.world.bushTraps.runners[1].delayMs=2501;
+    const badMoving=structuredClone(save);badMoving.world.bushTraps.runners[1].phase='moving';badMoving.world.bushTraps.runners[1].elapsed=900;
     saveRun(save);const loaded=loadRun();window.__trapSaved=save;
-    return isRunSave(save)&&isRunSave(old)&&!isRunSave(bad)&&!isRunSave(same)&&
+    return isRunSave(save)&&isRunSave(old)&&!isRunSave(bad)&&!isRunSave(same)&&!isRunSave(badDelay)&&!isRunSave(badMoving)&&
       JSON.stringify(loaded.world.bushTraps)===JSON.stringify(save.world.bushTraps);
   }),'Сохранение хранит предупреждение и прогресс волны, принимает старые восемь видов и отвергает повреждённые маршруты');
   const previous=await page.evaluateHandle(()=>{
@@ -94,8 +126,9 @@ export async function testBushTraps(page,ok,waitScene){
   await page.waitForFunction(w=>window.__smokeGame.scene.getScene('Room').world!==w,previous);await waitScene('Room');
   ok(await page.evaluate(old=>{
     const s=window.__smokeGame.scene.getScene('Room'),t=s.world.bushTraps;
-    delete window.__trapPlace;delete window.__trapStep;delete window.__trapSaved;delete window.__trapRunner;
-    return t.runners.length===1&&t.runners[0].phase==='warning'&&t.runners[0].elapsed>=300&&t.runners[0].elapsed<450&&
+    delete window.__trapPlace;delete window.__trapStep;delete window.__trapSaved;delete window.__trapRunner;delete window.__trapSchedule;
+    return t.runners.length===2&&t.runners[0].phase==='warning'&&t.runners[0].elapsed>=300&&t.runners[0].elapsed<450&&
+      t.runners[1].phase==='warning'&&t.runners[1].elapsed===0&&t.runners[1].delayMs>1050&&t.runners[1].delayMs<=1200&&
       old.bushTraps.runners.length===0&&old.bushes.foliage.every(image=>!image.scene);
   },previous),'Продолжение восстанавливает шуршащий куст, прежняя сцена удаляет ловушки и листву без дубликатов');
   await previous.dispose();

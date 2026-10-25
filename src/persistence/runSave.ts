@@ -81,17 +81,19 @@ export function isRunSave(value: unknown): value is RunSave {
     if(s.world?.bushTraps!==undefined){
       const t=s.world.bushTraps,bushes=s.layout.bushes,circle=s.layout.witchCircle;
       if(!circle||!bushes||!t||!Number.isInteger(t.wave)||t.wave<0||t.wave>1e9||!nonnegative(t.waitMs)||t.waitMs>2000||
-        !Array.isArray(t.runners)||t.runners.length>BUSH_TRAPS.maxParallel)return false;
-      const used=new Set<number>();
+        !Array.isArray(t.runners)||t.runners.length>BUSH_TRAPS.maxPerWave)return false;
+      const sources=new Set<number>(),targets=new Set<number>();
       for(const r of t.runners){
         if(!r||!Number.isInteger(r.source)||!Number.isInteger(r.target)||!bushes[r.source]||!bushes[r.target]||
-          r.source===r.target||used.has(r.source)||used.has(r.target)||
+          r.source===r.target||sources.has(r.source)||targets.has(r.target)||
           (r.phase!=='warning'&&r.phase!=='moving')||!nonnegative(r.elapsed)||r.elapsed>BUSH_TRAPS.warningMs||
           !nonnegative(r.distance)||(r.phase==='warning'&&(r.distance!==0||r.elapsed>=BUSH_TRAPS.warningMs))||
-          (r.phase==='moving'&&r.elapsed!==BUSH_TRAPS.warningMs))return false;
+          (r.phase==='moving'&&r.elapsed!==BUSH_TRAPS.warningMs)||
+          (r.delayMs!==undefined&&(!nonnegative(r.delayMs)||r.delayMs>BUSH_TRAPS.staggerMaxMs*(BUSH_TRAPS.maxPerWave-1)))||
+          ((r.delayMs??0)>0&&(r.phase!=='warning'||r.elapsed!==0||r.distance!==0)))return false;
         const path=bushTrapRoute(bushCenter(bushes[r.source]),bushCenter(bushes[r.target]),circle);
         if(path.length<2||r.distance>routeLength(path))return false;
-        used.add(r.source);used.add(r.target);
+        sources.add(r.source);targets.add(r.target);
       }
     }
     if(s.layout.rooms!==undefined) {
