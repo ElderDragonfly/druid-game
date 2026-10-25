@@ -29,7 +29,9 @@ export interface InsectFlightSave {
 export interface ForestInsectSave extends Omit<WolfSave,'animation'> { animation:InsectAnimation; facing:InsectDirection;flight?:InsectFlightSave;hitPush?:PointSave }
 export interface CleansingSave {roomId:number;status:CleansingStatus;enemies:ForestInsectSave[];cleansingElapsed?:number}
 export interface BearSave extends PointSave {state:BearState;animation:BearAnimation;clock:number;hitElapsed:number|null}
-export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[];bear?:BearSave; stump?:{activated:boolean};cleansing?:CleansingSave;witchCircle?:{collected:boolean} }
+export interface BushRunnerSave {source:number;target:number;phase:'warning'|'moving';elapsed:number;distance:number}
+export interface BushTrapsSave {wave:number;waitMs:number;runners:BushRunnerSave[]}
+export interface WorldSave { wolves: WolfSave[]; mice: MouseSave[];bear?:BearSave; stump?:{activated:boolean};cleansing?:CleansingSave;witchCircle?:{collected:boolean};bushTraps?:BushTrapsSave }
 export interface ProjectileSave extends PointSave {
   direction: PointSave; range: number; distance: number; ageMs: number; nextLeafDistance: number;
 }

@@ -1,5 +1,6 @@
 import { testStump } from './stump-smoke.mjs';
 import { testBushes } from './bushes-smoke.mjs';
+import { testBushTraps } from './bush-traps-smoke.mjs';
 import { testWitchCircle } from './witch-circle-smoke.mjs';
 import { testInsectFlight, testAirborneAcorn } from './insect-flight-smoke.mjs';
 import { testInsectNavigationAndHit } from './insect-navigation-hit-smoke.mjs';
@@ -56,6 +57,7 @@ try {
   // Legacy druid/camera fixtures isolate the new enemy; wolf scenarios below enable it explicitly.
   const isolateWolf = () => page.evaluate(() => {
     const world=window.__smokeGame.scene.getScene('Room')?.world;
+    if(world?.bushTraps)world.bushTraps.enabled=false;
     const bear=world?.bear;if(bear?.scene){bear.setActive(false).setVisible(false).setVelocity(0,0);bear.body.enable=false;bear.shadow.setVisible(false);}
     const wolves = world?.wolves ?? [];
     for (const wolf of wolves)
@@ -365,6 +367,7 @@ try {
 
   await testFallenLogs(page,ok);
   await testBushes(page,ok,waitScene);
+  await testBushTraps(page,ok,waitScene);
   await testWitchCircle(page,ok,clickNamed,waitScene);
   await testMushroomInteraction(page,ok,clickNamed,waitScene);
   await testStump(page,ok,clickNamed,waitScene);

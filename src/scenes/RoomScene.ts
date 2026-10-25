@@ -18,6 +18,7 @@ import { menuMusic } from '../audio/MenuMusic';
 import { HoldInteraction } from '../interaction/HoldInteraction';
 import { HoldInteractionIndicator } from '../ui/HoldInteractionIndicator';
 import { bushInSpawnRoom, bushVisualRect, generateBushes } from '../world/bushes';
+import { ACTIVE_BUSH_VARIANT } from '../data/bushes';
 import type { Rect } from '../world/geometry';
 import { prepareWitchGrove, rectTouchesGroveClearing } from '../world/witchGrove';
 import { invalidateLayoutCollisionRects } from '../world/collision';
@@ -234,9 +235,10 @@ export class RoomScene extends Phaser.Scene {
       if(world.bear&&world.bear.state.health>0)protectedActors.push(footprint(world.bear,BEAR.body));
     }
     const groveChanged=prepareWitchGrove(this.layout,protectedActors);
-    if (groveChanged || !this.layout.bushes || this.layout.bushes.some(bush => !bushInSpawnRoom(this.layout, bush) ||
+    if (groveChanged || !this.layout.bushes || this.layout.bushes.some(bush => bush.variant!==ACTIVE_BUSH_VARIANT || !bushInSpawnRoom(this.layout, bush) ||
       rectTouchesGroveClearing(bushVisualRect(bush),this.layout.witchCircle!))) {
       this.layout.bushes = generateBushes(this.layout, protectedActors);
+      if(this.savedRun)delete this.savedRun.world.bushTraps;
       invalidateLayoutCollisionRects(this.layout);
     }
     this.layout.counts.bushes = this.layout.bushes.length;

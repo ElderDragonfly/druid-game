@@ -28,6 +28,7 @@ import { Mouse } from '../entities/Mouse';
 import { generateMousePopulation } from './mousePopulation';
 import type { WorldSave } from '../persistence/snapshots';
 import { EnemyCollisions } from '../physics/EnemyCollisions';
+import { BushTraps } from './BushTraps';
 
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
@@ -40,6 +41,7 @@ export class MeadowWorld {
   readonly enemyCollisions:EnemyCollisions;
   readonly bushes:ForestBushes;
   readonly witchCircle?:WitchCircle;
+  bushTraps?:BushTraps;
   private logArt: Phaser.GameObjects.Image[] = [];
   private floor: Phaser.GameObjects.RenderTexture;
   private collider?: Phaser.Physics.Arcade.Collider;
@@ -109,6 +111,7 @@ export class MeadowWorld {
 
   bindPlayer(player: Druid) {
     this.player = player;
+    if(this.layout.witchCircle)this.bushTraps=new BushTraps(this.scene,this.layout,this.bushes,player,this.saved?.bushTraps);
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
     const navigation = new WolfNavigation(this.layout);
     (this.saved?.wolves ?? generateWolfPopulation(navigation)).forEach((start,index)=> {
@@ -188,9 +191,11 @@ export class MeadowWorld {
     }
     if(!this.player?.dead)this.bear?.updateBehavior(delta);
     if(!this.player?.dead)this.cleansing?.update(delta);
+    if(!this.player?.dead)this.bushTraps?.update(delta);
   }
 
   destroy() {
+    this.bushTraps?.destroy();
     this.enemyCollisions.destroy();
     this.wolves.forEach(wolf=>wolf.destroy());this.wolves.length=0;
     this.corpses.forEach(wolf=>wolf.destroy());this.corpses.length=0;
@@ -210,7 +215,7 @@ export class MeadowWorld {
   }
 
   snapshot(): WorldSave {
-    return { witchCircle:this.witchCircle?{collected:this.witchCircle.collected}:undefined,bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
+    return { bushTraps:this.bushTraps?.snapshot(),witchCircle:this.witchCircle?{collected:this.witchCircle.collected}:undefined,bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 

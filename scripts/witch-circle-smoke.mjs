@@ -86,7 +86,7 @@ export async function testWitchCircle(page,ok,click,waitScene){
     const legacy=structuredClone(save),c=legacy.layout.witchCircle;delete c.version;
     c.mushrooms.forEach((m,i)=>{const a=Math.atan2((m.y-c.y)/48,(m.x-c.x)/72);m.x=Math.round(c.x+Math.cos(a)*72);m.y=Math.round(c.y+Math.sin(a)*72);m.variant=i%4;});
     window.__legacyCircleRun=legacy;
-    const old=structuredClone(save);delete old.layout.witchCircle;delete old.world.witchCircle;
+    const old=structuredClone(save);delete old.layout.witchCircle;delete old.world.witchCircle;delete old.world.bushTraps;
     old.layout.obstacles[0].x=640;old.layout.obstacles[0].y=1080;
     window.__legacyWitchRun=old;
     return !isRunSave(bad)&&!isRunSave(sprite)&&isRunSave(old)&&isRunSave(legacy);

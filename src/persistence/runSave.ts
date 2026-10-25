@@ -16,6 +16,8 @@ import { bushVisualRect } from '../world/bushes';
 import { WITCH_CIRCLE } from '../data/witchCircle';
 import { groveInterior } from '../world/witchGrove';
 import witchArt from '../../docs/art/witch-circle-v2/sprites.json';
+import { BUSH_TRAPS } from '../data/bushTraps';
+import { bushCenter, bushTrapRoute, routeLength } from '../world/bushTrapRoutes';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -76,6 +78,22 @@ export function isRunSave(value: unknown): value is RunSave {
             Math.abs(Math.hypot((m.x-c.x)/WITCH_CIRCLE.radiusX,(m.y-c.y)/WITCH_CIRCLE.radiusY)-1)<=WITCH_CIRCLE.radialJitter/WITCH_CIRCLE.radiusX+.02)))return false;
     }
     if(s.world?.witchCircle!==undefined&&(!s.layout.witchCircle||!flag(s.world.witchCircle.collected)))return false;
+    if(s.world?.bushTraps!==undefined){
+      const t=s.world.bushTraps,bushes=s.layout.bushes,circle=s.layout.witchCircle;
+      if(!circle||!bushes||!t||!Number.isInteger(t.wave)||t.wave<0||t.wave>1e9||!nonnegative(t.waitMs)||t.waitMs>2000||
+        !Array.isArray(t.runners)||t.runners.length>BUSH_TRAPS.maxParallel)return false;
+      const used=new Set<number>();
+      for(const r of t.runners){
+        if(!r||!Number.isInteger(r.source)||!Number.isInteger(r.target)||!bushes[r.source]||!bushes[r.target]||
+          r.source===r.target||used.has(r.source)||used.has(r.target)||
+          (r.phase!=='warning'&&r.phase!=='moving')||!nonnegative(r.elapsed)||r.elapsed>BUSH_TRAPS.warningMs||
+          !nonnegative(r.distance)||(r.phase==='warning'&&(r.distance!==0||r.elapsed>=BUSH_TRAPS.warningMs))||
+          (r.phase==='moving'&&r.elapsed!==BUSH_TRAPS.warningMs))return false;
+        const path=bushTrapRoute(bushCenter(bushes[r.source]),bushCenter(bushes[r.target]),circle);
+        if(path.length<2||r.distance>routeLength(path))return false;
+        used.add(r.source);used.add(r.target);
+      }
+    }
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
         if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!(index===6&&room.scenario==='empty')))return false;

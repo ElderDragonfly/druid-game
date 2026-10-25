@@ -23,15 +23,15 @@ export async function testBushes(page, ok, waitScene) {
           rectTouchesGroveClearing(r,l.witchCircle) || reserved.some(a => overlaps(r, a, 8)) || bushes.slice(0, i).some(a => overlaps(r, bushVisualRect(a), 8))) return false;
       }
     }
-    return variants.size === 8 && counts.size === 13;
-  }), '200 seed: все 24–36 кустов из 8 видов в центре левой средней комнаты вне ведьминого круга; отступ от границ 12, от стволов и соседних кустов 8');
+    return variants.size === 1 && variants.has(2) && counts.size === 13;
+  }), '200 seed: 24–36 кустов одного принятого вида в левой средней комнате вне ведьминого круга; отступ от границ 12, от стволов и соседних кустов 8');
   ok(await page.evaluate(() => {
     const s = window.__smokeGame.scene.getScene('Room'), b = s.world.bushes;
     return b.foliage.length === s.layout.bushes.length &&
       b.foliage.every(o => !o.body && o.cameraFilter & s.hudCamera.id && o.texture.source[0].scaleMode === 1 &&
-        Math.abs(o.displayWidth - o.width * 7 / 12) < 1e-6 && Math.abs(o.displayHeight - o.height * 7 / 12) < 1e-6) &&
+        Math.abs(o.displayWidth - 102 * 86 / 75 * 7 / 12) < 1e-6 && Math.abs(o.displayHeight - 86 * 7 / 12) < 1e-6) &&
       !s.children.list.some(o => o.name.startsWith('bush-collider-')) && !s.textures.exists('forest-bush-ground') && !s.children.list.some(o => o.name.startsWith('bush-ground-'));
-  }), 'Кусты масштаба 7/12, вновь проходимые, без коллайдеров и сглаживания; подложек и дубликатов HUD нет');
+  }), 'Новый куст сохраняет прежнюю видимую высоту, проходимость, NEAREST и фильтр HUD, без подложек');
   const arena = await page.evaluate(async () => {
     const s = window.__smokeGame.scene.getScene('Room'); s.physics.pause();
     const { bushVisualRect } = await import('/src/world/bushes.ts');
@@ -100,7 +100,7 @@ export async function testBushes(page, ok, waitScene) {
     const s = window.__smokeGame.scene.getScene('Room'), { isRunSave } = await import('/src/persistence/runSave.ts');
     const save = { version: 1, savedAt: Date.now(), characterId: 'druid', layout: structuredClone(s.layout),
       player: s.player.snapshot(), camera: { ...s.cameraFollow.center }, world: s.world.snapshot(), shots: s.acorns.snapshot() };
-    const old = structuredClone(save); delete old.layout.bushes; delete old.layout.counts.bushes;
+    const old = structuredClone(save); delete old.layout.bushes; delete old.layout.counts.bushes;delete old.world.bushTraps;
     const bad = structuredClone(save); bad.layout.bushes[0].variant = 8;
     const badCount = structuredClone(save); badCount.layout.counts.bushes++;
     const scattered = structuredClone(save); scattered.layout.bushes[0].x = save.layout.spawn.x; scattered.layout.bushes[0].y = save.layout.spawn.y;

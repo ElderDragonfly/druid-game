@@ -1,4 +1,4 @@
-import { BUSHES, BUSH_GENERATION as CONFIG } from '../data/bushes';
+import { ACTIVE_BUSH_VARIANT, BUSHES, BUSH_GENERATION as CONFIG } from '../data/bushes';
 import { seededRandom } from './random';
 import { overlaps, type Rect } from './geometry';
 import { obstacleRect, obstacleVisualRect, type MeadowLayout } from './meadowLayout';
@@ -39,7 +39,8 @@ export function generateBushes(layout: MeadowLayout, protectedActors: readonly R
   const rounded = (value: number, min: number, max: number) =>
     Math.max(Math.ceil(min), Math.min(Math.floor(max), Math.round(value)));
   for (let attempt = 0; attempt < 8000 && bushes.length < count; attempt++) {
-    const variant = integer(0, BUSHES.length - 1), a = BUSHES[variant];
+    integer(0, BUSHES.length - 1); // Keep the independent placement stream stable.
+    const variant = ACTIVE_BUSH_VARIANT, a = BUSHES[variant];
     const x = room.x + CONFIG.edge + random() * (room.width - a.width * a.scale - CONFIG.edge * 2);
     const y = room.y + CONFIG.edge + random() * (room.height - a.height * a.scale - CONFIG.edge * 2);
     const bush = {

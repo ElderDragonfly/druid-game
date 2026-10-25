@@ -13,6 +13,12 @@ export class ForestBushes {
         .setScale(a.scale).setDepth(-2).setName(`bush-foliage-${index}`));
     });
   }
+  rustle(index:number,progress?:number) {
+    const image=this.foliage[index];if(!image?.scene)return;
+    const order=[0,1,2,3,4,5,4,3,2,1];
+    image.setFrame(progress===undefined?BUSHES[this.placements[index].variant].id:
+      `rustle-${order[Math.min(order.length-1,Math.floor(progress*order.length))]}`);
+  }
   destroy() {
     this.foliage.forEach(image => image.destroy());
     this.foliage.length = 0;
