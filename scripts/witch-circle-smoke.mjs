@@ -1,4 +1,4 @@
-/** Grove layout, bare ground, held pickup, persistence and lifecycle. */
+/** Grove layout, unchanged grass, held pickup, persistence and lifecycle. */
 export async function testWitchCircle(page,ok,click,waitScene){
   const seed=await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').layout.seed);
   ok(await page.evaluate(async()=>{
@@ -25,28 +25,21 @@ export async function testWitchCircle(page,ok,click,waitScene){
       C.centralHeight===C.druidReferenceHeight*2/3&&C.clearingRadiusX===C.radiusX*4/3&&C.clearingRadiusY===C.radiusY*4/3;
   }),'200 seed: деревья на опушке, кусты в середине; деревья разнесены минимум на 120; овал 144×96, буфер 192×128, 12–16 грибов всех 9 видов');
   ok(await page.evaluate(async()=>{
-    const {paintWitchCircleSoil,witchSoilCoverage}=await import('/src/rendering/witchCircleSoil.ts');
-    const make=()=>({width:220,height:220,pixels:new Uint8ClampedArray(220*220*4),grassHeights:new Uint8Array(220*220).fill(12)});
-    const a=make(),b=make();for(let i=0;i<a.pixels.length;i+=4){a.pixels.set([40,90,45,255],i);b.pixels.set([40,90,45,255],i);}
-    const soil={width:128,height:96,pixels:new Uint8ClampedArray(128*96*4)};
-    for(let y=0;y<96;y++)for(let x=0;x<128;x++)soil.pixels.set([120+x%15,75+y%12,48,255],(y*128+x)*4);
-    const c={x:110,y:110,mushrooms:[]};paintWitchCircleSoil(a,c,1,17,soil);paintWitchCircleSoil(b,c,1,17,soil);
-    if(a.pixels.some((v,i)=>v!==b.pixels[i]))return false;
-    let partial=0,solid=0;
-    for(let y=0;y<220;y++)for(let x=0;x<220;x++){
-      const p=y*220+x,alpha=witchSoilCoverage(x+.5,y+.5,c,17);
-      if(!alpha){if(a.grassHeights[p]!==12||a.pixels[p*4]!==40||a.pixels[p*4+1]!==90)return false;}
-      else{
-        if(a.grassHeights[p]!==0)return false;
-        if(alpha===1){if(a.pixels[p*4]<120||a.pixels[p*4+2]!==48)return false;solid++;}
-        else partial++;
+    const {generateForestFloor,FOREST_FLOOR}=await import('/src/world/forestFloor.ts');
+    const {forestFloorSamples}=await import('/src/rendering/forestFloor.ts');
+    const s=window.__smokeGame.scene.getScene('Room'),actual=s.world.grass.raster;
+    const expected=generateForestFloor(forestFloorSamples(s),actual.width,actual.height,s.layout.seed);
+    const c=s.layout.witchCircle,scale=FOREST_FLOOR.pixelScale;
+    let raisedBlades=0;
+    for(let y=Math.floor((c.y-64)/scale);y<=Math.ceil((c.y+64)/scale);y++)
+      for(let x=Math.floor((c.x-96)/scale);x<=Math.ceil((c.x+96)/scale);x++){
+        const i=y*actual.width+x;
+        if(actual.grassHeights[i]!==expected.grassHeights[i])return false;
+        for(let channel=0;channel<4;channel++)if(actual.pixels[i*4+channel]!==expected.pixels[i*4+channel])return false;
+        if(actual.grassHeights[i]>0)raisedBlades++;
       }
-    }
-    const samples=Array.from({length:32},(_,i)=>witchSoilCoverage(110+Math.cos(i*Math.PI/16)*72*.91,110+Math.sin(i*Math.PI/16)*48*.91,c,17));
-    const s=window.__smokeGame.scene.getScene('Room'),circle=s.layout.witchCircle,r=s.world.grass.raster;
-    const p=Math.floor(circle.y/1.25)*r.width+Math.floor(circle.x/1.25);
-    return partial>100&&solid>3000&&Math.max(...samples)-Math.min(...samples)>.8&&r.grassHeights[p]===0&&r.pixels[p*4]>=r.pixels[p*4+1];
-  }),'Почва взята из текстуры: неровная овальная клякса с мягким краем, без травы внутри; за границей пятна исходная подстилка сохранена');
+    return raisedBlades>100&&!s.textures.exists('witch-circle-soil');
+  }),'Внутри и вокруг овала исходная трава и высота травинок сохранены без пятна почвы; текстура земли не загружается');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),w=s.world.witchCircle;
     return w.ring.length===s.layout.witchCircle.mushrooms.length&&new Set(s.layout.witchCircle.mushrooms.map(m=>m.variant)).size===9&&
