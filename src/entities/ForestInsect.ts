@@ -26,6 +26,7 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
   private deathElapsed=0;
   private treeCollider?:Phaser.Physics.Arcade.Collider;
   private playerCollider?:Phaser.Physics.Arcade.Collider;
+  private launchPhysics=false;
 
   constructor(scene:Phaser.Scene,navigation:WolfNavigation,obstacles:Phaser.Physics.Arcade.StaticGroup,
     private readonly player:Druid,start:WolfPoint,identity:number) {
@@ -45,6 +46,19 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
   }
   setCollisionPeers(read:()=>readonly {x:number;y:number;width:number;height:number}[]) {
     this.behavior.navigator.setPeers(read);
+  }
+  launch(destination:WolfPoint,depth:number) {
+    this.behavior.launch(destination,depth);
+    this.syncFlightPhysics();this.show('fly',0);
+  }
+  private syncFlightPhysics(force=false) {
+    const launching=this.behavior.launching;
+    if(!force&&!launching&&!this.launchPhysics)return;
+    this.launchPhysics=launching;
+    const physical=!launching&&!this.dying;
+    (this.body as Phaser.Physics.Arcade.Body).enable=physical;
+    if(this.treeCollider)this.treeCollider.active=physical;
+    if(this.playerCollider)this.playerCollider.active=physical;
   }
   takeDamage(amount:number,direction?:DamageDirection) {
     if(!this.projectileTargetable||!this.scene||!Number.isFinite(amount)||amount<=0)return false;
@@ -79,12 +93,18 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
     const p=this.player.body as Phaser.Physics.Arcade.Body,position={x:this.x,y:this.y};
     const before=this.actorState.phase;
     const velocity=this.behavior.step(dt,position,{x:p.center.x,y:p.bottom},this.player.wolfContactBounds);
+    this.syncFlightPhysics();
     const phase=this.actorState.phase;
     if(phase==='attack'&&before!=='attack')this.face(p.center.x-this.x,p.bottom-this.y);
     else if(phase!=='attack'&&Math.hypot(velocity.x,velocity.y)>.01)this.face(velocity.x,velocity.y);
-    this.setVelocity(velocity.x,velocity.y);
+    if(this.behavior.launching){
+      // Disabled Arcade bodies don't integrate velocity. Move the visual-only
+      // launch explicitly; its hidden footprint cannot push or block anyone.
+      (this.body as Phaser.Physics.Arcade.Body).reset(this.x+velocity.x*dt/1000,this.y+velocity.y*dt/1000);
+      this.setVelocity(0,0);
+    } else this.setVelocity(velocity.x,velocity.y);
     if(phase!=='attack')this.attackConnected=false;
-    else if(!this.attackConnected&&this.actorState.elapsed>=CONFIG.behavior.impactMs) {
+    else if(!this.behavior.launching&&!this.attackConnected&&this.actorState.elapsed>=CONFIG.behavior.impactMs) {
       this.attackConnected=true;
       if(this.behavior.inAttackRange(position,this.player.wolfContactBounds))this.player.takeDamage(CONFIG.damage);
     }
@@ -137,6 +157,7 @@ export class ForestInsect extends Phaser.Physics.Arcade.Sprite implements Damage
       body.enable=false;this.treeCollider?.destroy();this.playerCollider?.destroy();
       this.treeCollider=undefined;this.playerCollider=undefined;
     }
+    this.syncFlightPhysics(true);
     this.setAngle(0).clearTint();
     const animation:InsectAnimation=this.dying?'death':saved.animation.startsWith('attack')?'attack':'fly';
     this.show(animation,this.frameAt(animation,this.dying?this.deathElapsed:this.clock%insectDurations(animation).reduce((a,b)=>a+b,0)));

@@ -1,6 +1,7 @@
 import { BEAR_ART,prepareBearTextures } from '../rendering/bearArt';
 import { BUSH_ART,prepareBushTextures } from '../rendering/bushArt';
 import { WITCH_ART,prepareWitchTextures } from '../rendering/witchCircleArt';
+import { PICKUP_ART,PICKUP_CHIME } from '../rendering/PickupFeedback';
 import stump from '../../docs/art/ritual-stump-v1/stump.png';
 import { STUMP } from '../data/stump';
 import Phaser from 'phaser';
@@ -40,6 +41,8 @@ export class BootScene extends Phaser.Scene {
     });
     this.load.once('loaderror', () => { this.failed = true; });
     this.load.image(STUMP.texture,stump);
+    this.load.image(PICKUP_ART.key,PICKUP_ART.url);
+    this.load.audio(PICKUP_CHIME.key,PICKUP_CHIME.url);
     [...CLEANSING_TREE_ART,...INSECT_ART,...BEAR_ART,...BUSH_ART,...WITCH_ART].forEach(art=>this.load.image(art.key,art.url));
     this.load.audio(MENU_MUSIC.key, MENU_MUSIC.urls);
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));

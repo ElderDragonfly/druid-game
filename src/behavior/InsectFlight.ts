@@ -26,9 +26,7 @@ export class InsectFlight extends WolfBehavior {
   }
   launch(destination:WolfPoint,depth:number) {
     const start={...this.actorState.target};this.alert();
-    const path=this.navigation.route(start,destination);
-    let length=0,previous=start;
-    for(const next of path){length+=Math.hypot(next.x-previous.x,next.y-previous.y);previous=next;}
+    const length=Math.hypot(destination.x-start.x,destination.y-start.y);
     Object.assign(this.flight,{launch:{...destination},launchStart:start,launchDepth:depth,launchTravelled:0,launchLength:Math.max(1,length)});
     this.previous=start;this.navigator.invalidate();
   }
@@ -50,7 +48,9 @@ export class InsectFlight extends WolfBehavior {
         delete f.launch;delete f.launchDepth;delete f.launchStart;delete f.launchLength;delete f.launchTravelled;
       } else {
         s.phase='chase';s.elapsed+=dt;s.target={...f.launch};
-        return this.navigator.velocity(position,f.launch,s.runSpeed,dt);
+        const dx=f.launch.x-position.x,dy=f.launch.y-position.y,distance=Math.hypot(dx,dy);
+        const speed=Math.min(s.runSpeed,distance/Math.max(dt/1000,.001));
+        return {x:dx/distance*speed,y:dy/distance*speed};
       }
     }
     if(!s.alerted||s.phase==='attack'||this.inAttackRange(position,playerBody)) {

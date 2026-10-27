@@ -50,7 +50,7 @@ export class CleansingEncounter {
     const points=cleansingEnemySpawns(this.layout,this.room,this.navigation,{x:p.center.x,y:p.bottom});
     points.forEach((point,index)=>{
       const crown={x:this.room.tree!.x+(index-1)*36,y:this.room.tree!.y-150};
-      this.create(crown,index).behavior.launch(point,this.room.tree!.y+1);
+      this.create(crown,index).launch(point,this.room.tree!.y+1);
     });
   }
   update(delta:number) {

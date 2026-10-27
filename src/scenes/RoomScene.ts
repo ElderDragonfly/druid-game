@@ -26,6 +26,7 @@ import { WOLF } from '../data/wolf';
 import { MOUSE } from '../data/mouse';
 import { BEAR } from '../data/bear';
 import { FOREST_INSECT } from '../data/forestInsect';
+import { PickupFeedback } from '../rendering/PickupFeedback';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -53,6 +54,7 @@ export class RoomScene extends Phaser.Scene {
   private hearts!: Phaser.GameObjects.Graphics;
   private deathOverlay!: DeathOverlay;
   private savedRun?: RunSave;
+  private pickupFeedback!:PickupFeedback;
 
   constructor() { super(SCENES.room); }
 
@@ -79,6 +81,8 @@ export class RoomScene extends Phaser.Scene {
     this.holdIndicator=new HoldInteractionIndicator(this);
     this.shadow = this.add.image(0, 0, 'meadow-druid-shadow').setScale(MEADOW_PIXEL_SCALE).setAlpha(0.6);
     this.buildWorld();
+    this.pickupFeedback=new PickupFeedback(this,this.player);
+    this.hudCamera.ignore([this.pickupFeedback.icon,this.pickupFeedback.shine]);
     this.acorns = new AcornAttack(this,this.player,Math.random,(from,to)=>this.world.noticeProjectile(from,to));
     if (this.savedRun) this.acorns.restore(this.savedRun.shots);
     this.player.on(COMBAT_EVENTS.healthChanged,this.updateHealth,this);
@@ -175,6 +179,7 @@ export class RoomScene extends Phaser.Scene {
         this.holdInteraction.visible || (available && this.world.canCollectMushroom(point)),this.holdInteraction.progress);
       this.acorns.update(delta);
       this.world.updateGrass(this.player.x, this.player.y + this.feetOffset, this.player.depth);
+      this.pickupFeedback.update(delta);
     };
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, updateGrass);
     bindSceneKey(this, 'keyup-ESC', () => this.leaveRun());

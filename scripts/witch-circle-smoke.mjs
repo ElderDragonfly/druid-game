@@ -66,7 +66,12 @@ export async function testWitchCircle(page,ok,click,waitScene){
   await page.keyboard.down('e');await page.waitForTimeout(300);await page.keyboard.up('e');
   ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !s.world.witchCircle.collected&&s.world.witchCircle.central.visible;}),
     'Короткое удержание оставляет центральный гриб на месте');
-  const before=await page.evaluate(()=>{const p=window.__smokeGame.scene.getScene('Room').player;return {x:p.x,y:p.y,state:JSON.stringify(p.actorState)};});
+  const before=await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),p=s.player,sound=s.pickupFeedback.sound;
+    window.__pickupPlayed=0;const original=sound.play;
+    sound.play=function(...args){window.__pickupPlayed++;return original.apply(this,args);};
+    return {x:p.x,y:p.y,state:JSON.stringify(p.actorState)};
+  });
   await page.keyboard.down('e');await page.keyboard.down('w');await page.keyboard.down('ArrowRight');await page.waitForTimeout(350);
   ok(await page.evaluate(p=>{const s=window.__smokeGame.scene.getScene('Room');return s.player.x===p.x&&s.player.y===p.y&&!s.player.casting.active&&s.holdInteraction.progress>0;},before),
     'Удержание E в круге заполняет индикатор и блокирует ходьбу и каст');
@@ -75,8 +80,26 @@ export async function testWitchCircle(page,ok,click,waitScene){
     const s=window.__smokeGame.scene.getScene('Room'),w=s.world.witchCircle;
     return w.collected&&!w.central.visible&&w.ring.every(m=>m.visible)&&window.__witchCollected===1&&JSON.stringify(s.player.actorState)===p.state;
   },before),'Секунда E убирает только центральную композицию, сохраняет кольцо, HP и характеристики; событие ровно одно');
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),f=s.pickupFeedback;
+    return f.active&&f.icon.visible&&f.shine.visible&&f.icon.texture.key==='pickup-mushroom'&&
+      f.icon.y+f.icon.displayHeight/2<s.player.getTopLeft().y&&Math.abs(f.icon.x-s.player.x)<1&&
+      !f.icon.body&&!!(f.icon.cameraFilter&s.hudCamera.id)&&!!(f.shine.cameraFilter&s.hudCamera.id)&&
+      Math.abs(f.sound.duration-.32)<.01&&window.__pickupPlayed===1;
+  }),'Подбор центрального гриба показывает правый гриб с сиянием над головой, без коллизии и дубликата HUD; пинг звучит один раз');
   await page.keyboard.down('e');await page.waitForTimeout(1100);await page.keyboard.up('e');
-  ok(await page.evaluate(()=>window.__witchCollected===1),'Собранный центр не активируется повторно');
+  ok(await page.evaluate(()=>{const f=window.__smokeGame.scene.getScene('Room').pickupFeedback;return window.__witchCollected===1&&!f.active&&!f.icon.visible&&!f.shine.visible&&window.__pickupPlayed===1;}),
+    'Собранный центр не активируется повторно, гриб и сияние исчезают после короткого показа без повторного звука');
+  ok(await page.evaluate(async()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),f=s.pickupFeedback;
+    const preferences=f.preferences,enabled=preferences.enabled,volume=preferences.volume;
+    preferences.enabled=false;f.play();const muted=window.__pickupPlayed===1;
+    preferences.enabled=true;preferences.volume=.4;f.play();
+    await new Promise(resolve=>setTimeout(resolve,50));
+    const scaled=window.__pickupPlayed===2&&Math.abs(f.sound.volume-.22)<.001;
+    preferences.enabled=enabled;preferences.volume=volume;f.update(1100);delete window.__pickupPlayed;
+    return muted&&scaled;
+  }),'Пинг учитывает выключатель звука и громкость; эффект не меняет здоровье или награду');
   await page.keyboard.press('Escape');await waitScene('MainMenu');
   ok(await page.evaluate(async()=>{
     const {loadRun,isRunSave}=await import('/src/persistence/runSave.ts'),save=loadRun();
@@ -92,7 +115,7 @@ export async function testWitchCircle(page,ok,click,waitScene){
     return !isRunSave(bad)&&!isRunSave(sprite)&&isRunSave(old)&&isRunSave(legacy);
   }),'Сейв хранит круг и сбор центра, отвергает повреждённые флаги/кадры и принимает прежние забеги без круга');
   await click('MainMenu','continue-run');await waitScene('Room');
-  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room'),w=s.world.witchCircle;return w.collected&&!w.central.visible&&w.ring.length===s.layout.witchCircle.mushrooms.length;}),
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room'),w=s.world.witchCircle;return w.collected&&!w.central.visible&&w.ring.length===s.layout.witchCircle.mushrooms.length&&!s.pickupFeedback.active;}),
     'Продолжение забега не возвращает уже собранный гриб');
   const circlePlayer=await page.evaluateHandle(()=>{const s=window.__smokeGame.scene.getScene('Room'),p=s.player;s.scene.restart({savedRun:window.__legacyCircleRun});return p;});
   await page.waitForFunction(p=>window.__smokeGame.scene.getScene('Room').player!==p,circlePlayer);await circlePlayer.dispose();await waitScene('Room');

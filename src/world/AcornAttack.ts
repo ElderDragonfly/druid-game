@@ -61,7 +61,7 @@ export class AcornAttack {
       const targets: Body[]=[...this.scene.physics.world.bodies.entries,...this.scene.physics.world.staticBodies.entries];
       for(const target of targets) {
         if(!target.enable||target===body||target.gameObject===this.player||target.checkCollision.none)continue;
-        // Airborne encounter entrants keep physical collisions but shots pass underneath.
+        // Visual-only encounter entrants cannot intercept projectiles.
         if((target.gameObject as {projectileTargetable?:boolean})?.projectileTargetable===false)continue;
         const t=sweptRect(shot.previous,next,target,ACORN.radius);
         if(t!==undefined&&(impact===undefined||t<impact)) {impact=t;hitBody=target;}

@@ -46,10 +46,10 @@ export async function testRoomScenarios(page,ok,click,waitScene) {
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),c=s.world.cleansing;
     return c.tree.status==='active'&&c.tree.image.texture.key==='ritual-tree-corrupted'&&c.enemies.every(e=>
-      e.actorState.health===2&&e.actorState.alerted&&Math.abs(e.actorState.runSpeed-220*2/3*.8)<.001&&e.body.enable&&
-      e.behavior.launching&&e.y===s.layout.rooms[7].tree.y-150&&
+      e.actorState.health===2&&e.actorState.alerted&&Math.abs(e.actorState.runSpeed-220*2/3*.8)<.001&&!e.body.enable&&
+      e.behavior.launching&&e.behavior.snapshotFlight().launchStart.y===s.layout.rooms[7].tree.y-150&&
       [e,e.shadow,e.airborne].every(o=>o.cameraFilter&s.hudCamera.id));
-  }),'Секунда E выпускает из кроны 3 врагов: HP 2, скорость 0,8, полёт наружу, физика и тени не дублируются HUD');
+  }),'Секунда E выпускает из кроны 3 врагов: HP 2, скорость 0,8; до посадки физика выключена, анимация и тени не дублируются HUD');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player,e=s.world.cleansing.enemies[0];
     e.behavior.restoreFlight();

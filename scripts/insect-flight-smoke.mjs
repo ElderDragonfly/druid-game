@@ -66,17 +66,27 @@ export async function testAirborneAcorn(page,ok) {
       s.acorns.shots.push(shot);shot.body.reset(body.right+40,body.center.y);shot.body.updateFromGameObject();s.acorns.update(0);return shot;};
     const shot=shoot();
     const passed=!!shot.scene&&e.actorState.health===hp;
-    const physical={x:e.body.x,y:e.body.y,w:e.body.width,h:e.body.height};
-    const curved=e.airborne.visible&&!e.visible&&e.y-e.airborne.y>140&&e.body.enable&&!!(e.airborne.cameraFilter&s.hudCamera.id);
+    const curved=e.airborne.visible&&!e.visible&&e.y-e.airborne.y>140&&!e.body.enable&&
+      !e.treeCollider.active&&!e.playerCollider.active&&!!(e.airborne.cameraFilter&s.hudCamera.id);
+    const playerPosition={x:s.player.x,y:s.player.y},pb=s.player.body;
+    pb.enable=true;pb.reset(s.player.x+e.body.center.x-pb.center.x,s.player.y+e.body.bottom-pb.bottom);pb.updateFromGameObject();
+    const overlapPosition={x:s.player.x,y:s.player.y},health=s.playerHealth;
+    const noContact=!s.physics.world.collide(s.player,e)&&s.player.x===overlapPosition.x&&s.player.y===overlapPosition.y&&s.playerHealth===health;
+    pb.reset(playerPosition.x,playerPosition.y);pb.updateFromGameObject();pb.enable=false;
     const snapshot=e.snapshot(),height=e.airborne.y;e.restore(snapshot);
-    const restored=Math.abs(e.airborne.y-height)<.001&&e.body.enable&&e.behavior.launching;
+    const restored=Math.abs(e.airborne.y-height)<.001&&!e.body.enable&&e.behavior.launching;
+    const playerHP=s.playerHealth,playerBefore={x:s.player.x,y:s.player.y};
+    const flyBefore={x:e.x,y:e.y};e.updateBehavior(200);
+    const visualOnly=!e.body.enable&&Math.hypot(e.x-flyBefore.x,e.y-flyBefore.y)>10&&
+      s.player.x===playerBefore.x&&s.player.y===playerBefore.y&&s.playerHealth===playerHP;
+    const physical={x:e.body.x,y:e.body.y,w:e.body.width,h:e.body.height};
     s.acorns.shots.forEach(shot=>shot.destroy());s.acorns.shots.length=0;
     e.behavior.restoreFlight();e.updateBehavior(0);const hit=shoot();
     const landed=!hit.scene&&e.actorState.health===hp-1&&e.visible&&!e.airborne.visible&&e.body.enable&&
       e.body.x===physical.x&&e.body.y===physical.y&&e.body.width===physical.w&&e.body.height===physical.h;
-    return {immune,passed,curved,restored,landed};
+    return {immune,passed,curved,restored,landed,visualOnly,noContact};
   });
   ok(result.immune&&result.passed,'Во время разлёта муха не теряет HP, настоящий жёлудь пролетает под ней и остаётся в полёте');
-  ok(result.curved&&result.restored,'Дуга поднимает только рисунок: коллизия активна, высота и слой точно восстанавливаются из сейва');
+  ok(result.curved&&result.restored&&result.visualOnly&&result.noContact,'Вылет — только движущаяся анимация: тело и коллайдеры выключены, даже пересечение с друидом не наносит урон и не толкает; сейв сохраняет отсутствие физики');
   ok(result.landed,'После приземления тот же жёлудь попадает в ту же коллизию, снимает 1 HP; тело не смещается вслед за высотой');
 }
