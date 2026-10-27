@@ -182,13 +182,14 @@ export function isRunSave(value: unknown): value is RunSave {
     if(s.world.sprouts!==undefined){
       const c=s.world.sprouts;
       if(!s.layout.sproutRoom||!c||!flag(c.released)||!Array.isArray(c.enemies)||c.enemies.length!==6||
+        (c.approachAngle!==undefined&&(!Number.isFinite(c.approachAngle)||Math.abs(c.approachAngle)>Math.PI))||
         !c.enemies.every((e,i)=>{
           const t=e.state;
           return point(e)&&e.variant===s.layout.sproutRoom!.enemies[i].variant&&!!t&&
             Number.isInteger(t.health)&&Number.isInteger(t.maxHealth)&&t.maxHealth>=1&&t.maxHealth<=10000&&t.health>=0&&t.health<=t.maxHealth&&
             ['buried','emerging','waiting','seeking','waking','chase','windup','leap','recovery','dead'].includes(t.phase)&&
             (t.phase==='dead')===(t.health===0)&&[t.elapsed,t.hopDistance,t.speed].every(nonnegative)&&
-            flag(t.hasWokenOne)&&flag(t.attackConnected)&&point(t.leapTarget)&&
+            flag(t.hasWokenOne)&&flag(t.attackConnected)&&(t.flankReached===undefined||flag(t.flankReached))&&point(t.leapTarget)&&
             (t.target===null||(Number.isInteger(t.target)&&t.target>=0&&t.target<6&&t.target!==i))&&
             (!['seeking','waking'].includes(t.phase)||t.target!==null)&&
             (!c.released||!['buried','emerging','seeking','waking'].includes(t.phase))&&

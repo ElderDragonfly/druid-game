@@ -13,6 +13,7 @@ export type SproutPhase='buried'|'emerging'|'waiting'|'seeking'|'waking'|'chase'
 export interface SproutState{
   health:number;maxHealth:number;speed:number;phase:SproutPhase;elapsed:number;
   hopDistance:number;target:number|null;leapTarget:{x:number;y:number};attackConnected:boolean;hasWokenOne:boolean;
+  flankReached?:boolean;
 }
 export interface SproutSave extends SproutPlacement{state:SproutState}
 
@@ -38,7 +39,7 @@ export class ForestSprout extends Phaser.Physics.Arcade.Sprite implements Damage
       .setSize(C.body.width,C.body.height).setOffset(this.width*.5-C.body.width/2,this.height-C.body.height)
       .setPushable(false).setCollideWorldBounds(true);
     this.actorState={health:C.health,maxHealth:C.health,speed:C.speed,phase:'buried',elapsed:0,
-      hopDistance:0,target:null,leapTarget:{x:this.x,y:this.y},attackConnected:false,hasWokenOne:false};
+      hopDistance:0,target:null,leapTarget:{x:this.x,y:this.y},attackConnected:false,hasWokenOne:false,flankReached:false};
     this.previous={x:this.x,y:this.y};this.navigator=new EnemyNavigator(navigation,C.body);
     this.image=scene.add.image(this.x,this.y,`sprout-plant-${placement.variant}`).setOrigin(.5,1).setName('forest-sprout-art');
     this.shadow=scene.add.ellipse(this.x,this.y-2,32,9,0x102218,.22).setName('forest-sprout-shadow');
@@ -66,7 +67,7 @@ export class ForestSprout extends Phaser.Physics.Arcade.Sprite implements Damage
     }
     this.drawPose();return true;
   }
-  step(delta:number,released:boolean,wakeTarget?:ForestSprout){
+  step(delta:number,released:boolean,wakeTarget?:ForestSprout,approachGoal?:{x:number;y:number},canAttack=true){
     if(!this.active)return;
     const s=this.actorState,dt=Math.max(0,delta),body=this.body as Phaser.Physics.Arcade.Body;
     s.elapsed+=dt;
@@ -80,17 +81,18 @@ export class ForestSprout extends Phaser.Physics.Arcade.Sprite implements Damage
       if(s.phase==='seeking'&&wakeTarget){
         this.ignoredPeer=wakeTarget;
         if(this.gapTo(wakeTarget.body as Phaser.Physics.Arcade.Body)<=16)this.enter('waking');
-        else this.follow(wakeTarget,s.speed,dt);
+        else this.follow(approachGoal??wakeTarget,s.speed,dt);
       }else if(s.phase==='waking'&&s.elapsed>=C.tagMs){
         if(wakeTarget&&this.gapTo(wakeTarget.body as Phaser.Physics.Arcade.Body)<=20)wakeTarget.wake();
         s.hasWokenOne=true;s.target=null;this.enter('waiting');
       }
+      else if(s.phase==='waiting'&&approachGoal)this.follow(approachGoal,s.speed,dt);
     }else{
       if(['waiting','seeking','waking'].includes(s.phase)){s.target=null;this.navigator.invalidate();this.enter('chase');}
       const p=this.player.body as Phaser.Physics.Arcade.Body,target={x:p.center.x,y:p.bottom};
       if(s.phase==='chase'){
-        if(Math.hypot(this.x-target.x,this.y-target.y)<=C.attackDistance)this.enter('windup');
-        else this.follow(target,s.speed,dt);
+        if(canAttack&&Math.hypot(this.x-target.x,this.y-target.y)<=C.attackDistance)this.enter('windup');
+        else this.follow(approachGoal??target,s.speed,dt);
       }else if(s.phase==='windup'&&s.elapsed>=C.windupMs){
         s.leapTarget={...target};s.attackConnected=false;this.navigator.invalidate();this.enter('leap');
       }else if(s.phase==='leap'){
@@ -99,7 +101,7 @@ export class ForestSprout extends Phaser.Physics.Arcade.Sprite implements Damage
           s.attackConnected=true;this.player.takeDamage(C.damage);
         }
         if(s.elapsed>=C.leapMs)this.enter('recovery');
-      }else if(s.phase==='recovery'&&s.elapsed>=C.recoveryMs)this.enter('chase');
+      }else if(s.phase==='recovery'&&s.elapsed>=C.recoveryMs){s.flankReached=false;this.enter('chase');}
     }
     this.drawPose();
   }
@@ -115,7 +117,7 @@ export class ForestSprout extends Phaser.Physics.Arcade.Sprite implements Damage
     const buried=s.phase==='buried',emerging=s.phase==='emerging';
     const t=Math.min(1,s.elapsed/C.emergeMs),alpha=s.phase==='dead'?Math.max(0,1-s.elapsed/280):1;
     let lift=0,sx=1,sy=1;
-    if(s.phase==='seeking'||s.phase==='chase')lift=Math.abs(Math.sin(s.hopDistance/46*Math.PI))*10;
+    if(s.phase==='seeking'||s.phase==='chase'||(s.phase==='waiting'&&this.body?.velocity.length()))lift=Math.abs(Math.sin(s.hopDistance/46*Math.PI))*10;
     if(s.phase==='waking')lift=Math.sin(Math.min(1,s.elapsed/C.tagMs)*Math.PI)*9;
     if(s.phase==='leap')lift=Math.sin(Math.min(1,s.elapsed/C.leapMs)*Math.PI)*19;
     if(s.phase==='windup'){const v=Math.min(1,s.elapsed/C.windupMs);sx=1+v*.08;sy=1-v*.12;}

@@ -65,10 +65,12 @@ export async function testAcornAttack(page,ok) {
     const s=window.__smokeGame.scene.getScene('Room');
     s.world.wolves[0].setActive(false).setVelocity(0,0);s.world.wolves[0].body.enable=false;
     for(const m of s.world.mice){m.setActive(false).setVelocity(0,0);m.body.enable=false;}
-    const{obstacleRect}=await import('/src/world/meadowLayout.ts');const trees=s.layout.obstacles.map(obstacleRect);
+    const{layoutCollisionRects}=await import('/src/world/collision.ts');const terrain=layoutCollisionRects(s.layout);
     let f;
     for(let y=200;y<1950&&!f;y+=80)for(let x=200;x<2800&&!f;x+=80){
-      if(!trees.some(r=>x-40<r.x+r.width&&x+800>r.x&&y-70<r.y+r.height&&y+70>r.y))f={x,y};
+      if(!terrain.some(r=>
+        (x-40<r.x+r.width&&x+800>r.x&&y-70<r.y+r.height&&y+70>r.y)||
+        (x-80<r.x+r.width&&x+80>r.x&&y-80<r.y+r.height&&y+80>r.y)))f={x,y};
     }
     if(!f)throw new Error('No clear acorn trajectory fixture');
     const{AcornAttack}=await import('/src/world/AcornAttack.ts');
@@ -125,7 +127,7 @@ export async function testAcornAttack(page,ok) {
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player;
     const{AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
     p.cancelCast();for(const shot of s.acorns.shots)shot.destroy();s.acorns.shots.length=0;
-    const tree=s.world.obstacles.getChildren()[0].body;
+    const tree=s.world.obstacles.getChildren().find(o=>o.getData('kind')==='tree').body;
     const wolf=s.world.wolves[0];wolf.setActive(false).setVelocity(0,0);wolf.body.enable=true;
     const f=window.__acornFixture;wolf.body.reset(f.x+350,f.y+22.5);
     const generic=s.physics.add.image(f.x+500,f.y+10,'acorn').setData('health',9);

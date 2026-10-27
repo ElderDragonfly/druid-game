@@ -1,6 +1,7 @@
 import { testStump } from './stump-smoke.mjs';
 import { testSkeletonRoom } from './skeleton-room-smoke.mjs';
 import { testSproutRoom } from './sprout-room-smoke.mjs';
+import { testRockCollisions } from './rock-collision-smoke.mjs';
 import { testBushes } from './bushes-smoke.mjs';
 import { testBushTraps } from './bush-traps-smoke.mjs';
 import { testWitchCircle } from './witch-circle-smoke.mjs';
@@ -1599,8 +1600,7 @@ try {
     scene.world.bindPlayer(scene.player);
     scene.cameras.getCamera('hud').ignore(scene.children.list.filter(object => !previousChildren.has(object)));
   });
-  for (const archived of [false, true]) {
-    const kind = 'tree';
+  for (const [archived,kind] of [[false,'tree'],[true,'tree'],[false,'rock']]) {
     await restart();
     if (archived) { await installArchivedWorld(); await isolateWolf(); }
     assertMeadow(await state());
@@ -1657,12 +1657,12 @@ try {
   // colliding with an invisible rectangle extending into the grass.
   await restart();
   const pines = await state();
-  const pineIndex = pines.obstacles.findIndex((tree, index) => {
-    const placement = pines.layout.obstacles[index];
+  const pineIndex = pines.layout.obstacles.findIndex((placement, index) => {
+    const tree = pines.obstacles.filter(body=>body.kind==='tree')[index];
     const corridor = { x: placement.x - 90, right: placement.x + 90,
       y: placement.y - 25, bottom: placement.y + 50 };
     return corridor.x >= 0 && corridor.right <= pines.layout.width && corridor.bottom < pines.layout.height &&
-      !pines.obstacles.some((other, i) => i !== index && intersects(corridor, other));
+      !pines.obstacles.some(other => other !== tree && intersects(corridor, other));
   });
   assert.ok(pineIndex >= 0, 'Нет свободного подхода к сосне снизу');
   const pine = pines.layout.obstacles[pineIndex];
@@ -2058,6 +2058,7 @@ try {
   await testWolfPack(page, ok);
   await testMenuSession(page, ok);
   await testSkeletonRoom(page,ok,clickNamed,waitScene);
+  await testRockCollisions(page,ok);
   await testSproutRoom(page,ok,clickNamed,waitScene);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);

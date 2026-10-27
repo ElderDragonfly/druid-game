@@ -30,7 +30,7 @@ export async function testSproutRoom(page,ok,click,waitScene){
       c.bushes.foliage.length===s.layout.sproutRoom.bushes.length&&c.bushes.foliage.every(b=>!b.body)&&
       s.layout.obstacles.some(t=>t.x>=1280&&t.x<2560&&t.y<720)&&
       raster.pixels[center]>raster.pixels[center+1]&&raster.pixels[forest+1]>raster.pixels[forest];
-  }),'Из земли видны растения, у ростков общая физика и отдельный HUD-фильтр; деревья в комнате оставлены, прогалина скелетов имеет земляную подстилку');
+  }),'Из земли видны растения, у ростков общая физика и отдельный HUD-фильтр; деревья сохранены, в комнате скелетов коричневая трава');
   const shoot=()=>page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),e=s.world.sprouts.enemies[0],b=e.body;
     const {AcornProjectile}=await import('/src/entities/AcornProjectile.ts');
@@ -54,18 +54,43 @@ export async function testSproutRoom(page,ok,click,waitScene){
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),c=s.world.sprouts;s.physics.pause();s.player.body.enable=false;
     for(const e of c.enemies){e.setActive(true);e.body.enable=!e.dying;}
-    let premature=false,maximum=0,awakenings=0;
+    let premature=false,maximum=0,awakenings=0,waitFrames=Array(6).fill(0),longestWait=0;
     for(let i=0;i<5000&&!c.released;i++){
       const old=c.enemies.filter(e=>e.actorState.phase==='buried').length;c.update(16);
       if(!c.released&&c.enemies.some(e=>['chase','windup','leap'].includes(e.actorState.phase)))premature=true;
       maximum=Math.max(maximum,c.enemies.filter(e=>['seeking','waking'].includes(e.actorState.phase)).length);
+      c.enemies.forEach((e,index)=>{
+        waitFrames[index]=old>0&&e.actorState.phase==='waiting'?waitFrames[index]+1:0;
+        longestWait=Math.max(longestWait,waitFrames[index]);
+      });
       awakenings+=old-c.enemies.filter(e=>e.actorState.phase==='buried').length;
       for(const b of s.physics.world.bodies.entries)if(b.enable){b.resetFlags();b.preUpdate(false,.016);}
       s.physics.world.step(.016);s.physics.world.postUpdate();
     }
     window.__sproutChain={released:c.released,premature,maximum,awakenings,phases:c.enemies.map(e=>e.actorState.phase)};
-    return c.released&&!premature&&maximum===1&&awakenings===5&&c.enemies.every(e=>e.emerged&&e.actorState.health===1);
-  }),'Реальная физика после продолжения: пять соседей пробуждены последовательно, один посыльный за раз, атаки начинаются только после выхода всей шестёрки');
+    return c.released&&!premature&&maximum>=2&&longestWait<=2&&awakenings===5&&c.enemies.every(e=>e.emerged&&e.actorState.health===1);
+  }),'Реальная физика: проснувшиеся параллельно помогают будить пятерых соседей, не стоят в ожидании, атакуют только после выхода всей группы');
+  ok(await page.evaluate(()=>{
+    const s=window.__smokeGame.scene.getScene('Room'),c=s.world.sprouts,p=s.player;
+    p.body.reset(640,360-22.5);p.body.updateFromGameObject();c.approachAngle=Math.PI;
+    const commands=[];
+    for(const [i,e] of c.enemies.entries()){
+      e.body.reset(300,220+i*35);e.body.updateFromGameObject();e.enter('chase');e.actorState.flankReached=false;
+      const original=e.navigator.velocity.bind(e.navigator);
+      e.navigator.velocity=(pos,goal,speed,delta)=>{commands.push({...goal});return original(pos,goal,speed,delta);};
+    }
+    c.update(16);
+    const direct=commands.filter(g=>Math.hypot(g.x-p.body.center.x,g.y-p.body.bottom)<1).length;
+    const flanks=commands.filter(g=>Math.hypot(g.x-p.body.center.x,g.y-p.body.bottom)>105);
+    const separated=flanks.every((g,i)=>flanks.slice(0,i).every(other=>Math.hypot(g.x-other.x,g.y-other.y)>30));
+    const moving=c.enemies.every(e=>e.body.velocity.length()>0);
+    const flank=c.enemies[1];flank.actorState.flankReached=true;flank.enter('recovery');flank.step(480,true);
+    const reset=flank.actorState.flankReached===false;
+    flank.body.reset(p.body.center.x-40,p.body.bottom);flank.body.updateFromGameObject();
+    const next=c.approach(flank,1);
+    return direct===1&&flanks.length===5&&separated&&moving&&reset&&!next.canAttack&&
+      Math.hypot(next.point.x-p.body.center.x,next.point.y-p.body.bottom)>105;
+  }),'Один росток получает прямой маршрут, пять других — разные точки захода за пределами дистанции прыжка; вся группа движется');
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),c=s.world.sprouts,e=c.enemies[0],p=s.player;
     c.enemies.slice(1).forEach(e=>e.takeDamage(1));

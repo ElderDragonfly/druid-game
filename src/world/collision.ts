@@ -3,12 +3,14 @@ import { ritualTreeRect } from './rooms';
 import { obstacleRect, type MeadowLayout } from './meadowLayout';
 import { logCollisionRects } from './fallenLogs';
 import type { Rect } from './geometry';
+import { rockCollisionRect } from './roomRocks';
 const cache = new WeakMap<MeadowLayout, readonly Rect[]>();
 /** Layout geometry is fixed for a run; actor stats can change independently. */
 export function layoutCollisionRects(layout: MeadowLayout): readonly Rect[] {
   let rects=cache.get(layout);
   if(!rects) {
-    rects=[...layout.obstacles.map(obstacleRect),...(layout.logs??[]).flatMap(logCollisionRects),...(layout.stump?[stumpRect(layout.stump)]:[]),
+    rects=[...layout.obstacles.map(obstacleRect),...(layout.bones??[]).filter(p=>p.kind==='rock').map(rockCollisionRect),
+      ...(layout.logs??[]).flatMap(logCollisionRects),...(layout.stump?[stumpRect(layout.stump)]:[]),
       ...(layout.rooms??[]).flatMap(room=>room.tree?[ritualTreeRect(room.tree)]:[])];
     cache.set(layout,rects);
   }

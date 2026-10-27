@@ -33,6 +33,7 @@ import { Skeleton } from '../entities/Skeleton';
 import { SKELETON,SKELETON_ROOM } from '../data/skeleton';
 import { generateSkeletonPopulation,ROOM_ROCK_SCALE } from './skeletonRoom';
 import { SproutEncounter } from './SproutEncounter';
+import { rockCollisionRect } from './roomRocks';
 
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
@@ -81,6 +82,12 @@ export class MeadowWorld {
       }
     }
     this.obstacles = scene.physics.add.staticGroup();
+    for(const [index,rock] of (layout.bones??[]).entries())if(rock.kind==='rock'){
+      const r=rockCollisionRect(rock);
+      const proxy=this.obstacles.create(r.x,r.y,'__WHITE') as Phaser.Physics.Arcade.Image;
+      proxy.setName(`room-rock-collider-${index}`).setData('kind','rock').setOrigin(0)
+        .setDisplaySize(r.width,r.height).setVisible(false).refreshBody();
+    }
     layout.obstacles.forEach((object, index) => {
       const art = environmentVariant(object.kind, object.variant);
       const image = this.obstacles.create(object.x, object.y, art.texture, art.frame) as Phaser.Physics.Arcade.Image;

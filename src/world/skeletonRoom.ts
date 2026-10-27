@@ -11,9 +11,10 @@ import { environmentVariant } from '../data/environment';
 import { stumpClearing } from './stump';
 import { logVisualRect } from './fallenLogs';
 import rockArt from '../../docs/art/sprouts-rocks-v1/art.json';
+import { ROOM_ROCK_SCALE,rockCollisionRect } from './roomRocks';
+export { ROOM_ROCK_SCALE } from './roomRocks';
 
 export interface BonePlacement{x:number;y:number;variant:number;kind?:'rock'}
-export const ROOM_ROCK_SCALE=.24;
 export function boneRect(p:BonePlacement){
   const b=p.kind==='rock'?rockArt.rocks[p.variant]:bones.sprites[p.variant],s=p.kind==='rock'?ROOM_ROCK_SCALE:CONFIG.boneScale;
   return {x:p.x-b.width*s/2,y:p.y-b.height*s,width:b.width*s,height:b.height*s};
@@ -43,7 +44,7 @@ export function prepareSkeletonRoom(layout:MeadowLayout,protectedActors:readonly
   layout.counts.trees=layout.obstacles.length;
   if(moving.length)invalidateLayoutCollisionRects(layout);
   if(layout.rooms)layout.rooms[CONFIG.roomId].scenario='skeletons';
-  if(layout.bones){prepareRockDecor(layout);return;}
+  if(layout.bones){prepareRockDecor(layout);protectRockApproaches(layout,protectedActors);return;}
   const random=seededRandom(layout.seed^0x424f4e45);
   const count=CONFIG.bones.min+Math.floor(random()*(CONFIG.bones.max-CONFIG.bones.min+1));
   layout.bones=[];
@@ -54,6 +55,7 @@ export function prepareSkeletonRoom(layout:MeadowLayout,protectedActors:readonly
   }
   if(layout.bones.length!==count)throw new Error('Не удалось разместить кости');
   prepareRockDecor(layout);
+  protectRockApproaches(layout,protectedActors);
 }
 
 function prepareRockDecor(layout:MeadowLayout){
@@ -70,6 +72,24 @@ function prepareRockDecor(layout:MeadowLayout){
     if(!placed)throw new Error('Не удалось разместить камни вместо части костей');
   }
   layout.boneDecorVersion=2;
+  invalidateLayoutCollisionRects(layout);
+}
+
+/** An old save may put an actor where a formerly walk-through rock stands. */
+function protectRockApproaches(layout:MeadowLayout,actors:readonly Rect[]){
+  if(!actors.length)return;
+  const random=seededRandom(layout.seed^0x52434f4c),room=roomBounds(layout,CONFIG.roomId);
+  for(const p of layout.bones??[]){
+    if(p.kind!=='rock'||!actors.some(a=>overlaps(rockCollisionRect(p),a,-.05)))continue;
+    let placed=false;
+    for(let i=0;i<4000;i++){
+      const candidate={...p,x:room.x+55+random()*(room.width-110),y:room.y+60+random()*(room.height-120)};
+      if(actors.some(a=>overlaps(rockCollisionRect(candidate),a,6))||
+        layout.bones!.some(other=>other!==p&&overlaps(boneRect(candidate),boneRect(other),20)))continue;
+      Object.assign(p,candidate);placed=true;invalidateLayoutCollisionRects(layout);break;
+    }
+    if(!placed)throw new Error('Не удалось освободить сохранённого персонажа от камня');
+  }
 }
 
 export function generateSkeletonPopulation(layout:MeadowLayout):WolfPoint[]{

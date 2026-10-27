@@ -20,12 +20,11 @@ export function applySkeletonClearing(raster:FloorRaster,layout:MeadowLayout){
     const wx=x*s,wy=y*s,d=Math.min(layout.width/3-wx,layout.height/3-wy);
     const patch=noise(wx/72,wy/72,layout.seed^0x434c4541);
     const blend=clamp((d-35+(patch-.5)*65)/95);if(!blend)continue;
-    const grain=hash(Math.floor(x/2),Math.floor(y/2),layout.seed),tone=noise(wx/150,wy/150,layout.seed)*17+grain*8;
     const i=(y*raster.width+x)*4,old=[raster.pixels[i],raster.pixels[i+1],raster.pixels[i+2]];
-    const dry=patch>.72,luma=old[0]*.3+old[1]*.55+old[2]*.15;
-    const earth=dry?[luma*.7+19,luma*.64+13,luma*.4+12]:[57+tone,51+tone*.85,41+tone*.7];
-    for(let c=0;c<3;c++)raster.pixels[i+c]=Math.round(old[c]*(1-blend)+earth[c]*blend);
-    const n=y*raster.width+x;
-    if(raster.grassHeights)raster.grassHeights[n]=Math.round(raster.grassHeights[n]*(1-blend+(dry?.4:0)*blend));
+    const green=clamp((patch-.68)/.12),dryWeight=blend*(1-green);
+    const luma=old[0]*.3+old[1]*.55+old[2]*.15;
+    const dry=[luma*.7+19,luma*.64+13,luma*.4+12];
+    // Keep every blade and the exact foreground mask, changing only its color.
+    for(let c=0;c<3;c++)raster.pixels[i+c]=Math.round(old[c]*(1-dryWeight)+dry[c]*dryWeight);
   }
 }

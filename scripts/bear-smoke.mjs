@@ -96,10 +96,14 @@ export async function testBear(page,ok,click,waitScene) {
     const saved=b.snapshot();Object.assign(saved,{x:arena.x,y:arena.y,clock:0,animation:'walk',hitElapsed:null});
     Object.assign(saved.state,{phase:'walk',enraged:false,elapsed:0,pursuitElapsed:0,cooldownMs:0});b.restore(saved);s.physics.resume();
   },arena);
-  await page.waitForTimeout(550);
+  await page.waitForFunction(arena=>{
+    const b=window.__smokeGame.scene.getScene('Room').world.bear;
+    return b.x>arena.x+35&&b.clock>200;
+  },arena,{timeout:4000});
   ok(await page.evaluate(arena=>{
     const b=window.__smokeGame.scene.getScene('Room').world.bear;
-    return b.actorState.phase==='walk'&&b.x>arena.x+30&&b.x<arena.x+65&&b.texture.key==='bear-walk-right'&&b.clock>200;
+    return b.actorState.phase==='walk'&&b.x>arena.x+30&&b.x<arena.x+65&&b.texture.key==='bear-walk-right'&&b.clock>200&&
+      Math.abs(b.body.velocity.length()-88)<.01;
   },arena),'Реальная ходьба использует правые кадры и темп по расстоянию, скорость около 88 ед./с');
   await page.waitForTimeout(1550);
   ok(await page.evaluate(()=>{const b=window.__smokeGame.scene.getScene('Room').world.bear;return b.actorState.phase==='walk'&&!b.actorState.enraged;}),
