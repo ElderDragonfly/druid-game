@@ -8,7 +8,7 @@ export async function testWolfCloak(page, ok) {
   await page.waitForFunction(old=>{
     const s=window.__smokeGame.scene.getScene('Room');
     return s.player!==old && s.world?.wolves?.[0]?.body?.enable &&
-      s.physics.world.colliders.getActive().length===s.world.mice.length+2+s.world.wolves.length*2+(s.world.bear&&!s.world.bear.dying?2:0);
+      s.physics.world.colliders.getActive().length===s.world.mice.length+2+s.world.wolves.length*2+(s.world.bear&&!s.world.bear.dying?2:0)+s.world.skeletons.filter(e=>!e.dying).length*2;
   },old);await old.dispose();await isolateSingleWolf(page);
   const bounds = await page.evaluate(async()=>{
     const {wolfContactBounds}=await import('/src/physics/wolfContact.ts');

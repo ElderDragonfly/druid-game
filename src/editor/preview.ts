@@ -11,6 +11,7 @@ import { FACINGS, type Facing } from '../input/EightWayFacing';
 import { BASE_MOVEMENT_SPEED } from '../data/movement';
 import type { EntityData, EntityId } from '../data/entitySchema';
 import { INSECT_ART, INSECT_METRICS, insectDurations, type InsectAnimation } from '../rendering/forestInsectArt';
+import { SKELETON_ART,SKELETON_METRICS,skeletonDurations,type SkeletonAnimation } from '../rendering/skeletonArt';
 
 export const DIRECTIONS = FACINGS;
 export const ANIMATIONS: Record<EntityId, [string, string][]> = {
@@ -19,6 +20,7 @@ export const ANIMATIONS: Record<EntityId, [string, string][]> = {
   mouse: [['run', 'Пробежка'], ['rise', 'Поднимается'], ['look', 'Осматривается'], ['lower', 'Опускается']],
   bear:[['sleep','Спит'],['wake','Просыпается'],['walk','Ходьба'],['run','Бег'],['swipe','Удар лапой'],['bite','Укус'],['slam','Две лапы']],
   forestInsect:[['idle','Парит'],['run','Преследование'],['attack','Атака'],['death','Смерть']],
+  skeleton:[['idle','Стоит'],['walk','Прогулка'],['run','Погоня'],['attack','Удар']],
 };
 const idleKeys: Record<Facing, string> = { down: 'druid-game-source', up: 'druid-back-source', left: 'druid-left-source', right: 'druid-right-source',
   'up-left': 'druid-up-left-source', 'up-right': 'druid-up-right-source', 'down-left': 'druid-down-left-source', 'down-right': 'druid-down-right-source' };
@@ -62,6 +64,14 @@ export class SpritePreview {
       return { url: WOLF_ART.find(a => a.key === `wolf-${state}`)!.url,
         shadow: WOLF_ART.find(a => a.key === `wolf-${state}-shadow`)!.url,
         width: 128, height: 112, footY: 100, scale: 2.4, durations };
+    }
+    if(this.entity==='skeleton'){
+      const animation:SkeletonAnimation=this.animation==='run'?'walk':this.animation as SkeletonAnimation;
+      let durations=skeletonDurations(animation);
+      if(animation==='walk')durations=durations.map(ms=>ms*.8/(this.animation==='run'?data.skeleton.runSpeed:data.skeleton.walkSpeed));
+      if(animation==='attack')durations=durations.map(ms=>ms*900/480);
+      return {url:SKELETON_ART.find(a=>a.key===`skeleton-${animation}`)!.url,
+        width:SKELETON_METRICS.width,height:SKELETON_METRICS.height,footY:SKELETON_METRICS.feetY,scale:1.3,durations};
     }
     if(this.entity==='bear'){
       const animation=this.animation as BearAnimation;

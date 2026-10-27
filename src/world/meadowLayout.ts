@@ -5,6 +5,8 @@ import { generateBushes, type BushPlacement } from './bushes';
 import { prepareWitchGrove, type WitchCirclePlacement } from './witchGrove';
 import { overlaps, type Rect } from './geometry';
 import { generateRooms, ritualTreeClearing, type RoomPlan } from './rooms';
+import { roomBounds } from './rooms';
+import { prepareSkeletonRoom,type BonePlacement } from './skeletonRoom';
 export { seededRandom } from './random';
 export { overlaps, type Rect } from './geometry';
 import { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL, environmentVariant, type EnvironmentKind } from '../data/environment';
@@ -24,6 +26,7 @@ export interface MeadowLayout {
   /** Walk-through decoration, absent only in older saves. */
   bushes?: BushPlacement[];
   witchCircle?: WitchCirclePlacement;
+  bones?:BonePlacement[];
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -61,6 +64,7 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
   const spawn = { x: width / 2, y: height / 2 };
   const stump=generateStump(seed,spawn),clearing=stumpClearing(stump);
   const rooms=generateRooms(seed,{width,height});
+  const boneRoom=roomBounds({width,height},0);
   const ritualClearings=rooms.flatMap(room=>room.tree?[ritualTreeClearing(room.tree)]:[]);
   const logs=generateFallenLogs({width,height,seed,counts:{trees},spawn,obstacles:[],stump,rooms},
     [clearing,...ritualClearings],[]);
@@ -71,7 +75,7 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
     const obstacles: ObstaclePlacement[] = [];
     const fits = (object: ObstaclePlacement) => {
       const rect = obstacleRect(object);
-      return !overlaps(rect, spawnArea, MEADOW_GENERATION.spawnClearance) &&
+      return !overlaps(obstacleVisualRect(object),boneRoom) && !overlaps(rect, spawnArea, MEADOW_GENERATION.spawnClearance) &&
         !overlaps(obstacleVisualRect(object), spawnArea) &&
         !overlaps(obstacleVisualRect(object),clearing,8) &&
         ritualClearings.every(area=>!overlaps(obstacleVisualRect(object),area,8)) &&
@@ -100,6 +104,7 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       layout.logs=logs;
       layout.counts.logs=layout.logs.length;
       prepareWitchGrove(layout);
+      prepareSkeletonRoom(layout);
       layout.bushes=generateBushes(layout);
       layout.counts.bushes=layout.bushes.length;
       return layout;

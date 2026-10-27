@@ -18,6 +18,8 @@ import { groveInterior } from '../world/witchGrove';
 import witchArt from '../../docs/art/witch-circle-v2/sprites.json';
 import { BUSH_TRAPS } from '../data/bushTraps';
 import { bushCenter, bushTrapRoute, routeLength } from '../world/bushTrapRoutes';
+import { boneRect } from '../world/skeletonRoom';
+import boneArt from '../../docs/art/skeleton-room-v1/bones.json';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -98,7 +100,7 @@ export function isRunSave(value: unknown): value is RunSave {
     }
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
-        if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!(index===6&&room.scenario==='empty')))return false;
+        if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!([0,6].includes(index)&&room.scenario==='empty')))return false;
         if(room.scenario!=='cleansing-tree')return room.tree===undefined;
         if(!room.tree||!point(room.tree)||roomAt(s.layout,room.tree)!==index)return false;
         const r=roomBounds(s.layout,index);
@@ -155,6 +157,15 @@ export function isRunSave(value: unknown): value is RunSave {
         (!w.corpse || w.state.health === 0);
     if (!Array.isArray(s.world?.wolves) || s.world.wolves.length > 128 ||
       !s.world.wolves.every(w=>validCreature(w,['idle','walk','run','attack-up','attack-down','death'])))return false;
+    if(s.layout.bones!==undefined&&(!Array.isArray(s.layout.bones)||s.layout.bones.length<24||s.layout.bones.length>36||
+      !s.layout.bones.every(b=>{
+        if(!point(b)||!Number.isInteger(b.variant)||!boneArt.sprites[b.variant])return false;
+        const r=boneRect(b),room=roomBounds(s.layout,0);
+        return r.x>=room.x&&r.y>=room.y&&r.x+r.width<=room.x+room.width&&r.y+r.height<=room.y+room.height;
+      })))return false;
+    if(s.world.skeletons!==undefined&&(!Array.isArray(s.world.skeletons)||s.world.skeletons.length<4||s.world.skeletons.length>5||
+      !s.world.skeletons.every(e=>validCreature(e,['idle','walk','attack-down']))))return false;
+    if(s.layout.bones!==undefined&&s.world.skeletons===undefined)return false;
     const hasBear=s.layout.rooms?.[6].scenario==='bear';
     if(hasBear!==!!s.world.bear)return false;
     if(s.world.bear){

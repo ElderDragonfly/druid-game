@@ -1,0 +1,97 @@
+{
+  "source": "a8513c12928f616c41a84655e98e2aa5.jpg",
+  "exteriorOnly": true,
+  "preservesOpaqueRGB": true,
+  "sprites": [
+    {
+      "width": 110,
+      "height": 62,
+      "sourceCrop": [
+        81,
+        61,
+        191,
+        123
+      ]
+    },
+    {
+      "width": 157,
+      "height": 76,
+      "sourceCrop": [
+        170,
+        102,
+        327,
+        178
+      ]
+    },
+    {
+      "width": 218,
+      "height": 130,
+      "sourceCrop": [
+        340,
+        34,
+        558,
+        164
+      ]
+    },
+    {
+      "width": 89,
+      "height": 82,
+      "sourceCrop": [
+        68,
+        190,
+        157,
+        272
+      ]
+    },
+    {
+      "width": 151,
+      "height": 83,
+      "sourceCrop": [
+        176,
+        204,
+        327,
+        287
+      ]
+    },
+    {
+      "width": 56,
+      "height": 49,
+      "sourceCrop": [
+        360,
+        190,
+        416,
+        239
+      ]
+    },
+    {
+      "width": 76,
+      "height": 97,
+      "sourceCrop": [
+        421,
+        210,
+        497,
+        307
+      ]
+    },
+    {
+      "width": 109,
+      "height": 56,
+      "sourceCrop": [
+        503,
+        183,
+        612,
+        239
+      ]
+    },
+    {
+      "width": 55,
+      "height": 49,
+      "sourceCrop": [
+        360,
+        251,
+        415,
+        300
+      ]
+    }
+  ]
+}

@@ -42,5 +42,6 @@
     "runSpeed": 0.8,
     "damage": 1
   },
+  "skeleton": { "health": 2, "walkSpeed": 0.45, "runSpeed": 0.8, "damage": 1 },
   "bear": { "health": 5, "walkSpeed": 0.6, "runSpeed": 1, "damage": 1 }
 }

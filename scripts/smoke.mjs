@@ -1,4 +1,5 @@
 import { testStump } from './stump-smoke.mjs';
+import { testSkeletonRoom } from './skeleton-room-smoke.mjs';
 import { testBushes } from './bushes-smoke.mjs';
 import { testBushTraps } from './bush-traps-smoke.mjs';
 import { testWitchCircle } from './witch-circle-smoke.mjs';
@@ -60,6 +61,7 @@ try {
     if(world?.bushTraps)world.bushTraps.enabled=false;
     const bear=world?.bear;if(bear?.scene){bear.setActive(false).setVisible(false).setVelocity(0,0);bear.body.enable=false;bear.shadow.setVisible(false);}
     const wolves = world?.wolves ?? [];
+    for(const skeleton of world?.skeletons??[]){skeleton.setActive(false).setVisible(false).setVelocity(0,0);skeleton.body.enable=false;skeleton.shadow.setVisible(false);}
     for (const wolf of wolves)
     if (wolf?.scene) { wolf.setActive(false).setVisible(false).setVelocity(0, 0); wolf.body.enable = false; wolf.shadow.setVisible(false); }
   });
@@ -68,7 +70,7 @@ try {
     const active = game.scene.getScenes(true);
     return active.length === 1 && active[0].sys.settings.key === sceneKey &&
       (sceneKey !== 'Room' || active[0].world && active[0].physics.world.colliders.getActive().length === active[0].world.mice.length + 2 +
-        [...active[0].world.wolves,...(active[0].world.cleansing?.enemies??[]),...(active[0].world.bear?[active[0].world.bear]:[])].filter(a=>!a.dying).length * 2);
+        [...active[0].world.skeletons,...active[0].world.wolves,...(active[0].world.cleansing?.enemies??[]),...(active[0].world.bear?[active[0].world.bear]:[])].filter(a=>!a.dying).length * 2);
   }, key); if (key === 'Room') await isolateWolf(); };
   const activeScenes = () => page.evaluate(async () => {
     const { game } = await import('/src/main.ts');
@@ -700,7 +702,7 @@ try {
       obstacles: scene.world.obstacles.getChildren().map(object => ({ kind: object.getData('kind'), ...rect(object.body),
         texture: object.texture.key, frame: object.frame.name, imageBounds: { x: object.getBounds().x, y: object.getBounds().y,
           width: object.displayWidth, height: object.displayHeight } })),
-      colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,bearAlive:!!scene.world.bear&&!scene.world.bear.dying,
+      colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,skeletonCount:scene.world.skeletons.filter(s=>!s.dying).length,bearAlive:!!scene.world.bear&&!scene.world.bear.dying,
       mouseCount: scene.children.list.filter(object => object.name === 'wandering-mouse').length,
       view: { x: view.x, y: view.y, width: view.width, height: view.height },
       hudView: { x: scene.hudCamera.worldView.x, y: scene.hudCamera.worldView.y, zoom: scene.hudCamera.zoom,
@@ -760,7 +762,7 @@ try {
         body.texture === current.expectedTextures[i];
     }), 'Спрайты из каталога имеют правильный масштаб, точку опоры и физическое основание');
     ok(!current.obstacles.some(body => intersects(current.body, body)), 'Друид появляется в свободном месте');
-    ok(current.colliders === current.mouseCount + 2 + current.wolfCount * 2 + Number(current.bearAlive)*2 && current.mouseCount >= 0 && current.mouseCount <= 9,
+    ok(current.colliders === current.mouseCount + 2 + current.wolfCount * 2 + current.skeletonCount*2 + Number(current.bearAlive)*2 && current.mouseCount >= 0 && current.mouseCount <= 9,
       `0–9 мышей; деревья и столкновения всех волков: ${current.mouseCount}, ${current.colliders}`);
   };
 
@@ -1522,11 +1524,11 @@ try {
       const scene = window.__smokeGame.scene.getScene('Room');
       return { count: scene.world.mice.length, cleared: window.__oldMice.every(m => !m.scene),
         sprites: scene.children.list.filter(o => o.name === 'wandering-mouse').length,
-        colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,bearAlive:!!scene.world.bear&&!scene.world.bear.dying,
+        colliders: scene.physics.world.colliders.getActive().length, wolfCount: scene.world.wolves.length,skeletonCount:scene.world.skeletons.filter(s=>!s.dying).length,bearAlive:!!scene.world.bear&&!scene.world.bear.dying,
         speedReset: scene.player.actorState.speed === scene.player.definition.stats.speed };
     });
     ok(lifecycle.count === (seed === populationSeeds[0] ? 0 : 9) && lifecycle.sprites === lifecycle.count &&
-      lifecycle.colliders === lifecycle.count + 2 + lifecycle.wolfCount * 2 + Number(lifecycle.bearAlive)*2 && lifecycle.cleared && lifecycle.speedReset,
+      lifecycle.colliders === lifecycle.count + 2 + lifecycle.wolfCount * 2 + lifecycle.skeletonCount*2 + Number(lifecycle.bearAlive)*2 && lifecycle.cleared && lifecycle.speedReset,
       `Перезапуск с ${lifecycle.count} мышами: нет старых спрайтов/коллайдеров, характеристики героя восстановлены`);
   }
 
@@ -2053,6 +2055,7 @@ try {
   await testAcornRange(page, ok);
   await testWolfPack(page, ok);
   await testMenuSession(page, ok);
+  await testSkeletonRoom(page,ok,clickNamed,waitScene);
   ok(errors.length === 0, `Нет ошибок браузера: ${errors.join('; ')}`);
   console.log(`\nПроверок пройдено: ${passed}.`);
 } catch (error) {

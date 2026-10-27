@@ -1,8 +1,8 @@
 /** Scenario content is separate from the creatures' base combat statistics. */
 export const ROOM_GRID = { columns: 3, rows: 3 } as const;
-export type RoomScenarioId = 'empty' | 'wolves' | 'cleansing-tree' | 'bear';
+export type RoomScenarioId = 'empty' | 'wolves' | 'cleansing-tree' | 'bear' | 'skeletons';
 export const ROOM_ASSIGNMENTS: readonly RoomScenarioId[] = [
-  'empty', 'empty', 'empty',
+  'skeletons', 'empty', 'empty',
   'empty', 'empty', 'empty',
   'bear', 'cleansing-tree', 'wolves',
 ];

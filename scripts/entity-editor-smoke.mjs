@@ -113,10 +113,20 @@ try {
     return s.maxHealth===7&&s.health===6&&Math.abs(s.walkSpeed-220*2/3*.4)<.001&&Math.abs(s.runSpeed-220*2/3*.7)<.001&&b.definition.damage===0;
   });
   ok(true,'Карточка медведя сохраняет 0,4/0,7, HP с потерями, нулевой урон; текущий медведь обновляется без рестарта');
+  await choose('skeleton');
+  await game.evaluate(()=>{window.__game.scene.getScene('Room').world.skeletons[0].actorState.health=1;});
+  await fill('health',4);await fill('walkSpeed',.2);await fill('runSpeed',.6);await fill('damage',0);
+  await editor.locator('#save').click();
+  await game.waitForFunction(()=>{
+    const e=window.__game.scene.getScene('Room').world.skeletons[0],s=e.actorState;
+    return s.maxHealth===4&&s.health===3&&Math.abs(s.walkSpeed-220*2/3*.2)<.001&&
+      Math.abs(s.runSpeed-220*2/3*.6)<.001&&e.definition.damage===0;
+  });
+  ok(true,'Карточка скелета обновляет HP с потерями, скорости и урон в текущем забеге');
   baseline=await read();await choose('druid');
   const other=await context.newPage();await other.goto(`${base}/editor.html`);await other.waitForFunction(()=>document.querySelector('#status').textContent.includes('загружены'));
   ok(Number(await other.locator('[name="speed"]').inputValue())===.8,'Новая вкладка редактора читает сохранённые значения');
-  for(const id of ['druid','wolf','mouse','forestInsect','bear']) {
+  for(const id of ['druid','wolf','mouse','forestInsect','bear','skeleton']) {
     await choose(id);
     const options=await editor.locator('#animation option').evaluateAll(list=>list.map(o=>o.value));
     const directions=await editor.locator('#direction option').evaluateAll(list=>list.map(o=>o.value));

@@ -52,6 +52,7 @@ export async function testWolfPack(page,ok) {
   }),'После смерти одного волка остаются три живых и неподвижный труп с тенями; новых волков нет');
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),world=s.world,nav=world.wolves[0].behavior.navigation;
+    for(const e of world.skeletons){e.setActive(false).setVelocity(0,0);e.body.enable=false;}
     for(const w of world.wolves){w.setActive(false).setVelocity(0,0);w.body.enable=false;}
     for(const m of world.mice){m.setActive(false).setVelocity(0,0);m.body.enable=false;}
     let f;

@@ -1,0 +1,10 @@
+import b0 from '../../docs/art/skeleton-room-v1/bones-0.png';
+import b1 from '../../docs/art/skeleton-room-v1/bones-1.png';
+import b2 from '../../docs/art/skeleton-room-v1/bones-2.png';
+import b3 from '../../docs/art/skeleton-room-v1/bones-3.png';
+import b4 from '../../docs/art/skeleton-room-v1/bones-4.png';
+import b5 from '../../docs/art/skeleton-room-v1/bones-5.png';
+import b6 from '../../docs/art/skeleton-room-v1/bones-6.png';
+import b7 from '../../docs/art/skeleton-room-v1/bones-7.png';
+import b8 from '../../docs/art/skeleton-room-v1/bones-8.png';
+export const BONE_ART=[b0,b1,b2,b3,b4,b5,b6,b7,b8].map((url,i)=>({key:`forest-bones-${i}`,url}));

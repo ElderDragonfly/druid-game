@@ -83,6 +83,7 @@ export async function testWitchCircle(page,ok,click,waitScene){
   ok(await page.evaluate(()=>{
     const s=window.__smokeGame.scene.getScene('Room'),f=s.pickupFeedback;
     return f.active&&f.icon.visible&&f.shine.visible&&f.icon.texture.key==='pickup-mushroom'&&
+      Math.abs(f.icon.displayWidth-40*2/3)<.001&&
       f.icon.y+f.icon.displayHeight/2<s.player.getTopLeft().y&&Math.abs(f.icon.x-s.player.x)<1&&
       !f.icon.body&&!!(f.icon.cameraFilter&s.hudCamera.id)&&!!(f.shine.cameraFilter&s.hudCamera.id)&&
       Math.abs(f.sound.duration-.32)<.01&&window.__pickupPlayed===1;

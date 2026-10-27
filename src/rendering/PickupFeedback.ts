@@ -21,7 +21,7 @@ export class PickupFeedback {
 
   constructor(private scene:Phaser.Scene,private player:Druid){
     this.shine=scene.add.graphics().setDepth(90000).setVisible(false).setName('pickup-shine');
-    this.icon=scene.add.image(0,0,PICKUP_ART.key).setDisplaySize(40,40*152/158)
+    this.icon=scene.add.image(0,0,PICKUP_ART.key).setDisplaySize(40*2/3,40*2/3*152/158)
       .setDepth(90001).setVisible(false).setName('pickup-item');
     this.icon.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.sound=scene.sound.add(PICKUP_CHIME.key) as Sound;

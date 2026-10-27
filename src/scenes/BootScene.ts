@@ -21,6 +21,8 @@ import { ACORN_ART, prepareAcornTextures } from '../rendering/acornArt';
 import { MENU_MUSIC } from '../audio/MenuMusic';
 import { CLEANSING_TREE_ART } from '../rendering/cleansingTreeArt';
 import { INSECT_ART, prepareInsectTextures } from '../rendering/forestInsectArt';
+import { SKELETON_ART,prepareSkeletonTextures } from '../rendering/skeletonArt';
+import { BONE_ART } from '../rendering/boneArt';
 
 export class BootScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
@@ -43,7 +45,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(STUMP.texture,stump);
     this.load.image(PICKUP_ART.key,PICKUP_ART.url);
     this.load.audio(PICKUP_CHIME.key,PICKUP_CHIME.url);
-    [...CLEANSING_TREE_ART,...INSECT_ART,...BEAR_ART,...BUSH_ART,...WITCH_ART].forEach(art=>this.load.image(art.key,art.url));
+    [...CLEANSING_TREE_ART,...INSECT_ART,...BEAR_ART,...BUSH_ART,...WITCH_ART,...SKELETON_ART,...BONE_ART].forEach(art=>this.load.image(art.key,art.url));
     this.load.audio(MENU_MUSIC.key, MENU_MUSIC.urls);
     CAMP_ATMOSPHERE_ART.forEach(art => this.load.image(art.key, art.url));
     ACORN_ART.forEach(art => this.load.image(art.key, art.url));
@@ -72,6 +74,7 @@ export class BootScene extends Phaser.Scene {
     prepareMouseTextures(this);
     prepareWolfTextures(this);
     prepareInsectTextures(this);
+    prepareSkeletonTextures(this);
     prepareBearTextures(this);
     prepareBushTextures(this);
     prepareWitchTextures(this);
