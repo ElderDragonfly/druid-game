@@ -29,6 +29,8 @@ import { FOREST_INSECT } from '../data/forestInsect';
 import { PickupFeedback } from '../rendering/PickupFeedback';
 import { prepareSkeletonRoom } from '../world/skeletonRoom';
 import { SKELETON } from '../data/skeleton';
+import { FOREST_SPROUT } from '../data/forestSprout';
+import { prepareSproutRoom } from '../world/sproutRoom';
 
 export class RoomScene extends Phaser.Scene {
   player!: Druid;
@@ -124,6 +126,11 @@ export class RoomScene extends Phaser.Scene {
         rescale(state,'walkSpeed',previous.skeleton.walkSpeed,next.skeleton.walkSpeed,BASE_MOVEMENT_SPEED);
         rescale(state,'runSpeed',previous.skeleton.runSpeed,next.skeleton.runSpeed,BASE_MOVEMENT_SPEED);
         if(next.skeleton.health!==previous.skeleton.health)adjustHealth(state,next.skeleton.health);
+      }
+      for(const enemy of this.world.sprouts?.enemies??[]){
+        if(enemy.dying)continue;
+        rescale(enemy.actorState,'speed',previous.forestSprout.speed,next.forestSprout.speed,BASE_MOVEMENT_SPEED);
+        if(next.forestSprout.health!==previous.forestSprout.health)adjustHealth(enemy.actorState,next.forestSprout.health);
       }
       for (const mouse of this.world.mice) {
         rescale(mouse.actorState,'speed',previous.mouse.speed,next.mouse.speed);
@@ -248,6 +255,7 @@ export class RoomScene extends Phaser.Scene {
         ...(world.cleansing?.enemies??[]).filter(e=>e.state.health>0).map(e=>footprint(e,FOREST_INSECT.body)));
       if(world.bear&&world.bear.state.health>0)protectedActors.push(footprint(world.bear,BEAR.body));
       protectedActors.push(...(world.skeletons??[]).filter(s=>s.state.health>0).map(s=>footprint(s,SKELETON.body)));
+      protectedActors.push(...(world.sprouts?.enemies??[]).filter(s=>s.state.health>0).map(s=>footprint(s,FOREST_SPROUT.body)));
     }
     const groveChanged=prepareWitchGrove(this.layout,protectedActors);
     if (groveChanged || !this.layout.bushes || this.layout.bushes.some(bush => bush.variant!==ACTIVE_BUSH_VARIANT || !bushInSpawnRoom(this.layout, bush) ||
@@ -258,6 +266,7 @@ export class RoomScene extends Phaser.Scene {
     }
     this.layout.counts.bushes = this.layout.bushes.length;
     prepareSkeletonRoom(this.layout,protectedActors);
+    prepareSproutRoom(this.layout,protectedActors);
     // Keep generated/saved angles; mirrored log artwork is still disabled.
     this.layout.logs?.forEach(log => { log.flipX = false; });
     const { width, height, cameraRadiusX, cameraRadiusY, cameraResponseMs } = MEADOW_WORLD;
@@ -318,6 +327,7 @@ export class RoomScene extends Phaser.Scene {
     this.player.cancelCast();this.player.setVelocity(0,0);
     for(const wolf of this.world.wolves)wolf.setVelocity(0,0);
     for(const skeleton of this.world.skeletons)skeleton.setVelocity(0,0);
+    for(const enemy of this.world.sprouts?.enemies??[])enemy.setVelocity(0,0);
     for(const mouse of this.world.mice)mouse.setVelocity(0,0);
     this.world.bear?.setVelocity(0,0);
     for(const enemy of this.world.cleansing?.enemies??[])enemy.setVelocity(0,0);

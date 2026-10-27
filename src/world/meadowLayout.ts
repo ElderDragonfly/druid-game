@@ -7,6 +7,7 @@ import { overlaps, type Rect } from './geometry';
 import { generateRooms, ritualTreeClearing, type RoomPlan } from './rooms';
 import { roomBounds } from './rooms';
 import { prepareSkeletonRoom,type BonePlacement } from './skeletonRoom';
+import { prepareSproutRoom,type SproutRoomPlacement } from './sproutRoom';
 export { seededRandom } from './random';
 export { overlaps, type Rect } from './geometry';
 import { ENVIRONMENT_VARIANTS, TREE_SPAWN_POOL, environmentVariant, type EnvironmentKind } from '../data/environment';
@@ -27,6 +28,8 @@ export interface MeadowLayout {
   bushes?: BushPlacement[];
   witchCircle?: WitchCirclePlacement;
   bones?:BonePlacement[];
+  boneDecorVersion?:2;
+  sproutRoom?:SproutRoomPlacement;
 }
 
 export const MEADOW_PIXEL_SCALE = 2.5;
@@ -105,6 +108,7 @@ export function generateMeadow(seed: number, treePool: readonly string[] = TREE_
       layout.counts.logs=layout.logs.length;
       prepareWitchGrove(layout);
       prepareSkeletonRoom(layout);
+      prepareSproutRoom(layout);
       layout.bushes=generateBushes(layout);
       layout.counts.bushes=layout.bushes.length;
       return layout;

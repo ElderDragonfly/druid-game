@@ -29,8 +29,8 @@ export async function testEnemyCollisions(page,ok,waitScene) {
       s.textures.get('insect-fly').getSourceImage().width===64*8;
   }),'Новая GIF: полёт 8 кадров, атака 8, смерть 11; верхних/нижних ракурсов больше нет');
   const arena=await page.evaluate(async()=>{
-    const s=window.__smokeGame.scene.getScene('Room');s.physics.resume();s.world.cleansing.tree.completeInteraction();
-    const all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons];
+    const s=window.__smokeGame.scene.getScene('Room');s.physics.resume();s.world.sprouts.update=()=>{};s.world.cleansing.tree.completeInteraction();
+    const all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons,...s.world.sprouts.enemies];
     all.forEach(e=>{e.updateBehavior=()=>{};e.setActive(true);e.body.enable=false;e.setVelocity(0,0);});
     s.player.body.enable=false;s.world.mice.forEach(e=>e.body.enable=false);
     const {WolfNavigation}=await import('/src/world/WolfNavigation.ts');const nav=new WolfNavigation(s.layout,{width:60,height:35});
@@ -39,14 +39,15 @@ export async function testEnemyCollisions(page,ok,waitScene) {
     throw new Error('Нет открытого места для проверки столкновений');
   });
   ok(await page.evaluate(()=>{
-    const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons];
+    const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons,...s.world.sprouts.enemies];
     return s.world.enemyCollisions.group.getChildren().length===all.length&&all.every(e=>
       s.world.enemyCollisions.group.contains(e)&&e.body.collideWorldBounds&&!e.body.pushable);
   }),'В одном физическом пуле находятся начальные волки и появившиеся позже мухи; регистрация сохраняет настройки тел');
   const counts=await page.evaluate(()=>window.__smokeGame.scene.getScene('Room').world.wolves.length);
-  for(const [name,pair] of [['волк/волк',[0,1]],['муха/муха',[counts,counts+1]],['волк/муха',[0,counts]],['скелет/волк',[counts+4,0]],['скелет/скелет',[counts+4,counts+5]]])for(const axis of ['x','y']) {
+  const sproutStart=await page.evaluate(()=>{const w=window.__smokeGame.scene.getScene('Room').world;return w.wolves.length+w.cleansing.enemies.length+Number(!!w.bear)+w.skeletons.length;});
+  for(const [name,pair] of [['волк/волк',[0,1]],['муха/муха',[counts,counts+1]],['волк/муха',[0,counts]],['скелет/волк',[counts+4,0]],['скелет/скелет',[counts+4,counts+5]],['росток/волк',[sproutStart,0]],['росток/росток',[sproutStart,sproutStart+1]]])for(const axis of ['x','y']) {
     await page.evaluate(({pair,axis,arena})=>{
-      const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons];
+      const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons,...s.world.sprouts.enemies];
       all.forEach(e=>{e.body.enable=false;e.setVelocity(0,0);});
       pair.forEach((id,i)=>{const e=all[id],sign=i?1:-1;e.body.enable=true;
         e.body.reset(arena.x+(axis==='x'?sign*75:0),arena.y+(axis==='y'?sign*75:0));
@@ -54,12 +55,12 @@ export async function testEnemyCollisions(page,ok,waitScene) {
     },{pair,axis,arena});
     await page.waitForTimeout(1300);
     ok(await page.evaluate(({pair,axis})=>{
-      const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons],a=all[pair[0]].body,b=all[pair[1]].body;
+      const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons,...s.world.sprouts.enemies],a=all[pair[0]].body,b=all[pair[1]].body;
       return axis==='x'?a.right<=b.left+.01&&b.left-a.right<1:a.bottom<=b.top+.01&&b.top-a.bottom<1;
     },{pair,axis}),`Настоящая физика ${name}: встречное движение по ${axis} останавливает обоих без пересечения`);
   }
   await page.evaluate(({arena,counts})=>{
-    const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons];all.forEach(e=>{e.body.enable=false;e.setVelocity(0,0);});
+    const s=window.__smokeGame.scene.getScene('Room'),all=[...s.world.wolves,...s.world.cleansing.enemies,...(s.world.bear?[s.world.bear]:[]),...s.world.skeletons,...s.world.sprouts.enemies];all.forEach(e=>{e.body.enable=false;e.setVelocity(0,0);});
     const dead=s.world.cleansing.enemies[0],live=s.world.wolves[0];dead.body.reset(arena.x,arena.y);dead.body.enable=true;dead.behavior.restoreFlight();dead.takeDamage(2);
     live.body.enable=true;live.body.reset(arena.x-75,arena.y);live.setVelocity(100,0);
   },{arena,counts});
@@ -68,6 +69,6 @@ export async function testEnemyCollisions(page,ok,waitScene) {
     'Живой враг проходит через погибшего: труп остаётся, столкновение снято');
   const old=await page.evaluateHandle(seed=>{const s=window.__smokeGame.scene.getScene('Room'),p=s.player;window.__oldEnemyGroup=s.world.enemyCollisions.group;s.scene.restart({seed});return p;},seed);
   await page.waitForFunction(p=>window.__smokeGame.scene.getScene('Room').player!==p,old);await old.dispose();await waitScene('Room');
-  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !window.__oldEnemyGroup.scene&&s.world.enemyCollisions.group.getChildren().length===s.world.wolves.length+s.world.skeletons.length+Number(!!s.world.bear);}),
+  ok(await page.evaluate(()=>{const s=window.__smokeGame.scene.getScene('Room');return !window.__oldEnemyGroup.scene&&s.world.enemyCollisions.group.getChildren().length===s.world.wolves.length+s.world.skeletons.length+s.world.sprouts.enemies.length+Number(!!s.world.bear);}),
     'Перезапуск удаляет старый физический пул, новых врагов не дублирует');
 }

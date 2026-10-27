@@ -10,10 +10,12 @@ import { invalidateLayoutCollisionRects } from './collision';
 import { environmentVariant } from '../data/environment';
 import { stumpClearing } from './stump';
 import { logVisualRect } from './fallenLogs';
+import rockArt from '../../docs/art/sprouts-rocks-v1/art.json';
 
-export interface BonePlacement{x:number;y:number;variant:number}
+export interface BonePlacement{x:number;y:number;variant:number;kind?:'rock'}
+export const ROOM_ROCK_SCALE=.24;
 export function boneRect(p:BonePlacement){
-  const b=bones.sprites[p.variant],s=CONFIG.boneScale;
+  const b=p.kind==='rock'?rockArt.rocks[p.variant]:bones.sprites[p.variant],s=p.kind==='rock'?ROOM_ROCK_SCALE:CONFIG.boneScale;
   return {x:p.x-b.width*s/2,y:p.y-b.height*s,width:b.width*s,height:b.height*s};
 }
 /** Also upgrades an older run without changing its actors or collected items. */
@@ -41,7 +43,7 @@ export function prepareSkeletonRoom(layout:MeadowLayout,protectedActors:readonly
   layout.counts.trees=layout.obstacles.length;
   if(moving.length)invalidateLayoutCollisionRects(layout);
   if(layout.rooms)layout.rooms[CONFIG.roomId].scenario='skeletons';
-  if(layout.bones)return;
+  if(layout.bones){prepareRockDecor(layout);return;}
   const random=seededRandom(layout.seed^0x424f4e45);
   const count=CONFIG.bones.min+Math.floor(random()*(CONFIG.bones.max-CONFIG.bones.min+1));
   layout.bones=[];
@@ -51,6 +53,23 @@ export function prepareSkeletonRoom(layout:MeadowLayout,protectedActors:readonly
     if(layout.bones.every(other=>!overlaps(boneRect(p),boneRect(other),20)))layout.bones.push(p);
   }
   if(layout.bones.length!==count)throw new Error('Не удалось разместить кости');
+  prepareRockDecor(layout);
+}
+
+function prepareRockDecor(layout:MeadowLayout){
+  if(layout.boneDecorVersion===2)return;
+  const random=seededRandom(layout.seed^0x524f434b),room=roomBounds(layout,CONFIG.roomId),items=layout.bones!;
+  for(let i=2;i<items.length;i+=3){
+    const p=items[i];p.kind='rock';p.variant=Math.floor(random()*rockArt.rocks.length);
+    let placed=false;
+    for(let n=0;n<4000;n++){
+      if(n){p.x=room.x+55+random()*(room.width-110);p.y=room.y+60+random()*(room.height-120);}
+      const r=boneRect(p);
+      if(items.every((other,j)=>i===j||!overlaps(r,boneRect(other),20))){placed=true;break;}
+    }
+    if(!placed)throw new Error('Не удалось разместить камни вместо части костей');
+  }
+  layout.boneDecorVersion=2;
 }
 
 export function generateSkeletonPopulation(layout:MeadowLayout):WolfPoint[]{

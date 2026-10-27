@@ -31,7 +31,8 @@ import { EnemyCollisions } from '../physics/EnemyCollisions';
 import { BushTraps } from './BushTraps';
 import { Skeleton } from '../entities/Skeleton';
 import { SKELETON,SKELETON_ROOM } from '../data/skeleton';
-import { generateSkeletonPopulation } from './skeletonRoom';
+import { generateSkeletonPopulation,ROOM_ROCK_SCALE } from './skeletonRoom';
+import { SproutEncounter } from './SproutEncounter';
 
 export class MeadowWorld {
   readonly ritual?:StumpRitual;
@@ -42,6 +43,7 @@ export class MeadowWorld {
   readonly wolves: Wolf[] = [];
   readonly corpses: Wolf[] = [];
   readonly skeletons:Skeleton[]=[];
+  sprouts?:SproutEncounter;
   readonly enemyCollisions:EnemyCollisions;
   readonly bushes:ForestBushes;
   readonly witchCircle?:WitchCircle;
@@ -60,8 +62,8 @@ export class MeadowWorld {
     this.grass = new GrassForeground(scene, surface.raster);
     this.bushes = new ForestBushes(scene, layout.bushes ?? []);
     for(const bone of layout.bones??[]){
-      const image=scene.add.image(bone.x,bone.y,`forest-bones-${bone.variant}`).setOrigin(.5,1)
-        .setScale(SKELETON_ROOM.boneScale).setDepth(-.4).setName('forest-bones');
+      const image=scene.add.image(bone.x,bone.y,bone.kind==='rock'?`grove-rock-${bone.variant}`:`forest-bones-${bone.variant}`).setOrigin(.5,1)
+        .setScale(bone.kind==='rock'?ROOM_ROCK_SCALE:SKELETON_ROOM.boneScale).setDepth(-.4).setName('forest-bones');
       image.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);this.boneArt.push(image);
     }
     if(layout.witchCircle)this.witchCircle=new WitchCircle(scene,layout.witchCircle,saved?.witchCircle?.collected??false);
@@ -123,6 +125,8 @@ export class MeadowWorld {
     this.player = player;
     if(this.layout.witchCircle)this.bushTraps=new BushTraps(this.scene,this.layout,this.bushes,player,this.saved?.bushTraps);
     this.collider = this.scene.physics.add.collider(player, this.obstacles);
+    if(this.layout.sproutRoom)this.sprouts=new SproutEncounter(this.scene,this.layout,this.obstacles,player,this.saved?.sprouts,
+      enemy=>this.enemyCollisions.add(enemy));
     const navigation = new WolfNavigation(this.layout);
     const skeletonNavigation=new WolfNavigation(this.layout,SKELETON.body);
     (this.saved?.skeletons??generateSkeletonPopulation(this.layout)).forEach((start,index)=>{
@@ -200,6 +204,7 @@ export class MeadowWorld {
   update(delta: number) {
     if(this.player?.dead)return;
     this.mice.forEach(mouse => mouse.updateBehavior(delta));
+    this.sprouts?.update(delta);
     for(const skeleton of this.skeletons){if(this.player?.dead)break;skeleton.updateBehavior(delta);}
     for(let index=this.wolves.length-1;index>=0;index--) {
       if(this.player?.dead)break;
@@ -219,6 +224,7 @@ export class MeadowWorld {
   destroy() {
     this.bushTraps?.destroy();
     this.enemyCollisions.destroy();
+    this.sprouts?.destroy();
     this.skeletons.forEach(skeleton=>skeleton.destroy());this.skeletons.length=0;
     this.wolves.forEach(wolf=>wolf.destroy());this.wolves.length=0;
     this.corpses.forEach(wolf=>wolf.destroy());this.corpses.length=0;
@@ -239,7 +245,7 @@ export class MeadowWorld {
   }
 
   snapshot(): WorldSave {
-    return { skeletons:this.skeletons.map(s=>s.snapshot()),bushTraps:this.bushTraps?.snapshot(),witchCircle:this.witchCircle?{collected:this.witchCircle.collected}:undefined,bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
+    return { sprouts:this.sprouts?.snapshot(),skeletons:this.skeletons.map(s=>s.snapshot()),bushTraps:this.bushTraps?.snapshot(),witchCircle:this.witchCircle?{collected:this.witchCircle.collected}:undefined,bear:this.bear?.snapshot(),stump:this.ritual?{activated:this.ritual.activated}:undefined,cleansing:this.cleansing?.snapshot(), mice: this.mice.map(mouse => mouse.snapshot()),
       wolves: [...this.wolves.map(wolf => wolf.snapshot()), ...this.corpses.map(wolf => wolf.snapshot(true))] };
   }
 

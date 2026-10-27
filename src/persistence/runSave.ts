@@ -20,6 +20,8 @@ import { BUSH_TRAPS } from '../data/bushTraps';
 import { bushCenter, bushTrapRoute, routeLength } from '../world/bushTrapRoutes';
 import { boneRect } from '../world/skeletonRoom';
 import boneArt from '../../docs/art/skeleton-room-v1/bones.json';
+import sproutArt from '../../docs/art/sprouts-rocks-v1/art.json';
+import { FOREST_SPROUT } from '../data/forestSprout';
 
 export const RUN_SAVE_KEY = 'druid-game.run.v1';
 let sessionSave: RunSave | null = null;
@@ -100,7 +102,7 @@ export function isRunSave(value: unknown): value is RunSave {
     }
     if(s.layout.rooms!==undefined) {
       if(!Array.isArray(s.layout.rooms)||s.layout.rooms.length!==9||!s.layout.rooms.every((room,index)=>{
-        if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!([0,6].includes(index)&&room.scenario==='empty')))return false;
+        if(room.id!==index||(room.scenario!==ROOM_ASSIGNMENTS[index]&&!([0,1,6].includes(index)&&room.scenario==='empty')))return false;
         if(room.scenario!=='cleansing-tree')return room.tree===undefined;
         if(!room.tree||!point(room.tree)||roomAt(s.layout,room.tree)!==index)return false;
         const r=roomBounds(s.layout,index);
@@ -159,13 +161,40 @@ export function isRunSave(value: unknown): value is RunSave {
       !s.world.wolves.every(w=>validCreature(w,['idle','walk','run','attack-up','attack-down','death'])))return false;
     if(s.layout.bones!==undefined&&(!Array.isArray(s.layout.bones)||s.layout.bones.length<24||s.layout.bones.length>36||
       !s.layout.bones.every(b=>{
-        if(!point(b)||!Number.isInteger(b.variant)||!boneArt.sprites[b.variant])return false;
+        if(!point(b)||!Number.isInteger(b.variant)||(b.kind!==undefined&&b.kind!=='rock')||
+          !(b.kind==='rock'?sproutArt.rocks:boneArt.sprites)[b.variant])return false;
         const r=boneRect(b),room=roomBounds(s.layout,0);
         return r.x>=room.x&&r.y>=room.y&&r.x+r.width<=room.x+room.width&&r.y+r.height<=room.y+room.height;
       })))return false;
     if(s.world.skeletons!==undefined&&(!Array.isArray(s.world.skeletons)||s.world.skeletons.length<4||s.world.skeletons.length>5||
       !s.world.skeletons.every(e=>validCreature(e,['idle','walk','attack-down']))))return false;
     if(s.layout.bones!==undefined&&s.world.skeletons===undefined)return false;
+    if(s.layout.boneDecorVersion!==undefined&&s.layout.boneDecorVersion!==2)return false;
+    if(s.layout.sproutRoom!==undefined){
+      const r=s.layout.sproutRoom,bounds=roomBounds(s.layout,1);
+      if(!r||!Array.isArray(r.enemies)||r.enemies.length!==FOREST_SPROUT.count||
+        !r.enemies.every(e=>point(e)&&roomAt(s.layout,e)===1&&Number.isInteger(e.variant)&&!!sproutArt.sprouts[e.variant])||
+        !Array.isArray(r.bushes)||r.bushes.length<24||r.bushes.length>36||!r.bushes.every(b=>{
+          if(!point(b)||!Number.isInteger(b.variant)||!BUSHES[b.variant])return false;
+          const rect=bushVisualRect(b);return rect.x>=bounds.x&&rect.y>=bounds.y&&rect.x+rect.width<=bounds.x+bounds.width&&rect.y+rect.height<=bounds.y+bounds.height;
+        })||!s.world.sprouts)return false;
+    }
+    if(s.world.sprouts!==undefined){
+      const c=s.world.sprouts;
+      if(!s.layout.sproutRoom||!c||!flag(c.released)||!Array.isArray(c.enemies)||c.enemies.length!==6||
+        !c.enemies.every((e,i)=>{
+          const t=e.state;
+          return point(e)&&e.variant===s.layout.sproutRoom!.enemies[i].variant&&!!t&&
+            Number.isInteger(t.health)&&Number.isInteger(t.maxHealth)&&t.maxHealth>=1&&t.maxHealth<=10000&&t.health>=0&&t.health<=t.maxHealth&&
+            ['buried','emerging','waiting','seeking','waking','chase','windup','leap','recovery','dead'].includes(t.phase)&&
+            (t.phase==='dead')===(t.health===0)&&[t.elapsed,t.hopDistance,t.speed].every(nonnegative)&&
+            flag(t.hasWokenOne)&&flag(t.attackConnected)&&point(t.leapTarget)&&
+            (t.target===null||(Number.isInteger(t.target)&&t.target>=0&&t.target<6&&t.target!==i))&&
+            (!['seeking','waking'].includes(t.phase)||t.target!==null)&&
+            (!c.released||!['buried','emerging','seeking','waking'].includes(t.phase))&&
+            (c.released||!['chase','windup','leap','recovery'].includes(t.phase));
+        }))return false;
+    }
     const hasBear=s.layout.rooms?.[6].scenario==='bear';
     if(hasBear!==!!s.world.bear)return false;
     if(s.world.bear){

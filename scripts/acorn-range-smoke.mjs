@@ -32,6 +32,7 @@ export async function testAcornRange(page,ok) {
   await page.evaluate(async()=>{
     const s=window.__smokeGame.scene.getScene('Room'),p=s.player;
     for(const tree of s.world.obstacles.getChildren())tree.body.enable=false;
+    for(const e of s.world.sprouts.enemies){e.setActive(false).setVelocity(0,0);e.body.enable=false;e.image.setVisible(false);e.shadow.setVisible(false);}
     for(const e of s.world.skeletons){e.setActive(false).setVelocity(0,0);e.body.enable=false;}
     for(const m of s.world.mice){m.setActive(false).setVelocity(0,0);m.body.enable=false;}
     const{AcornAttack}=await import('/src/world/AcornAttack.ts');

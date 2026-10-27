@@ -1,0 +1,146 @@
+{
+  "exteriorOnly": true,
+  "preservesOpaqueRGB": true,
+  "rocks": [
+    {
+      "sourceCrop": [
+        140,
+        168,
+        311,
+        310
+      ],
+      "width": 171,
+      "height": 142
+    },
+    {
+      "sourceCrop": [
+        344,
+        175,
+        542,
+        311
+      ],
+      "width": 198,
+      "height": 136
+    },
+    {
+      "sourceCrop": [
+        562,
+        126,
+        782,
+        324
+      ],
+      "width": 220,
+      "height": 198
+    },
+    {
+      "sourceCrop": [
+        154,
+        344,
+        296,
+        542
+      ],
+      "width": 142,
+      "height": 198
+    },
+    {
+      "sourceCrop": [
+        351,
+        371,
+        535,
+        521
+      ],
+      "width": 184,
+      "height": 150
+    },
+    {
+      "sourceCrop": [
+        568,
+        358,
+        781,
+        542
+      ],
+      "width": 213,
+      "height": 184
+    },
+    {
+      "sourceCrop": [
+        119,
+        569,
+        331,
+        774
+      ],
+      "width": 212,
+      "height": 205
+    },
+    {
+      "sourceCrop": [
+        357,
+        611,
+        549,
+        753
+      ],
+      "width": 192,
+      "height": 142
+    },
+    {
+      "sourceCrop": [
+        576,
+        583,
+        774,
+        774
+      ],
+      "width": 198,
+      "height": 191
+    }
+  ],
+  "sprouts": [
+    {
+      "sourceCrop": [
+        26,
+        69,
+        240,
+        345
+      ],
+      "width": 214,
+      "height": 276,
+      "plantBaseY": 210,
+      "scale": 0.29906542056074764
+    },
+    {
+      "sourceCrop": [
+        287,
+        181,
+        399,
+        345
+      ],
+      "width": 112,
+      "height": 164,
+      "plantBaseY": 77,
+      "scale": 0.39285714285714285
+    },
+    {
+      "sourceCrop": [
+        441,
+        160,
+        553,
+        345
+      ],
+      "width": 112,
+      "height": 185,
+      "plantBaseY": 99,
+      "scale": 0.39285714285714285
+    },
+    {
+      "sourceCrop": [
+        594,
+        230,
+        707,
+        346
+      ],
+      "width": 113,
+      "height": 116,
+      "plantBaseY": 70,
+      "scale": 0.3893805309734513
+    }
+  ]
+}

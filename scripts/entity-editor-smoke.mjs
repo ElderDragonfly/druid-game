@@ -123,10 +123,16 @@ try {
       Math.abs(s.runSpeed-220*2/3*.6)<.001&&e.definition.damage===0;
   });
   ok(true,'Карточка скелета обновляет HP с потерями, скорости и урон в текущем забеге');
+  await choose('forestSprout');await fill('health',2);await fill('speed',.6);await fill('damage',0);
+  await editor.locator('#save').click();
+  await game.waitForFunction(()=>window.__game.scene.getScene('Room').world.sprouts.enemies.every(e=>
+    e.actorState.maxHealth===2&&e.actorState.health===2&&Math.abs(e.actorState.speed-220*2/3*.6)<.001));
+  ok(await game.evaluate(async()=>{const{FOREST_SPROUT}=await import('/src/data/forestSprout.ts');return FOREST_SPROUT.damage===0;}),
+    'Карточка ростка меняет HP, скорость и урон во время забега, не пробуждая спящих');
   baseline=await read();await choose('druid');
   const other=await context.newPage();await other.goto(`${base}/editor.html`);await other.waitForFunction(()=>document.querySelector('#status').textContent.includes('загружены'));
   ok(Number(await other.locator('[name="speed"]').inputValue())===.8,'Новая вкладка редактора читает сохранённые значения');
-  for(const id of ['druid','wolf','mouse','forestInsect','bear','skeleton']) {
+  for(const id of ['druid','wolf','mouse','forestInsect','bear','skeleton','forestSprout']) {
     await choose(id);
     const options=await editor.locator('#animation option').evaluateAll(list=>list.map(o=>o.value));
     const directions=await editor.locator('#direction option').evaluateAll(list=>list.map(o=>o.value));

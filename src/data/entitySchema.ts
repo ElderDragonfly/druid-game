@@ -1,7 +1,7 @@
 import type defaults from './entities.json';
 
 export type EntityData = typeof defaults;
-export type EntityId = 'druid' | 'wolf' | 'mouse' | 'forestInsect' | 'bear' | 'skeleton';
+export type EntityId = 'druid' | 'wolf' | 'mouse' | 'forestInsect' | 'bear' | 'skeleton' | 'forestSprout';
 export interface EntityField {
   entity: EntityId; path: string; label: string; group: string;
   min: number; max: number; step: number; unit: string; help: string; integer?: boolean;
@@ -33,6 +33,9 @@ field('skeleton','health','Максимум здоровья','Характер�
 field('skeleton','walkSpeed','Скорость прогулки','Характеристики',0,4,.1,'×','1 = 146⅔ единиц/с; темп шагов следует пройденной дистанции.');
 field('skeleton','runSpeed','Скорость погони','Характеристики',0,4,.1,'×','1 = базовая скорость друида.');
 field('skeleton','damage','Урон удара','Атака',0,10,1,'HP','Одно попадание на активной фазе взмаха.',true);
+field('forestSprout','health','Максимум здоровья','Характеристики',1,100,1,'HP','Спящий росток сначала пробуждается без урона. После появления получает обычный урон.',true);
+field('forestSprout','speed','Скорость перемещения','Характеристики',0,4,.1,'×','1 = 146⅔ единиц/с. Подскоки следуют пройденной дистанции.');
+field('forestSprout','damage','Урон прыжка','Атака',0,10,1,'HP','Одно попадание телом за прыжок, только после пробуждения всей группы.',true);
 for (const entity of ['wolf', 'mouse'] as const) {
   const help=entity==='wolf'?'Свободная популяция для старых забегов. В новых комнатах количество задаёт сценарий: 3–4 волка в нижней правой.':'Случайное число на всю локацию, без квот по экранам. Только при новой генерации.';
   field(entity, 'population.min', 'Минимальное количество', 'Генерация · новая поляна', 0, entity === 'wolf' ? 32 : 24, 1, 'шт.', help, true);

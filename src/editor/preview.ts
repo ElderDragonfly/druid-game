@@ -12,6 +12,7 @@ import { BASE_MOVEMENT_SPEED } from '../data/movement';
 import type { EntityData, EntityId } from '../data/entitySchema';
 import { INSECT_ART, INSECT_METRICS, insectDurations, type InsectAnimation } from '../rendering/forestInsectArt';
 import { SKELETON_ART,SKELETON_METRICS,skeletonDurations,type SkeletonAnimation } from '../rendering/skeletonArt';
+import { SPROUT_ART,PLANT_ART } from '../rendering/sproutRockArt';
 
 export const DIRECTIONS = FACINGS;
 export const ANIMATIONS: Record<EntityId, [string, string][]> = {
@@ -21,6 +22,7 @@ export const ANIMATIONS: Record<EntityId, [string, string][]> = {
   bear:[['sleep','Спит'],['wake','Просыпается'],['walk','Ходьба'],['run','Бег'],['swipe','Удар лапой'],['bite','Укус'],['slam','Две лапы']],
   forestInsect:[['idle','Парит'],['run','Преследование'],['attack','Атака'],['death','Смерть']],
   skeleton:[['idle','Стоит'],['walk','Прогулка'],['run','Погоня'],['attack','Удар']],
+  forestSprout:[['idle','Проснувшийся'],['buried','Закопан']],
 };
 const idleKeys: Record<Facing, string> = { down: 'druid-game-source', up: 'druid-back-source', left: 'druid-left-source', right: 'druid-right-source',
   'up-left': 'druid-up-left-source', 'up-right': 'druid-up-right-source', 'down-left': 'druid-down-left-source', 'down-right': 'druid-down-right-source' };
@@ -44,6 +46,10 @@ export class SpritePreview {
   }
   private sheet(data: EntityData): Sheet {
     const direction = this.direction;
+    if(this.entity==='forestSprout'){
+      const a=(this.animation==='buried'?PLANT_ART:SPROUT_ART)[1],m=a.metrics;
+      return {url:a.url,width:m.width,height:m.height,footY:this.animation==='buried'?m.plantBaseY:m.height-1,scale:1.6,durations:[1000]};
+    }
     if (this.entity === 'druid') {
       const base = { width: 256, height: 320, durations: [1000], footY: 300, scale: .9 };
       if (this.animation === 'walk') return { ...base, url: DRUID_ART.find(a => a.key === `druid-walk-${direction}-source`)!.url,
