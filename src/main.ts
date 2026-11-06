@@ -1,22 +1,13 @@
-import Phaser from 'phaser';
-import { RoomScene } from './scenes/RoomScene';
-import { SETTINGS } from './settings';
-import { BootScene } from './scenes/BootScene';
-import { MainMenuScene } from './scenes/MainMenuScene';
-import { CharacterSelectScene } from './scenes/CharacterSelectScene';
-import { SettingsScene } from './scenes/SettingsScene';
+import { createLegacyGame } from './legacyGame';
+import { createPathwaysGame } from './pathways/createGame';
 import './style.css';
 
-export const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: SETTINGS.width,
-  height: SETTINGS.height,
-  backgroundColor: '#17241f',
-  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
-  physics: { default: 'arcade', arcade: { debug: false } },
-  scene: [BootScene, MainMenuScene, CharacterSelectScene, SettingsScene, RoomScene],
-});
+// Explicit modes let both prototypes run side by side from the same checkout.
+// The existing regression server uses the original game in development mode.
+const pathways = import.meta.env.MODE === 'pathways';
+document.title = pathways ? 'Друид — лесные тропы' : 'Друид — лесной лагерь';
+if (pathways) document.getElementById('game')?.setAttribute('aria-label', 'Пробная лесная поляна: WASD — движение; выход на следующую поляну сверху');
+export const game = pathways ? createPathwaysGame() : createLegacyGame();
 
 // Vite заменяет старый экземпляр игры при обновлении исходников.
 if (import.meta.hot) import.meta.hot.dispose(() => game.destroy(true));

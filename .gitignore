@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-old/
 .npm-cache/
 test-results/
 *.log
